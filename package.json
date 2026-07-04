@@ -1,0 +1,6 @@
+{
+  "name": "lancamento-promotores",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Site + API de lancamento de promotores, gravando direto no Excel do SharePoint via Microsoft Graph API. Deploy no Vercel (gratuito)."
+}
