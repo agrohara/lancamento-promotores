@@ -3,22 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>Lançamento de Promotores</title>
+<title>Agro Hara · Lançamento de Promotores</title>
 <style>
   :root{
-    --azul:#1f4e78;
-    --azul-claro:#2e6da4;
-    --cinza-fundo:#f4f6f8;
-    --cinza-borda:#d9dee3;
-    --texto:#22303c;
-    --verde:#2e7d32;
+    --azul:#3d8b28;
+    --azul-claro:#4fa738;
+    --verde-escuro:#1f4d2e;
+    --cinza-fundo:#f4f7f3;
+    --cinza-borda:#d9e3d9;
+    --texto:#22301f;
+    --verde:#3d8b28;
     --vermelho:#c0392b;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--cinza-fundo);color:var(--texto);}
-  header{background:var(--azul);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
-  header h1{font-size:18px;margin:0;font-weight:600;}
-  header .quem{font-size:13px;opacity:.85;}
+  header{background:var(--azul);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,.12);}
+  header h1{font-size:18px;margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.3px;}
+  header .marca{display:flex;align-items:center;gap:8px;}
+  header .quem{font-size:13px;opacity:.9;font-weight:600;}
   .container{max-width:760px;margin:0 auto;padding:16px;}
   .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px;}
   label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#44525c;}
@@ -27,12 +29,12 @@
     border-radius:8px;margin-bottom:16px;background:#fff;color:var(--texto);
   }
   select:focus, input:focus{outline:none;border-color:var(--azul-claro);}
-  .btn{display:inline-block;width:100%;padding:14px;font-size:16px;font-weight:600;border:none;
-    border-radius:10px;cursor:pointer;background:var(--azul);color:#fff;transition:background .15s;}
-  .btn:hover{background:var(--azul-claro);}
-  .btn:disabled{background:#9aa7b0;cursor:not-allowed;}
-  .btn-secundario{background:#fff;color:var(--azul);border:1px solid var(--azul);}
-  .btn-secundario:hover{background:#eef4fa;}
+  .btn{display:inline-block;width:100%;padding:14px;font-size:15px;font-weight:700;border:2px solid var(--azul);
+    border-radius:24px;cursor:pointer;background:var(--azul);color:#fff;transition:background .15s;text-transform:uppercase;letter-spacing:.3px;}
+  .btn:hover{background:var(--verde-escuro);border-color:var(--verde-escuro);}
+  .btn:disabled{background:#9aa7b0;border-color:#9aa7b0;cursor:not-allowed;}
+  .btn-secundario{background:#fff;color:var(--azul);border:2px solid var(--azul);}
+  .btn-secundario:hover{background:#eef7ec;}
   .oculto{display:none !important;}
   .barra-busca{position:sticky;top:0;background:var(--cinza-fundo);padding:8px 0;z-index:5;}
   .linha-cliente{
@@ -56,8 +58,8 @@
   .msg{padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;}
   .msg-erro{background:#fdecea;color:var(--vermelho);border:1px solid #f5c6c0;}
   .msg-sucesso{background:#eaf6ec;color:var(--verde);border:1px solid #bfe3c4;}
-  .msg-info{background:#eaf2fb;color:var(--azul);border:1px solid #cfe0f3;}
-  footer{text-align:center;font-size:11px;color:#8a97a1;padding:20px 0 40px;}
+  .msg-info{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;}
+  footer{text-align:center;font-size:11px;color:#6e7d6e;padding:20px 0 40px;}
   .overlay-carregando{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;
     justify-content:center;font-size:15px;color:var(--azul);font-weight:600;z-index:50;}
   .contador{font-size:13px;color:#5b6771;margin:-6px 0 12px;}
@@ -66,7 +68,13 @@
 <body>
 
 <header>
-  <h1>Lançamento de Promotores</h1>
+  <div class="marca">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2C9 6 5 8 5 13a7 7 0 0 0 14 0c0-5-4-7-7-11z" fill="#ffffff"/>
+      <path d="M12 6.5C10.3 9 8 10.3 8 13.2A4 4 0 0 0 12 17V6.5z" fill="#3d8b28"/>
+    </svg>
+    <h1>Agro Hara · Lançamento de Promotores</h1>
+  </div>
   <div class="quem" id="cabecalhoPromotor"></div>
 </header>
 
@@ -89,7 +97,7 @@
   <!-- TELA 2: LANÇAMENTO -->
   <section id="telaLancamento" class="oculto">
     <div class="resumo">
-      <span>Data: <b id="resumoData"></b></span>
+      <span>Data: <b id="resumoData"></b> · Quinzena: <b id="resumoQuinzena"></b></span>
       <button class="btn btn-secundario" style="width:auto;padding:8px 14px;font-size:13px;" id="btnTrocar">Trocar</button>
     </div>
 
@@ -109,19 +117,35 @@
 
 </div>
 
-<footer>Uso interno · Agro Hara</footer>
+<footer>Agro Hara · Soluções agropecuárias com ética e sustentabilidade · Uso interno</footer>
 <div id="overlayCarregando" class="overlay-carregando oculto">Enviando...</div>
 
 <script>
+/* =========================================================================
+   CONFIGURAÇÃO — a URL_API é relativa porque o site e a API ficam no MESMO
+   projeto Vercel (mesmo domínio). Só é preciso preencher a API_KEY, que deve
+   ser IGUAL à variável de ambiente API_KEY configurada no projeto Vercel.
+   ========================================================================= */
 const CONFIG = {
   URL_API: "/api/lancamentos",
   API_KEY: "Marcelo9955@"
 };
 
+/* Lista de promotores e clientes vinculados — atualize aqui quando a carteira mudar. */
 const PROMOTOR_CLIENTE = [{"Promotor": "AROLDO", "Cliente": "CASA RURAL AGROPECUARIA LOANDA LTDA"}, {"Promotor": "AROLDO", "Cliente": "EPA PIRES & PIRES LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRACIOSA AGROPECUARIA LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRUPO POMARO"}, {"Promotor": "AROLDO", "Cliente": "GRUPO VIUDES"}, {"Promotor": "AROLDO", "Cliente": "Projeto Lançamentos - AGD's - AROLDO"}, {"Promotor": "EMILY", "Cliente": "CLEISO CELLA & CIA LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "COASUL COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "EMILY", "Cliente": "COMERCIAL AGROVETERINARIA MALYS LTDA"}, {"Promotor": "EMILY", "Cliente": "H P AGRONUTRI COMERCIO E REPRESENTAÇÃO LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "Projeto Lançamentos - AGD's - EMILY"}, {"Promotor": "GABRIEL", "Cliente": "COOPERATIVA AGRICOLA MISTA SAO CRISTOVAO LTDA"}, {"Promotor": "GABRIEL", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL"}, {"Promotor": "GABRIEL", "Cliente": "VALE NUTRICAO E SAUDE ANIMAL LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "BOFF & BOFF LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "CARLOS ROBERTO BUENO & CIA LTDA - ME"}, {"Promotor": "GABRIEL S", "Cliente": "COAGRO COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GABRIEL S", "Cliente": "COOPERATIVA DE LEITE DA AGRICULTURA FAMILIAR DE SALTO DO LONTRA"}, {"Promotor": "GABRIEL S", "Cliente": "D. C. DE LIMA AGROCENTER EIRELI"}, {"Promotor": "GABRIEL S", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL S"}, {"Promotor": "GIANCARLO", "Cliente": "COOPERATIVA DE DESENVOLVIMENTO E PRODUCAO AGROPECUARIA - CODEPA"}, {"Promotor": "GIANCARLO", "Cliente": "GRUPO PASQUALOTO"}, {"Promotor": "GIANCARLO", "Cliente": "MARTINS DISTRIBUIDORA DE PRODUTOS AGROPECUARIOS LTDA - ME"}, {"Promotor": "GIANCARLO", "Cliente": "Projeto Lançamentos - AGD's - GIANCARLO"}, {"Promotor": "JOAO TALES", "Cliente": "AGRO-MANICA COMERCIO E REPRESENTACOES DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "AGROPECUARIA APOEMA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "COAMIG AGROINDUSTRIAL COOPERATIVA"}, {"Promotor": "JOAO TALES", "Cliente": "D L DA SILVA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "FEMAGRI COMERCIO DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "GRUPO SIMIONATO"}, {"Promotor": "JOAO TALES", "Cliente": "Projeto Lançamentos - AGD's - JOAO TALES"}, {"Promotor": "KAUANA", "Cliente": "Projeto Lançamentos - AGD's - KAUANA"}, {"Promotor": "LEONARDO", "Cliente": "COAGRU COOPERATIVA AGROINDUSTRIAL UNIAO"}, {"Promotor": "LEONARDO", "Cliente": "KATUAGRO COMERCIO DE PRODUTOS AGROPECUARIOS LTDA - EPP"}, {"Promotor": "LEONARDO", "Cliente": "P BODNAR AGROPECUARIA - ME"}, {"Promotor": "LEONARDO", "Cliente": "Projeto Lançamentos - AGD's - LEONARDO"}, {"Promotor": "LEONARDO", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LUCAS", "Cliente": "COCARI - COOPERATIVA AGROPECUARIA E INDUSTRIAL"}, {"Promotor": "LUCAS", "Cliente": "COMERCIAL IBAITI"}, {"Promotor": "LUCAS", "Cliente": "GRUPO AGROCAMPO"}, {"Promotor": "LUCAS", "Cliente": "Projeto Lançamentos - AGD's - LUCAS"}, {"Promotor": "LUCAS", "Cliente": "RURAL NORTE DISTRIBUIDORA DE INSUMOS AGRICOLAS LTDA"}, {"Promotor": "LUCAS", "Cliente": "SOLUCAO PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "MARIANA", "Cliente": "AGRO PECUARIA ALIANCA LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ARROBA NUTRICAO ANIMAL LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ASSOCIACAO DOS PRODUTORES DE LEITE DE PEROLA - APEROLEITE"}, {"Promotor": "MARIANA", "Cliente": "COOPERATIVA DOS PRODUTORES DE LEITE DO TERRITORIO ENTRE RIOS - COOPELE"}, {"Promotor": "MARIANA", "Cliente": "FABRICIO G. RAZENTE & CIA. LTDA."}, {"Promotor": "MARIANA", "Cliente": "Projeto Lançamentos - AGD's - MARIANA"}, {"Promotor": "PEDRO", "Cliente": "FELIPE MENEGAS ME"}, {"Promotor": "PEDRO", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "PEDRO", "Cliente": "GRUPO GALERA"}, {"Promotor": "PEDRO", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "PEDRO", "Cliente": "Projeto Lançamentos - AGD's - PEDRO"}, {"Promotor": "PEDRO", "Cliente": "SIMIONATTO & SANSIGOLO LTDA"}, {"Promotor": "PEDRO", "Cliente": "TERRAGRZ COMERCIO DE PRODUTOS AGROPECUARIOS EIRELLE- ME"}, {"Promotor": "PEDRO", "Cliente": "VICTOR LUIZ ZAGO ME"}];
 
 let promotorAtual = null;
 let dataAtual = null;
+let quinzenaAtual = null;
+
+const NOMES_MES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+
+function calcularQuinzena(dataISO){
+  const [ano, mes, dia] = dataISO.split("-").map(Number);
+  const numero = dia <= 15 ? "1ª" : "2ª";
+  const nomeMes = NOMES_MES[mes-1];
+  return `${numero} quinzena de ${nomeMes}/${ano}`;
+}
 
 function hojeISO(){
   const d = new Date();
@@ -158,9 +182,11 @@ document.getElementById("btnEntrar").addEventListener("click", ()=>{
 
   promotorAtual = promotor;
   dataAtual = data;
+  quinzenaAtual = calcularQuinzena(data);
 
   document.getElementById("cabecalhoPromotor").textContent = promotor;
   document.getElementById("resumoData").textContent = formatarDataBR(data);
+  document.getElementById("resumoQuinzena").textContent = quinzenaAtual;
 
   renderizarClientes(PROMOTOR_CLIENTE.filter(p=>p.Promotor === promotor));
 
@@ -248,7 +274,8 @@ document.getElementById("btnEnviar").addEventListener("click", async ()=>{
       Nome_Promotor: promotorAtual,
       Nome_Cliente: linha.getAttribute("data-cliente"),
       Dia_Lancamento: dataAtual,
-      Valor_Faturamento: valor
+      Valor_Faturamento: valor,
+      Quinzena: quinzenaAtual
     });
   });
 
