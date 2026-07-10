@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Agro Hara · Lançamento de Promotores</title>
+<style>
+  :root{
+    --azul:#3d8b28;
+    --azul-claro:#4fa738;
+    --verde-escuro:#1f4d2e;
+    --cinza-fundo:#f4f7f3;
+    --cinza-borda:#d9e3d9;
+    --texto:#22301f;
+    --verde:#3d8b28;
+    --vermelho:#c0392b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--cinza-fundo);color:var(--texto);}
+  header{background:var(--azul);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 6px rgba(0,0,0,.12);flex-wrap:wrap;gap:8px;}
+  header h1{font-size:16px;margin:0;font-weight:800;text-transform:uppercase;letter-spacing:.3px;}
+  header .marca{display:flex;align-items:center;gap:8px;}
+  header .quem{font-size:13px;opacity:.9;font-weight:600;}
+  .container{max-width:760px;margin:0 auto;padding:16px;}
+  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px;position:relative;}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#44525c;}
+  select, input[type=text], input[type=date], input[type=number], textarea{
+    width:100%;padding:12px 10px;font-size:16px;border:1px solid var(--cinza-borda);
+    border-radius:8px;margin-bottom:16px;background:#fff;color:var(--texto);font-family:inherit;resize:vertical;
+  }
+  select:focus, input:focus, textarea:focus{outline:none;border-color:var(--azul-claro);}
+  .btn{display:inline-block;width:100%;padding:14px;font-size:15px;font-weight:700;border:2px solid var(--azul);
+    border-radius:24px;cursor:pointer;background:var(--azul);color:#fff;transition:background .15s;text-transform:uppercase;letter-spacing:.3px;}
+  .btn:hover{background:var(--verde-escuro);border-color:var(--verde-escuro);}
+  .btn:disabled{background:#9aa7b0;border-color:#9aa7b0;cursor:not-allowed;}
+  .btn-secundario{background:#fff;color:var(--azul);border:2px solid var(--azul);}
+  .btn-secundario:hover{background:#eef7ec;}
+  .btn-linha{display:flex;gap:10px;}
+  .btn-linha .btn{width:auto;flex:1;}
+  .oculto{display:none !important;}
+  .resumo{display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:10px;
+    padding:12px 16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:13px;flex-wrap:wrap;gap:10px;}
+  .resumo b{font-size:14px;color:var(--azul);}
+  .resumo-botoes{display:flex;gap:8px;flex-wrap:wrap;}
+  .resumo-botoes .btn{width:auto;padding:8px 14px;font-size:12px;}
+  .msg{padding:12px 14px;border-radius:8px;font-size:14px;margin-bottom:14px;}
+  .msg-erro{background:#fdecea;color:var(--vermelho);border:1px solid #f5c6c0;}
+  .msg-sucesso{background:#eaf6ec;color:var(--verde);border:1px solid #bfe3c4;}
+  .msg-info{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;}
+  footer{text-align:center;font-size:11px;color:#6e7d6e;padding:20px 0 40px;}
+  .overlay-carregando{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;
+    justify-content:center;font-size:15px;color:var(--azul);font-weight:600;z-index:50;}
+  .contador{font-size:13px;color:#5b6771;margin:-6px 0 12px;}
+
+  .sugestoes{position:absolute;left:20px;right:20px;top:auto;background:#fff;border:1px solid var(--cinza-borda);
+    border-radius:10px;box-shadow:0 6px 16px rgba(0,0,0,.15);max-height:260px;overflow-y:auto;z-index:20;margin-top:-10px;}
+  .sugestao-item{padding:10px 14px;font-size:14px;cursor:pointer;border-bottom:1px solid #f0f2f0;display:flex;justify-content:space-between;gap:8px;align-items:center;}
+  .sugestao-item:last-child{border-bottom:none;}
+  .sugestao-item:hover{background:#eef7ec;}
+  .sugestao-vazia{padding:12px 14px;font-size:13px;color:#8a9690;}
+  .unidade-tag{font-size:11px;background:var(--cinza-fundo);color:#5b6771;border-radius:6px;padding:2px 6px;flex:0 0 auto;}
+
+  .produto-chip{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;border-radius:8px;
+    padding:10px 12px;font-size:14px;font-weight:600;margin-bottom:14px;}
+  .total-linha{background:var(--cinza-fundo);border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:14px;}
+  .total-linha b{color:var(--azul);font-size:16px;}
+
+  .item-carrinho{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:10px 12px;
+    margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .item-carrinho-info{font-size:13px;line-height:1.4;}
+  .item-carrinho-detalhe{color:#5b6771;}
+  .btn-remover{background:#fdecea;color:var(--vermelho);border:1px solid #f5c6c0;border-radius:8px;
+    width:32px;height:32px;flex:0 0 32px;font-size:18px;cursor:pointer;line-height:1;}
+  .btn-remover:hover{background:#f8d7d2;}
+
+  .subtitulo{font-size:12px;font-weight:700;color:#5b6771;text-transform:uppercase;letter-spacing:.4px;margin:0 0 12px;}
+
+  .progresso-etapas{display:flex;gap:6px;margin-bottom:16px;}
+  .progresso-etapas .ponto{flex:1;height:5px;border-radius:3px;background:var(--cinza-borda);}
+  .progresso-etapas .ponto.ativo{background:var(--azul);}
+
+  .botoes-tipo{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+  .botao-tipo{padding:10px 16px;border-radius:20px;border:2px solid var(--cinza-borda);background:#fff;
+    color:var(--texto);font-size:14px;font-weight:600;cursor:pointer;}
+  .botao-tipo.selecionado{border-color:var(--azul);background:var(--azul);color:#fff;}
+
+  .grid-numeros{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
+  .grid-numeros .campo-numero{margin-bottom:2px;}
+  .campo-numero input[type=number]{margin-bottom:14px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2C9 6 5 8 5 13a7 7 0 0 0 14 0c0-5-4-7-7-11z" fill="#ffffff"/>
+      <path d="M12 6.5C10.3 9 8 10.3 8 13.2A4 4 0 0 0 12 17V6.5z" fill="#3d8b28"/>
+    </svg>
+    <h1>Agro Hara · Lançamento de Promotores</h1>
+  </div>
+  <div class="quem" id="cabecalhoPromotor"></div>
+</header>
+
+<div class="container">
+
+  <!-- TELA 1: ACESSO -->
+  <section id="telaAcesso" class="card">
+    <div id="msgAcesso"></div>
+    <label for="selectPromotor">Selecione seu nome</label>
+    <select id="selectPromotor">
+      <option value="">Selecione...</option>
+    </select>
+
+    <label for="inputData">Data do lançamento</label>
+    <input type="date" id="inputData">
+
+    <button class="btn" id="btnEntrar">Entrar</button>
+  </section>
+
+  <!-- TELA 2: PROPRIEDADE -->
+  <section id="telaPropriedade" class="card oculto">
+    <div id="msgPropriedade"></div>
+    <p class="subtitulo">Passo 1 de 2 · Propriedade</p>
+
+    <label for="buscaPropriedade">Buscar propriedade já cadastrada</label>
+    <input type="text" id="buscaPropriedade" placeholder="Digite o nome da propriedade..." autocomplete="off">
+    <div id="sugestoesPropriedade" class="sugestoes oculto"></div>
+
+    <div id="propriedadeEscolhidaWrap" class="oculto">
+      <div class="produto-chip" id="propriedadeChip"></div>
+    </div>
+
+    <button class="btn btn-secundario" id="btnAbrirCadastroPropriedade" type="button">+ Cadastrar propriedade nova</button>
+
+    <button class="btn" id="btnContinuarPropriedade" style="margin-top:14px;">Continuar</button>
+    <button class="btn btn-secundario" id="btnVoltarAcesso" style="margin-top:10px;">Voltar</button>
+  </section>
+
+  <!-- TELA CADASTRO DE PROPRIEDADE (assistente de 3 etapas) -->
+  <section id="telaCadastroPropriedade" class="oculto">
+    <div class="card">
+      <div class="progresso-etapas">
+        <div class="ponto ativo" id="pontoEtapa1"></div>
+        <div class="ponto" id="pontoEtapa2"></div>
+        <div class="ponto" id="pontoEtapa3"></div>
+      </div>
+      <div id="msgCadastroPropriedade"></div>
+
+      <!-- Etapa 1: Dados da propriedade -->
+      <div id="etapaCad1">
+        <p class="subtitulo">Etapa 1 de 3 · Dados da propriedade</p>
+        <label for="cpNome">Nome da propriedade</label>
+        <input type="text" id="cpNome" placeholder="Ex: Propriedade Marcelo">
+        <label for="cpMunicipio">Município</label>
+        <input type="text" id="cpMunicipio" placeholder="Ex: Londrina">
+        <label for="cpProprietario">Proprietário</label>
+        <input type="text" id="cpProprietario" placeholder="Nome do proprietário">
+        <label for="cpDecisor">Decisor</label>
+        <input type="text" id="cpDecisor" placeholder="Quem decide as compras na propriedade">
+        <label for="cpVendedor">Vendedor responsável</label>
+        <select id="cpVendedor"></select>
+        <button class="btn" id="btnCadAvancar1" type="button">Avançar</button>
+        <button class="btn btn-secundario" id="btnCadCancelar1" type="button" style="margin-top:10px;">Cancelar</button>
+      </div>
+
+      <!-- Etapa 2: Perfil da propriedade -->
+      <div id="etapaCad2" class="oculto">
+        <p class="subtitulo">Etapa 2 de 3 · Perfil da propriedade</p>
+        <label for="cpTipoPropriedade">Classificação da atividade principal</label>
+        <select id="cpTipoPropriedade">
+          <option value="">Selecione...</option>
+          <option value="Pecuária de corte">Pecuária de corte</option>
+          <option value="Pecuária de leite">Pecuária de leite</option>
+          <option value="Cria">Cria</option>
+          <option value="Recria">Recria</option>
+          <option value="Engorda">Engorda</option>
+          <option value="Ciclo completo">Ciclo completo</option>
+          <option value="Confinamento">Confinamento</option>
+          <option value="Semiconfinamento">Semiconfinamento</option>
+          <option value="Reprodução">Reprodução</option>
+          <option value="Equinocultura">Equinocultura</option>
+          <option value="Atividade mista">Atividade mista</option>
+          <option value="Outra">Outra</option>
+        </select>
+        <div class="btn-linha">
+          <button class="btn btn-secundario" id="btnCadVoltar2" type="button">Voltar</button>
+          <button class="btn" id="btnCadAvancar2" type="button">Avançar</button>
+        </div>
+      </div>
+
+      <!-- Etapa 3: Rebanho -->
+      <div id="etapaCad3" class="oculto">
+        <p class="subtitulo">Etapa 3 de 3 · Rebanho</p>
+        <div class="grid-numeros">
+          <div class="campo-numero">
+            <label for="cpMatrizes">Matrizes</label>
+            <input type="number" id="cpMatrizes" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpPrimiparas">Primíparas</label>
+            <input type="number" id="cpPrimiparas" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpNovilhas">Novilhas</label>
+            <input type="number" id="cpNovilhas" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpBezerrosMachos">Bezerros machos</label>
+            <input type="number" id="cpBezerrosMachos" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpBezerrosFemeas">Bezerros fêmeas</label>
+            <input type="number" id="cpBezerrosFemeas" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpGarrotes">Garrotes</label>
+            <input type="number" id="cpGarrotes" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpTouros">Touros</label>
+            <input type="number" id="cpTouros" min="0" step="1" value="0">
+          </div>
+          <div class="campo-numero">
+            <label for="cpEquinos">Equinos</label>
+            <input type="number" id="cpEquinos" min="0" step="1" value="0">
+          </div>
+        </div>
+        <div class="btn-linha">
+          <button class="btn btn-secundario" id="btnCadVoltar3" type="button">Voltar</button>
+          <button class="btn" id="btnCadConcluir" type="button">Concluir cadastro</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TELA 3: LANCAMENTO -->
+  <section id="telaLancamento" class="oculto">
+    <div class="resumo">
+      <span>Propriedade: <b id="resumoPropriedade"></b> · Data: <b id="resumoData"></b> · Quinzena: <b id="resumoQuinzena"></b></span>
+      <div class="resumo-botoes">
+        <button class="btn btn-secundario" id="btnTrocarPropriedade" type="button">Trocar propriedade</button>
+        <button class="btn btn-secundario" id="btnTrocar" type="button">Trocar tudo</button>
+      </div>
+    </div>
+
+    <div id="msgLancamento"></div>
+
+    <!-- Revenda -->
+    <div class="card">
+      <p class="subtitulo">Revenda</p>
+      <label for="selectRevendaItem">Revenda desta venda</label>
+      <select id="selectRevendaItem">
+        <option value="">Selecione...</option>
+      </select>
+    </div>
+
+    <!-- Produto -->
+    <div class="card">
+      <p class="subtitulo">Produto</p>
+      <label for="buscaProduto">Buscar produto</label>
+      <input type="text" id="buscaProduto" placeholder="Digite para buscar o produto..." autocomplete="off">
+      <div id="sugestoesProduto" class="sugestoes oculto"></div>
+
+      <div id="produtoSelecionadoWrap" class="oculto">
+        <div class="produto-chip" id="produtoChip"></div>
+        <label for="inputPreco">Preço unitário (R$)</label>
+        <input type="number" id="inputPreco" min="0" step="0.01" placeholder="0,00">
+        <label for="inputVolume">Volume</label>
+        <input type="number" id="inputVolume" min="0" step="0.01" placeholder="0,00">
+        <div class="total-linha">Total: <b id="totalLinha">R$ 0,00</b></div>
+        <button class="btn" id="btnAdicionarItem" type="button">Adicionar à lista</button>
+      </div>
+    </div>
+
+    <!-- Carrinho -->
+    <div class="card">
+      <div class="contador"><span id="contadorItens">0</span> item(ns) no lançamento</div>
+      <div id="listaCarrinho"></div>
+      <div class="total-linha" id="totalGeralWrap" style="margin-top:4px;">Total geral da visita: <b id="totalGeral">R$ 0,00</b></div>
+    </div>
+
+    <!-- Observação da visita -->
+    <div class="card">
+      <p class="subtitulo">Observação da visita</p>
+      <label for="inputObservacao">Descreva como foi a visita (obrigatório)</label>
+      <textarea id="inputObservacao" rows="4" placeholder="Ex: cliente satisfeito, negociação em andamento, pontos de atenção..."></textarea>
+      <button class="btn" id="btnEnviar">Enviar lançamento</button>
+    </div>
+  </section>
+
+</div>
+
+<footer>Agro Hara · Soluções agropecuárias com ética e sustentabilidade · Uso interno</footer>
+<div id="overlayCarregando" class="overlay-carregando oculto">Enviando...</div>
+
+<script>
+/* =========================================================================
+   CONFIGURAÇÃO
+   ========================================================================= */
+const CONFIG = {
+  URL_API: "/api/lancamentos",
+  URL_PROPRIEDADES: "/api/propriedades",
+  API_KEY: "Marcelo9955@"
+};
+
+/* Lista de promotores e revendas (clientes) vinculados */
+const PROMOTOR_CLIENTE = [{"Promotor": "AROLDO", "Cliente": "CASA RURAL AGROPECUARIA LOANDA LTDA"}, {"Promotor": "AROLDO", "Cliente": "EPA PIRES & PIRES LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRACIOSA AGROPECUARIA LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRUPO POMARO"}, {"Promotor": "AROLDO", "Cliente": "GRUPO VIUDES"}, {"Promotor": "AROLDO", "Cliente": "Projeto Lançamentos - AGD's - AROLDO"}, {"Promotor": "EMILY", "Cliente": "CLEISO CELLA & CIA LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "COASUL COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "EMILY", "Cliente": "COMERCIAL AGROVETERINARIA MALYS LTDA"}, {"Promotor": "EMILY", "Cliente": "H P AGRONUTRI COMERCIO E REPRESENTAÇÃO LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "Projeto Lançamentos - AGD's - EMILY"}, {"Promotor": "GABRIEL", "Cliente": "COOPERATIVA AGRICOLA MISTA SAO CRISTOVAO LTDA"}, {"Promotor": "GABRIEL", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL"}, {"Promotor": "GABRIEL", "Cliente": "VALE NUTRICAO E SAUDE ANIMAL LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "BOFF & BOFF LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "CARLOS ROBERTO BUENO & CIA LTDA - ME"}, {"Promotor": "GABRIEL S", "Cliente": "COAGRO COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GABRIEL S", "Cliente": "COOPERATIVA DE LEITE DA AGRICULTURA FAMILIAR DE SALTO DO LONTRA"}, {"Promotor": "GABRIEL S", "Cliente": "D. C. DE LIMA AGROCENTER EIRELI"}, {"Promotor": "GABRIEL S", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL S"}, {"Promotor": "GIANCARLO", "Cliente": "COOPERATIVA DE DESENVOLVIMENTO E PRODUCAO AGROPECUARIA - CODEPA"}, {"Promotor": "GIANCARLO", "Cliente": "GRUPO PASQUALOTO"}, {"Promotor": "GIANCARLO", "Cliente": "MARTINS DISTRIBUIDORA DE PRODUTOS AGROPECUARIOS LTDA - ME"}, {"Promotor": "GIANCARLO", "Cliente": "Projeto Lançamentos - AGD's - GIANCARLO"}, {"Promotor": "JOAO TALES", "Cliente": "AGRO-MANICA COMERCIO E REPRESENTACOES DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "AGROPECUARIA APOEMA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "COAMIG AGROINDUSTRIAL COOPERATIVA"}, {"Promotor": "JOAO TALES", "Cliente": "D L DA SILVA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "FEMAGRI COMERCIO DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "GRUPO SIMIONATO"}, {"Promotor": "JOAO TALES", "Cliente": "Projeto Lançamentos - AGD's - JOAO TALES"}, {"Promotor": "KAUANA", "Cliente": "Projeto Lançamentos - AGD's - KAUANA"}, {"Promotor": "LEONARDO", "Cliente": "COAGRU COOPERATIVA AGROINDUSTRIAL UNIAO"}, {"Promotor": "LEONARDO", "Cliente": "KATUAGRO COMERCIO DE PRODUTOS AGROPECUARIOS LTDA - EPP"}, {"Promotor": "LEONARDO", "Cliente": "P BODNAR AGROPECUARIA - ME"}, {"Promotor": "LEONARDO", "Cliente": "Projeto Lançamentos - AGD's - LEONARDO"}, {"Promotor": "LEONARDO", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LUCAS", "Cliente": "COCARI - COOPERATIVA AGROPECUARIA E INDUSTRIAL"}, {"Promotor": "LUCAS", "Cliente": "COMERCIAL IBAITI"}, {"Promotor": "LUCAS", "Cliente": "GRUPO AGROCAMPO"}, {"Promotor": "LUCAS", "Cliente": "Projeto Lançamentos - AGD's - LUCAS"}, {"Promotor": "LUCAS", "Cliente": "RURAL NORTE DISTRIBUIDORA DE INSUMOS AGRICOLAS LTDA"}, {"Promotor": "LUCAS", "Cliente": "SOLUCAO PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "MARIANA", "Cliente": "AGRO PECUARIA ALIANCA LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ARROBA NUTRICAO ANIMAL LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ASSOCIACAO DOS PRODUTORES DE LEITE DE PEROLA - APEROLEITE"}, {"Promotor": "MARIANA", "Cliente": "COOPERATIVA DOS PRODUTORES DE LEITE DO TERRITORIO ENTRE RIOS - COOPELE"}, {"Promotor": "MARIANA", "Cliente": "FABRICIO G. RAZENTE & CIA. LTDA."}, {"Promotor": "MARIANA", "Cliente": "Projeto Lançamentos - AGD's - MARIANA"}, {"Promotor": "PEDRO", "Cliente": "FELIPE MENEGAS ME"}, {"Promotor": "PEDRO", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "PEDRO", "Cliente": "GRUPO GALERA"}, {"Promotor": "PEDRO", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "PEDRO", "Cliente": "Projeto Lançamentos - AGD's - PEDRO"}, {"Promotor": "PEDRO", "Cliente": "SIMIONATTO & SANSIGOLO LTDA"}, {"Promotor": "PEDRO", "Cliente": "TERRAGRZ COMERCIO DE PRODUTOS AGROPECUARIOS EIRELLE- ME"}, {"Promotor": "PEDRO", "Cliente": "VICTOR LUIZ ZAGO ME"}];
+
+/* Catálogo de produtos */
+const PRODUTOS = [{"Produto": "ANTIDIARREICO VALLEE (Disp. c/ 10x10 GRS)", "Unidade": "DP"}, {"Produto": "AZIUM SOLUCAO (FR DE 10 ML)", "Unidade": "FR"}, {"Produto": "AZIUM SOLUCAO (FR DE 10 ML)- (LC)", "Unidade": "FR"}, {"Produto": "BANAMINE (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BANAMINE (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BANAMINE (FR 50 ML)- (LC)", "Unidade": "FR"}, {"Produto": "BORGAL (FR 10 ML)", "Unidade": "FR"}, {"Produto": "BORGAL (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BORGAL (FR 50 ML)- (LC)", "Unidade": "FR"}, {"Produto": "BRINCO NEOCIDOL B 40 (DISP 20 UNI)", "Unidade": "DP"}, {"Produto": "BUTOX P CE 25 (FR 20 ML)", "Unidade": "FR"}, {"Produto": "BUTOX P CE 25 (FR 20 ML)- (LC)", "Unidade": "FR"}, {"Produto": "CALMINEX (BISN. 100 GRS)", "Unidade": "BIS"}, {"Produto": "CALMINEX (BISN. 100 GRS) - (LC)", "Unidade": "BIS"}, {"Produto": "CALMINEX (BISN. 30 GRS)", "Unidade": "BIS"}, {"Produto": "CALMINEX (BISN. 30 GRS)- (LC)", "Unidade": "BIS"}, {"Produto": "EXCELLER (FR 50 ML)", "Unidade": "FR"}, {"Produto": "HEPATOXAN VALLEE (FR 100 ML)", "Unidade": "FR"}, {"Produto": "RANGER 3,5% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "SUPRAMEC GEL (SERG 6,42 GR)", "Unidade": "UN"}, {"Produto": "SUPRAMEC GEL (SERG 6,42 GR)- (LC)", "Unidade": "UN"}, {"Produto": "ZALIX (FR 10 ML)", "Unidade": "FR"}, {"Produto": "ZALIX (FR 10 ML)- (LC)", "Unidade": "FR"}, {"Produto": "FICAM WP80 (PCT 15 GRS)", "Unidade": "SA"}, {"Produto": "KAPINA (FR 60 ML)", "Unidade": "FR"}, {"Produto": "K-OBIOL 2P (PCT 1 KG)", "Unidade": "PCT"}, {"Produto": "K-OTHRINE (FR 100 GR)", "Unidade": "FR"}, {"Produto": "K-OTHRINE 2P (PCT 1 KG)", "Unidade": "PCT"}, {"Produto": "K-OTHRINE BARATAS (DISP. C/ 10 GR)", "Unidade": "DP"}, {"Produto": "K-OTHRINE CE25 (FR 250 ML)", "Unidade": "FR"}, {"Produto": "K-OTHRINE CE25 (LT)", "Unidade": "FR"}, {"Produto": "K-OTHRINE GEL FORMIGAS (DISP. C/ 10 GR)", "Unidade": "DP"}, {"Produto": "K-OTHRINE SC25 (FR 250 ML)", "Unidade": "FR"}, {"Produto": "K-OTHRINE SC25 (FR 30 ML)", "Unidade": "FR"}, {"Produto": "K-OTHRINE WG25 (DISP. C/ 20 ENV 5 GR)", "Unidade": "DP"}, {"Produto": "LANIRAT ISCA FRESCA (FR 1 KG)", "Unidade": "FR"}, {"Produto": "MAKI BLOCO (DISP 50 BL/20 GR)", "Unidade": "KG"}, {"Produto": "MAKI GR TECH (PCT 20 SC/50 GR)", "Unidade": "KG"}, {"Produto": "MAKI GR TECH (PCT 40 SC/25 GR)", "Unidade": "KG"}, {"Produto": "MAKI GR TECH DISPLAY (DISP 120/25 GR)", "Unidade": "PCT"}, {"Produto": "MAKI GR TECH DISPLAY (DISP 40/50 GR)", "Unidade": "KG"}, {"Produto": "MAKI PELLET (DISP 40/25 GR)", "Unidade": "KG"}, {"Produto": "MAKI SOFT BAIT (PCT 2 KGS)", "Unidade": "PCT"}, {"Produto": "MAXFORCE PRIME (DISP. C/ 4 SER 30 GR)", "Unidade": "DP"}, {"Produto": "MAXFORCE QUANTUM RB (DISP. C/ 4 SER 30 GR)", "Unidade": "DP"}, {"Produto": "MIREX-S2 MIPIS PAPEL 5 G - CX 10 KG", "Unidade": "CX"}, {"Produto": "MIREX-S2 SC PLASTICO 500 G - CX 25 KG", "Unidade": "CX"}, {"Produto": "MIREX-SH SC PLASTICO 5 KG", "Unidade": "KG"}, {"Produto": "MIREX-XD FD SC 50 G CX 20 KG", "Unidade": "CX"}, {"Produto": "PREMISE SC 200  (FR 250 ML)", "Unidade": "FR"}, {"Produto": "RACUMIN PO (FR 1 KG)", "Unidade": "FR"}, {"Produto": "RACUMIN SOFT BAIT PCT 200 GR", "Unidade": "PCT"}, {"Produto": "RODILON BLOCO EXTRUS (PCT 1 KG)", "Unidade": "PCT"}, {"Produto": "RODILON R PELLETS (SACHE 25 GR)", "Unidade": "SA"}, {"Produto": "RODILON SOFT BAIT (PCT 200 GR)", "Unidade": "PCT"}, {"Produto": "TEMPRID SC (FR 250 ML)", "Unidade": "FR"}, {"Produto": "APLICADOR AZUL PRE DIPPING DELAVAL 300ML", "Unidade": "UN"}, {"Produto": "KIT TESTE IATF", "Unidade": "UN"}, {"Produto": "BANAMINE (FR 10 ML)", "Unidade": "FR"}, {"Produto": "BIOXAN COMPOSTO (FR 500 ML)", "Unidade": "FR"}, {"Produto": "BUTOX P CE 25 (FR 100 ML)- (LC)", "Unidade": "FR"}, {"Produto": "RANGER (FR 50 ML)", "Unidade": "FR"}, {"Produto": "SOLUTION L.A. 3,5% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "VALLEECALCIO (FR 250 ML)", "Unidade": "FR"}, {"Produto": "VALLEECALCIO (FR 500 ML)", "Unidade": "FR"}, {"Produto": "BOTIJAO 20 L MOD. TW 20-19 DE 6 CANECAS", "Unidade": "UN"}, {"Produto": "BOTIJAO 34/11", "Unidade": "UN"}, {"Produto": "BOTIJAO MVE 20", "Unidade": "UN"}, {"Produto": "BOTIJAO SC11/7", "Unidade": "UN"}, {"Produto": "BOTIJAO SEMEN EXPRESS II", "Unidade": "UN"}, {"Produto": "BOTIJAO XC 47/11", "Unidade": "UN"}, {"Produto": "NITROGENIO LIQUIDO", "Unidade": "M3"}, {"Produto": "ALIMENTADOR ANIM MAMAD ALL LANDS 2,27L", "Unidade": "UN"}, {"Produto": "APLICADOR LARANJA ALL LANDS 300ML", "Unidade": "UN"}, {"Produto": "BALDE CONICO C/BICO PP CZ 8,0L ALL LANDS", "Unidade": "UN"}, {"Produto": "BEBEDOURO BOVINO C/ BOIA", "Unidade": "UN"}, {"Produto": "BEBEDOURO SUINO ALL LANDS DF800 1/2\"", "Unidade": "UN"}, {"Produto": "BEBEDOURO SUINO ALL LANDS DFN07 1/2\"", "Unidade": "UN"}, {"Produto": "BEBEDOURO SUINO ALL LANDS DG609 1/2\"", "Unidade": "UN"}, {"Produto": "BICO MAMADEIRA PT 4X7CM P/VACA", "Unidade": "UN"}, {"Produto": "BICO MAMADEIRA VM 3,5X10,2CM ALL LANDS", "Unidade": "UN"}, {"Produto": "BICO MAMADEIRA VM 3,5X10,5CM ALL LANDS", "Unidade": "UN"}, {"Produto": "CIA CHAPLIN HJ CHAPLIN CIA CONVENCIONAL NE 01586 18 SP-02837-1.00005", "Unidade": "DS"}, {"Produto": "CIA DETROIT OL/ DETROIT CIA / CONVENCIONAL/ NE/ 00033/21/ SP 002837", "Unidade": "DS"}, {"Produto": "CIA GAMA HJ/GAMA CIA/CONVENCIONAL/NE/01860/18/SP-002837", "Unidade": "DS"}, {"Produto": "CIA IGAPO DA MATA - 1132/ IGAPO CIA/ CONVENCIONAL/ NE/ 000662/19/SP 002837", "Unidade": "DS"}, {"Produto": "CIA KAIAPO DA GUARANI F2172/ KAIAPO CIA/ CONVENCIONAL/ NE/ 05024/23/ SP 002837", "Unidade": "DS"}, {"Produto": "CIA METEORO FARPAL METEORO CIA CONVENCIONAL NE 00196 15 SP-8154900096-2", "Unidade": "DS"}, {"Produto": "CIA MOGNO DA MATA/ MOGNO CIA/ CONVENCIONAL/ NE/ 03833/23/ SP 002837", "Unidade": "DS"}, {"Produto": "CIA OREGON FI O0793/ OREGON CIA/ CONVENCIONAL/ NE/ 04500/22/ SP 002837", "Unidade": "DS"}, {"Produto": "CIA TYSON HJ - N216/ TYSON CIA/ CONVENCIONAL/ NE/ 01589/18/ SP-81549-7", "Unidade": "DS"}, {"Produto": "DALLAS VERA CRUZ/ DALLAS/ CONVENCIONAL/ NE/ AVCA A2053/ SP 002837", "Unidade": "DS"}, {"Produto": "DETERGENTE 5L CONC MANUAL CASTROLANDIA", "Unidade": "UN"}, {"Produto": "FITA MARC PATAS EVA AMAR 360MM ALL LANDS", "Unidade": "UN"}, {"Produto": "FITA MARC PATAS EVA AZUL 360MM ALL LANDS", "Unidade": "UN"}, {"Produto": "FITA MARC PATAS EVA LAR 360MM ALL LANDS", "Unidade": "UN"}, {"Produto": "FITA MARC PATAS EVA VERD 360MM ALL LANDS", "Unidade": "UN"}, {"Produto": "FITA MARC PATAS EVA VERM 360MM ALL LANDS", "Unidade": "UN"}, {"Produto": "F-TYPE OL V90621/ F TYPE/ CONVENCIONAL/ NE / 05494/23/ SP 00283", "Unidade": "DS"}, {"Produto": "GARRAFA MAMADEIRA PLAS BR 3L C/BICO VM", "Unidade": "UN"}, {"Produto": "GARRAFA MAMADEIRA PLAS BR 4,5L DRENCHER", "Unidade": "UN"}, {"Produto": "IA ALABAMA M. SOL/ ALABAMA CIA/ CONVENCIONAL/ NE/ 00014/21/ SP 002837", "Unidade": "DS"}, {"Produto": "JATA MAGNUM (NE) CONVENCIONAL  NE  JATA1037  SP-8154900584-6", "Unidade": "DS"}, {"Produto": "JATA MAGNUM (NE) CONVENCIONAL NE JATA1037 SP-8154900584-6", "Unidade": "DS"}, {"Produto": "LIMPADOR ESP ATIV 20L ESP CASTR", "Unidade": "UN"}, {"Produto": "LIMPADOR ESP ATIV 5L ESP CASTR", "Unidade": "UN"}, {"Produto": "LIMPADOR POS 20L BLUEDIP CASTR", "Unidade": "UN"}, {"Produto": "LIMPADOR POS 20L GREEN BARRIER CASTR", "Unidade": "UN"}, {"Produto": "LIMPADOR POS 5L BLUEDIP CASTR", "Unidade": "UN"}, {"Produto": "LIMPADOR POS 5L GREEN BARRIER CASTR", "Unidade": "UN"}, {"Produto": "LONA PE CZ/LJ 3X5M ALL LANDS", "Unidade": "UN"}, {"Produto": "LONA PE CZ/LJ 6,0X5,0M ALL LANDS", "Unidade": "UN"}, {"Produto": "LONA PE CZ/LJ 8,0X5,0M ALL LANDS", "Unidade": "UN"}, {"Produto": "MAMADEIRA PLAST BR 4L C/ ALCA CASTROLANDIA", "Unidade": "UN"}, {"Produto": "MOHNEN MOGUL  M MOGUL  CONVENCIONAL AN 19771503", "Unidade": "DS"}, {"Produto": "RESERVAT BARRA LEITA PP AZ 3L C/BICO", "Unidade": "UN"}, {"Produto": "SAV INNOVATION 5125 INNOVATION-CONVENCIONAL AN AAA 18256803", "Unidade": "DS"}, {"Produto": "SAV LAND GRANT 9084 LAND GRANT-CONVENCIONAL AN AAA 19542354", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ANAMELIA FIV M237", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ANCORA FIV DA 3A REG. ADGA 79", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ASSIS AJ/NE 313910", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BLUE SKY", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BOBCAT BLUE SKY", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BOURBON AH", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BRANGUS SOMETHING SPECIAL/BN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BREAKTHROUGH CONVENCIONAL 268970", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO BRIZANTHA AJ", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CAPANE 07 TOTAL BOSTON TE 195 NE MATS 8230", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CAPATAZ DA CANAA/AN HBB 153292", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA BRAZ HJ CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA CARIBU - BO3663/NE 02416/15", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA CHAPLIN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA CORIXO - S4084 /NE 00106/16", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA FENOMENO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA GANDHI HJ - N129", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA GANDHI HJ/SF4M/SEXADO FEMEA", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA METEORO FARPAL/NE 108113", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA NACIONAL/NE 01038/15", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA REAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA SELETO SM CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA TITAN SE CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA TYSON HJ", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA XAMA CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO CIA XORORO N205", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO COMODUS ANAMELIA FIV 195K", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO COUNTDOWN CONVENCIONAL M928753", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO DAKOTA 7937/09/AJN/NE 793709AJN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO DEER VALLEY HIGH RANK 82115/CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO DELICIOUS DW GALLEON-ET/Convencional/HO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ELLIN AJ/NE 432111 AJ", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ENGREIDO (Bradfort)", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ESTALONE AVALANCHE FIV WTF CONVENCIONAL/GO/1172/SP-81549-7.00570-6", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ESTALONE AVALANCHE MORRO SEXADO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO FORD 94787 CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO GENOSOURCE DENMARK SF 4M Sexado", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO GENOURCE DENMARK HO reg. AX158232", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO HILLTOPS CHARGED UP 44T/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ILUMINADO I3340/NE RG 012946/12", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO INFLUENTE TUL CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ISAAC CONVENCIONAL 202390", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO JAMAL (Brangus)", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO JATA JUMBO/NE JATA 584", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO JATA LEGADO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO JATA MAGNUM - REG. JATA 1037", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO KENNY ROGERS CONVENCIONAL 268969", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO LANCELOT (Brangus)", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO LAND GRANT 9084 - AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MOBY NP CONVENCIONAL NE", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MOHNEN COMANCHE 1575/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MOHNEN SIOUX 574/ 17843866", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MONET SULTANA 1204 SUNDANCE TE HBA", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MR ANCHO (Bradfort)", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MR COIN DRACO 15006-ET reg. AX 145174 HO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO MR KB DO IT 54947-ET reg. AX 152160 HO", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO NOBLE BELLO-ET/BELLO/Convencional/HO/AX", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO OLHOS DAGUA 6G 7020 LOTUS/BN 59734", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO PAINT PERSEU/NE M3576", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO POSITIVO CIA/NE/055413/19", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO POSS PRAGMATIC/CONVENCIONAL/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO POZO 4486 RELEVANTE (JACQUES)/BN HBA 128965", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO RAINDANCE 6848 - REG HBB IA - 1994 AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO RAINWATER 9120 - AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SANSAO SULTANA FRANCESCO 1388 AON T/E", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAUVIGNON AJ 1456 14 SAUVIGNON CONV. NE 145614 SP 002837-1 000407", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV ADVANCE/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV CATTLEMASTER 4873/ 17923431", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV CHARISMA", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV GROUND BREAKER 4239/ 17921538", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV HEADWATERS 8019", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV INCREDIBLE 4127/ 17921467", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV INNOVATION 5125/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV LANDFALL 9090", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV PROUD 5541/AN 1A 1903", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV RAPTOR 4282/ 17923397", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV RENEW 8132", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV REVOLUTION 5537/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV REWARD 5316/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV ROBUST 4858/ 17923506", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SAV TERRITORY 7225/AN/IA-2263", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SCHEAFFER AJ", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SCHIEFELBEIN BEAST 4429/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SCHIEFELBEIN SKOL 6786/AN", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SEXADO ASSIS AJ/NE 313910", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SEXADO BRIZANTHA AJ SF4W", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SEXADO CIA METEORO FARPAL/NE 108113", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SEXADO FARNEAR M-DUKE FOUNDER - ET 4M", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SEXADO ILUMINADO I3340/NE RG 012946/12", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SHAIJ YAS/JAMAL A135 342", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ST TAZ 1040 CONVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO SUPREMO (Brangus)", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO T-GEN-AC NOBLE TAMPICO-ET HO reg. AX 156927", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO TRANQUERAS X5229 FD(FORAJIDO) HP-REG HBB IA 667", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO YAKULT SAMURAI COVENCIONAL", "Unidade": "DS"}, {"Produto": "SEMEN BOVINO ZORRO TANGODO MORRO SEXADO", "Unidade": "DS"}, {"Produto": "SITZ INTUITION/INTUITION CONVENCIONAL AN IA-2386 19381619", "Unidade": "DS"}, {"Produto": "ST DIVERGENT 1042/ DIVERGENT/ CONVENCIONAL/ AN/ 19995823", "Unidade": "DS"}, {"Produto": "TELA A1010/20 1,5MM 2,5X2,5M REVEST PVC", "Unidade": "UN"}, {"Produto": "TELA PAINEL INOX 1,2MM 2,5X2,5M C/PVC", "Unidade": "UN"}, {"Produto": "TELA PAINEL INOX 1,50MM 1,5X25M CASTRO", "Unidade": "UN"}, {"Produto": "TELA PE PT 1X50M CASTROLANDA", "Unidade": "UN"}, {"Produto": "VACINA AFTOSA - AFTOVACIN (FR 10 DS - 50 ML)", "Unidade": "FR"}, {"Produto": "VACINA AFTOSA - AFTOVACIN (FR 50 DS - 250 ML)", "Unidade": "FR"}, {"Produto": "VACINA AFTOSA - BOVCEL (FR 10 DS - 50 ML)", "Unidade": "FR"}, {"Produto": "VACINA AFTOSA - BOVCEL (FR 15 DS - 30 ML)", "Unidade": "FR"}, {"Produto": "VACINA AFTOSA - BOVCEL (FR 50 DS - 100 ML)", "Unidade": "FR"}, {"Produto": "ADE VALLEE (FR 250 ML)", "Unidade": "FR"}, {"Produto": "ADE VALLEE (FR 250 ML) - (LT)", "Unidade": "FR"}, {"Produto": "ADE VALLEE (FR 50 ML)", "Unidade": "FR"}, {"Produto": "ADE VALLEE (FR 50 ML) - (LT)", "Unidade": "FR"}, {"Produto": "AGRISEPT MC TABS (CX 100 COMP 5 GR)", "Unidade": "CX"}, {"Produto": "BIOXELL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BOVILIS POLI-STAR + TE (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "BOVILIS POLI-STAR T (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "BOVILIS RB 51 (FR 25 DS + DILUENTE)", "Unidade": "FR"}, {"Produto": "BOVILIS RB 51 (FR 5 DS + DILUENTE)", "Unidade": "FR"}, {"Produto": "BOVILIS VISTA 5 L5 CFP (10 DS) - FR 20 ML", "Unidade": "FR"}, {"Produto": "DORCIPEC (FR 10 ML)", "Unidade": "FR"}, {"Produto": "EXCELLER (FR 500 ML)", "Unidade": "FR"}, {"Produto": "FERTIGUARD SELENIUM MAX (FR 20 DS) - 100 ML", "Unidade": "FR"}, {"Produto": "FERTIGUARD SELENIUM MAX (FR 50 DS) - 250 ML", "Unidade": "FR"}, {"Produto": "GLUCAFOS (FR 200 ML)", "Unidade": "FR"}, {"Produto": "GLUCAFOS (FR 200 ML)- (LC)", "Unidade": "FR"}, {"Produto": "IMIZOL (FR 15 ML)", "Unidade": "FR"}, {"Produto": "MASTIJET FORTE (CX 20 SERG 8 GR)", "Unidade": "CX"}, {"Produto": "MASTIJET VACA SECA (CX 20 SERG 9 GR)", "Unidade": "CX"}, {"Produto": "MOV (FR 500 ML)", "Unidade": "FR"}, {"Produto": "NUFLOR (FR 100 ML)", "Unidade": "FR"}, {"Produto": "NUFLOR (FR 100 ML)- (LC)", "Unidade": "FR"}, {"Produto": "NUFLOR (FR 50 ML)", "Unidade": "FR"}, {"Produto": "NUFLOR (FR 50 ML)- (LC)", "Unidade": "FR"}, {"Produto": "OXITRAT L.A. (FR 50 ML)", "Unidade": "FR"}, {"Produto": "OXITRAT L.A. PLUS (FR 100 ML)", "Unidade": "FR"}, {"Produto": "PENCIVET PLUS PPU (FR 30 ML)", "Unidade": "FR"}, {"Produto": "PENCIVET PLUS PPU (FR 50 ML)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 100 ML)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 100 ML) - (LT)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 250 ML)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 250 ML) - (LT)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 50 ML)", "Unidade": "FR"}, {"Produto": "POLI-R (FR 50 ML) - (LT)", "Unidade": "FR"}, {"Produto": "POTENTY (FR 300 ML)", "Unidade": "FR"}, {"Produto": "RAIVACEL MULTI (25 DOSES) - FR 50 ML", "Unidade": "FR"}, {"Produto": "RANGER (FR 500 ML)", "Unidade": "FR"}, {"Produto": "RANGER 3,5% (FR 500 ML)", "Unidade": "FR"}, {"Produto": "SUPRAMEC POUR ON (LT)", "Unidade": "LT"}, {"Produto": "VACINA POLI-STAR (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "VACINA POLI-STAR (50 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "VAMPIRICID TOPICO VALLEE (50 GR)", "Unidade": "BIS"}, {"Produto": "AVOTAN L.A. (LT)", "Unidade": "LT"}, {"Produto": "BANAMINE (FR 10 ML)- (LC)", "Unidade": "FR"}, {"Produto": "BOOSTIN (SERG 500 MG)", "Unidade": "UN"}, {"Produto": "BORGAL (FR 10 ML)- (LC)", "Unidade": "FR"}, {"Produto": "BUTOX P CE 25 (LT)", "Unidade": "LT"}, {"Produto": "BUTOX P CE 25 (LT)- (LC)", "Unidade": "LT"}, {"Produto": "CHORULON 5000 UI (FR)", "Unidade": "FR"}, {"Produto": "CIOSIN (FR 2 ML)", "Unidade": "FR"}, {"Produto": "CIOSIN (FR 20 ML)", "Unidade": "FR"}, {"Produto": "CRESTAR (CART 5 IMPLANTES)", "Unidade": "CAR"}, {"Produto": "CRESTAR IVG 1.0 (PCT C/ 10 UNIDADES)", "Unidade": "PCT"}, {"Produto": "CRESTAR IVG 1.3 (SC C/ 10 UNIDADES)", "Unidade": "PCT"}, {"Produto": "CRESTAR IVG Monodose 0,558g (PCT C/ 10 UNIDADES)", "Unidade": "PCT"}, {"Produto": "ESTRON (FR 20 ML)", "Unidade": "FR"}, {"Produto": "ESTRON (FR 60 ML)", "Unidade": "FR"}, {"Produto": "MATABICHEIRA COOPERS LIQUIDO (FR 500 ML)", "Unidade": "FR"}, {"Produto": "MATABICHEIRA COOPERS LIQUIDO (FR 500 ML)- (LC)", "Unidade": "FR"}, {"Produto": "MATABICHEIRA COOPERS LIQUIDO (LT)", "Unidade": "LT"}, {"Produto": "MATABICHEIRA COOPERS LIQUIDO (LT)- (LC)", "Unidade": "LT"}, {"Produto": "MOV (FR 100 ML)", "Unidade": "FR"}, {"Produto": "NAQUASONE INJ. (FR 10 ML)", "Unidade": "FR"}, {"Produto": "NAQUASONE INJ. (FR 10 ML)- (LC)", "Unidade": "FR"}, {"Produto": "OXITRAT L.A. PLUS (FR 50 ML)", "Unidade": "FR"}, {"Produto": "QUINOTRIL (FR 50 ML)", "Unidade": "FR"}, {"Produto": "QUINOTRIL PLUS (FR 50 ML)", "Unidade": "FR"}, {"Produto": "ROTAVEC 5 DS (FR 10 ML)", "Unidade": "FR"}, {"Produto": "TRIATOX (FR 200 ML)", "Unidade": "FR"}, {"Produto": "TRIATOX (FR 200 ML)- (LC)", "Unidade": "FR"}, {"Produto": "TRIATOX (LT)", "Unidade": "LT"}, {"Produto": "TRIATOX (LT)- (LC)", "Unidade": "LT"}, {"Produto": "VACINA BRUCELINA B19 (FR 10 DS)", "Unidade": "FR"}, {"Produto": "VACINA BRUCELINA B19 (FR 15 DS)", "Unidade": "FR"}, {"Produto": "VALEROL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "AGROVET 5.000.000 (FR C/ 7,8 G+15 Ml Diluente)", "Unidade": "FR"}, {"Produto": "AGROVETPLUS (50 ML)", "Unidade": "UN"}, {"Produto": "KIT INDUCAO P/ 10 ANIMAIS (CIOSIN 2 ML - R$ 118,34)", "Unidade": "FR"}, {"Produto": "KIT INDUCAO P/ 10 ANIMAIS (CIOSIN 20 ML - R$ 128,23)", "Unidade": "FR"}, {"Produto": "KIT INDUCAO P/ 50 ANIMAIS (CIOSIN 20 ML - R$ 692,35)", "Unidade": "FR"}, {"Produto": "ABAMECTINA 1% BAYER (LT)", "Unidade": "LT"}, {"Produto": "ACATAK POUR ON (GL 05 LT)", "Unidade": "GL"}, {"Produto": "ACATAK POUR ON (GL 05 LT) C/ APLICADOR", "Unidade": "GL"}, {"Produto": "ACATAK POUR ON (LT)", "Unidade": "LT"}, {"Produto": "ACEPROVEN 0,2% (FR 20 ML)", "Unidade": "FR"}, {"Produto": "ACEPROVEN 1% INJ (FR 20 ML)", "Unidade": "FR"}, {"Produto": "ACEPROVEN 1% INJ (FR 50 ML)", "Unidade": "FR"}, {"Produto": "ACEPROVEN GOTAS (FR 30 ML)", "Unidade": "FR"}, {"Produto": "ADVANTAGE CAES E GATOS (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE CAES E GATOS (1,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE CAES E GATOS (2,5 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE CAES E GATOS (4,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (1,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (2,5 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (3 x 0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (3 x 1,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (3 x 2,5 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (3 x 4,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 (4,0 ML)", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 COMBO (0,4 ML) - NAO USAR", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 COMBO (1,0 ML) - NAO USAR", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 COMBO (2,5 ML) - NAO USAR", "Unidade": "UN"}, {"Produto": "ADVANTAGE MAX 3 COMBO (4,0 ML) - NAO USAR", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES (1,0 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES (2,5 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES (4,0 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES COMBO (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES COMBO (1,0 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES COMBO (2,5 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE CAES COMBO (4,0 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE GATOS (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE GATOS (0,8 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE GATOS COMBO (0,4 ML)", "Unidade": "UN"}, {"Produto": "ADVOCATE GATOS COMBO (0,8 ML)", "Unidade": "UN"}, {"Produto": "AGITA 1 GB (50 ENVELOPES C/ 20 GRS)", "Unidade": "DP"}, {"Produto": "AGITA 10 WG (KG)", "Unidade": "PCT"}, {"Produto": "AGITA 10 WG (PCT 100 GR)", "Unidade": "PCT"}, {"Produto": "AGITA 10 WG (PCT 250 GR)", "Unidade": "PCT"}, {"Produto": "AGULHA ALLFLEX (SUPORTE P APLIC DE BR PLAST)", "Unidade": "UN"}, {"Produto": "AGULHA P/ IMPLANTE DE CRESTAR (UNI)", "Unidade": "UN"}, {"Produto": "ALIMENTADOR SONDA ING 4L ANTAHI MILKBAR", "Unidade": "UN"}, {"Produto": "APLICADOR BR PLASTICO RETRACTOMA", "Unidade": "UN"}, {"Produto": "APLICADOR BRINCO EXPERT (UN)", "Unidade": "UN"}, {"Produto": "APLICADOR DE BR TIP T", "Unidade": "UN"}, {"Produto": "APLICADOR MANUAL EXZOLT (UNI)", "Unidade": "UN"}, {"Produto": "APLICADOR ORAL 20 ML - SIMCRO (UNI)", "Unidade": "UN"}, {"Produto": "APLICADOR TOTAL TAGGER 3S (285215-01)", "Unidade": "UN"}, {"Produto": "APLICADOR UNIVERSAL TOTAL TAGGER PLASTICO", "Unidade": "UN"}, {"Produto": "AQUA PY EW 165 (LT)", "Unidade": "LT"}, {"Produto": "BACTROSINA (FR 20 ML)", "Unidade": "FR"}, {"Produto": "BACTROSINA (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BAINHA IMV FRANCESA / IA C/FENDA", "Unidade": "UN"}, {"Produto": "BAINHA IMV TBS P/ IA NOVILHA", "Unidade": "UN"}, {"Produto": "BATENTE FURADOR ALLFLEX", "Unidade": "UN"}, {"Produto": "BATERIA LEITOR BASTAO A WR25(280311-03)", "Unidade": "UN"}, {"Produto": "BATERIA MODELO RS420 P/ RFI(280311-01)", "Unidade": "UN"}, {"Produto": "BAYCOX 2,5% (LT)", "Unidade": "LT"}, {"Produto": "BAYCOX IRON KIT PROMOCIONAL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BAYCOX IRON KIT PROMOCIONAL (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYCOX IRON SUSP. ORAL (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYCOX IRON SUSP. ORAL (LT)", "Unidade": "LT"}, {"Produto": "BAYCOX SUSPENS. 5% (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BAYCOX SUSPENS. 5% (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYCOX SUSPENS. 5% (LT)", "Unidade": "LT"}, {"Produto": "BAYMEC (FR 500 ML)", "Unidade": "FR"}, {"Produto": "BAYMEC (LT)", "Unidade": "LT"}, {"Produto": "BAYMEC D.E. (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BAYMEC D.E. (FR 500 ML)", "Unidade": "FR"}, {"Produto": "BAYMEC D.E. (LT)", "Unidade": "LT"}, {"Produto": "BAYMIX GROBIG BS", "Unidade": "UN"}, {"Produto": "BAYOFLY POUR ON (LT)", "Unidade": "LT"}, {"Produto": "BAYOVAC CLOSTRIDIOSES (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC REPRODUCAO 15 (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC REPRODUCAO 15 (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC RESPIRATORIA 20 DS (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC RESPIRATORIA 50 DS (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC RR (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BAYOVAC RR (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BAYTICOL POUR-ON 1% (LT)", "Unidade": "LT"}, {"Produto": "BAYTRIL FLAVOUR 150MG (Cx. 10 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "BAYTRIL FLAVOUR 15MG (Cx. 10 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "BAYTRIL FLAVOUR 50MG (Cx. 10 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "BAYTRIL FLAVOUR TABL 250MG (Cx. 6 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "BAYTRIL INJETAVEL 10% (FR 10 ML)", "Unidade": "FR"}, {"Produto": "BAYTRIL INJETAVEL 10% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BAYTRIL INJETAVEL 5% (FR 10 ML)", "Unidade": "FR"}, {"Produto": "BAYTRIL SOLUCAO 10% (LT)", "Unidade": "FR"}, {"Produto": "BHL/JUR VERMELHO NUMERADO UNITARIO", "Unidade": "CX"}, {"Produto": "BIORAIVA PET (12 DOSES)", "Unidade": "FR"}, {"Produto": "BIOXELL (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BOLFO (PCT 1 KG)", "Unidade": "PCT"}, {"Produto": "BOLFO (PCT 200 GR)", "Unidade": "PCT"}, {"Produto": "BOLFO (SC 20 KG)", "Unidade": "SC"}, {"Produto": "BOVIGAM INJETAVEL (FR 5 GR + 15 ML DILUENTE)", "Unidade": "FR"}, {"Produto": "BOVIGAM L (SERG 5 GR)", "Unidade": "UN"}, {"Produto": "BOVIGAM SELANTE (120 SERINGAS)", "Unidade": "PCT"}, {"Produto": "BOVIGAM SELANTE (DISP. C/ 24 SERG 4 GR)", "Unidade": "UN"}, {"Produto": "BOVIGAM VS (SERG 4,5 GR)", "Unidade": "UN"}, {"Produto": "BOVIGAM XTRA (DISP. C/ 24 SERG 4 GR)", "Unidade": "DP"}, {"Produto": "BOVITRAZ (FR 200 ML)", "Unidade": "FR"}, {"Produto": "BOVITRAZ (FR 40 ML)", "Unidade": "FR"}, {"Produto": "BOVITRAZ (LT)", "Unidade": "LT"}, {"Produto": "BRINCO BHL LISO (MACHO P)  LARANJA (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BHL LISO (MACHO P)  ROSA CLARO (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BHL MACHO PEQUENO C/ 25 UNIDADES AMARELO", "Unidade": "CX"}, {"Produto": "BRINCO BSF AM GRAVADO (272817-01)NUM DE 3501 ATE 7500 (1X)", "Unidade": "UN"}, {"Produto": "BRINCO BTM LISO (MACHO P) AMARELO (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BTM LISO (MACHO P) AZUL (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BTM LISO (MACHO P) BRANCO (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BTM LISO (MACHO P) LARANJA (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO BTM LISO (MACHO P) VERDE (C/ 25 PEÇAS)", "Unidade": "PCT"}, {"Produto": "BRINCO BTM LISO (MACHO P) VERMELHO (C/ 25 PEÇAS)", "Unidade": "UN"}, {"Produto": "BRINCO JUM AM SUPORTE (270990-10)", "Unidade": "UN"}, {"Produto": "BRINCO JUM AZ SUPORTE (270990-09)", "Unidade": "UN"}, {"Produto": "BRINCO JUM BR SUPORTE (270990-12)", "Unidade": "UN"}, {"Produto": "BRINCO JUM VD SUPORTE (270990-08)", "Unidade": "UN"}, {"Produto": "BRINCO JUM VM SUPORTE (270990-11)", "Unidade": "UN"}, {"Produto": "BRINCO JUO AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "BRINCO MACHO PEQUENO C/ FEMEA MAX - AMARELO", "Unidade": "UN"}, {"Produto": "BRINCO MACHO PEQUENO C/ FEMEA MEDIA - AMARELO", "Unidade": "UN"}, {"Produto": "BRINCO MACHO PEQUENO C/ FEMEA MEDIA - AZUL", "Unidade": "UN"}, {"Produto": "BRINCO MACHO PEQUENO C/ FEMEA MEDIA - LARANJA", "Unidade": "UN"}, {"Produto": "BRINCO MACHO PEQUENO C/ FEMEA MEDIA - VERMELHO", "Unidade": "UN"}, {"Produto": "BRINCO SEM AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "BRINCO SEM AMARELO NUMERADO", "Unidade": "UN"}, {"Produto": "BRINCO SEO AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "BRINCO SEO PT GRAVADO (T52916-02)", "Unidade": "UN"}, {"Produto": "BRINCO SEO VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "BRINCO SER AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG AM", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG AMARELO NUMERADO 001 - 100", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG AMARELO NUMERADO 101 - 200", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG AZUL LISO", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG AZUL NUMERADO", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG VD GRAVADO (T52916-01)NUM DE 1501 ATE 3000 (1X)", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG VERDE LISO", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG VERDE NUMERADO", "Unidade": "UN"}, {"Produto": "BRINCO TIP TAG VM", "Unidade": "UN"}, {"Produto": "BUTOLIN CD (1 AMP + 1 DL + 1 LIOF)", "Unidade": "UN"}, {"Produto": "BUTOX P CE 25 (FR 100 ML)", "Unidade": "FR"}, {"Produto": "BUTOX P CE 25 (FR 500 ML)", "Unidade": "FR"}, {"Produto": "BUTOX P CE 25 (FR 500 ML)- (LC)", "Unidade": "FR"}, {"Produto": "CADASTRO INATIVO - NAO UTILIZADO", "Unidade": "FR"}, {"Produto": "CALFON (FR 200 ML)", "Unidade": "FR"}, {"Produto": "CALFON (FR 500 ML)", "Unidade": "FR"}, {"Produto": "CALFON ORAL (FR 350 ML)", "Unidade": "FR"}, {"Produto": "CALMINEX (BISN. 200 GR)", "Unidade": "FR"}, {"Produto": "CALMINEX (BISN. 200 GR)- (LC)", "Unidade": "FR"}, {"Produto": "CANNIS GLOBULIN POLIVALENTE (1 FR LIOF + 1 FR DIL)", "Unidade": "FR"}, {"Produto": "CATOSAL B12 (FR 10 ML)", "Unidade": "FR"}, {"Produto": "CATOSAL B12 (FR 100 ML)", "Unidade": "FR"}, {"Produto": "CATOSAL B12 (FR 20 ML)", "Unidade": "FR"}, {"Produto": "CELBAR 10% ORAL (LT)", "Unidade": "FR"}, {"Produto": "CENTURION (25 GR)", "Unidade": "FR"}, {"Produto": "CIPERTHION (FR 200 ML)", "Unidade": "FR"}, {"Produto": "CIPERTURBO PLUS CE (FR 50 ML)", "Unidade": "FR"}, {"Produto": "CJ BHL/JUR (MACHO P FEMEA M) AZUL NUMERADO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR AMARELO (M+L)   (270630-02)Num De 701 Ate 770 (1X", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR AMARELO (M+L) (270990-04)", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR AMARELO (M+L) (271973-11)NUM DE 1 ATE 50 (1X)", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR AMARELO LISO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR AMARELO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR AZ GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR BRANCO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR BRANCO NUMERADO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR LARANJA GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR LARANJA NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR VERDE LISO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR VERDE NUMERADO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR VERMELHO (M+L) (271973-10)NUM DE 51 ATE 1100 (1X)", "Unidade": "UN"}, {"Produto": "CJ BHL/JUR VERMELHO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/JUR(MACHO O FEMEA M)  AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) AMARELO GRAVADO UNITARIO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) AMARELO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) BRANCO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) LARANJA", "Unidade": "CX"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) LARANJA SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) VERMELHO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SER (MACHO P FEMEA G) VERMELHO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER AZ GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER BRANCO LISO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER BRANCO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER LR GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SER ROSA GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER VD GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SER VD NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SER VERMELHO (274086-17)", "Unidade": "UN"}, {"Produto": "CJ BHL/SER VM GRAVADO UNITARIO", "Unidade": "CX"}, {"Produto": "CJ BHL/SUR (MACHO P FEMEA MAXI) AMARELO SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CJ BHL/SUR (MACHO P FEMEA MAXI) AZUL SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR (MACHO P FEMEA MAXI) VERDE SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SUR AZUL (271973-06)", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR AZUL (M+L) DE 1301 ATÉ 1450", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR BRANCO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR VERDE (271973-05)", "Unidade": "UN"}, {"Produto": "CJ BHL/SUR VERMELHO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BHL/SUR VERMELHO SEM NUMERAÇÃO", "Unidade": "CX"}, {"Produto": "CJ BRINCO N17/F28 AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BRINCO N17/F28 VERMELHO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BTM/BSF (MACHO P FEMEA P) AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ BTM/SEF ROSA GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BTM/SEO AM GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BTM/SEO AMARELO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ BTM/SEO LR GRAVADO", "Unidade": "UN"}, {"Produto": "CJ BTM/SEO PRETO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ JUM/JUR AM GRAVADO", "Unidade": "UN"}, {"Produto": "CJ JUM/JUR AM NUMERADO", "Unidade": "UN"}, {"Produto": "CJ JUM/JUR AMARELO SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CJ JUM/SER (MACHO M FEMEA G) AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ SEM/SER AMARELO  NUMERADO", "Unidade": "UN"}, {"Produto": "CJ SEM/SER AMARELO SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CJ SEM/SER BRANCO GRAVADO", "Unidade": "UN"}, {"Produto": "CJ SEM/SER BRANCO NUMERADO", "Unidade": "UN"}, {"Produto": "CJ SEM/SER VERMELHO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ SUM/SUR AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CJ SUM/SUR AMARELO SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CONCENTRADO CRISTAL LAC SC 25KG", "Unidade": "SC"}, {"Produto": "CONCENTRADO PHOS ENERGY - 25KG", "Unidade": "SC"}, {"Produto": "CONCENTRADO PHOS ENERPRO SC 25KG", "Unidade": "SC"}, {"Produto": "CONCENTRADO PHOS PROTEIN - 25KG", "Unidade": "SC"}, {"Produto": "CONCEPTAL (FR 10 ML)", "Unidade": "FR"}, {"Produto": "CONDROSENSE GRANDE PORTE (FR 45 COMP)", "Unidade": "FR"}, {"Produto": "CONDROSENSE PEQUENO PORTE (FR 45 COMP)", "Unidade": "FR"}, {"Produto": "CONJUNTO BRINCOS N17/F28 AM(271973-09)", "Unidade": "UN"}, {"Produto": "CONJUNTO BRINCOS N17/F28 AZ(271973-08)", "Unidade": "UN"}, {"Produto": "CONJUNTO BRINCOS N17/F28 BRANCO LISO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF (MACHO P FEMEA P) VERMELHO  SEM NUMERAÇÃO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF AMARELO NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF AMARELO SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF AZ GRAVADO(271798-06)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF AZUL NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF AZUL SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF BRANCO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF BRANCO NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF LARANJA NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF LR GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF VD GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF VERDE NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/BSF VERMELHO NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/BSF VM GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26  (MACHO PEQUENO FEMEA SUINO OVINO)", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 AM GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 AMARELO NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 AMRELO SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 AZUL GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 AZUL LISO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 AZUL NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 BRANCO NUMERADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 LARANJA GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 LARANJA LISO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F26 VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 VERDE SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 VERMELHO SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F26 VM GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F28 AM GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F28 AMARELO LISO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F28 AMARELO NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F28 AZ GRAVADO(275433-03)Num De 1 Ate 50 (1X)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F28 AZUL GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F28 AZUL LISO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F28 BRANCO GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/F28 VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/F28 VERMELHO LISO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUF ROSA CLARO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUF ROSA CLARO NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUF ROSA CLARO SEM NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUF VERDE CLARO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUO AZ GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO AZUL NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUO AZUL SEM NUMERACAO (CX 25 UNID)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO BRANCO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUO BRANCO SEM NUMERACAO (CX 25 UNID)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO LARANJA SEM NUMERACAO (CX 25 UNID)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO LR GRAVADO", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO VERDE SEM NUMERACAO (CX 25 UNID)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/JUO VERMELHO NUMERADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/JUO VERMELHO SEM NUMERACAO (CX 25 UNID)", "Unidade": "CX"}, {"Produto": "CONJUNTO BTM/SEO AZ GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/SEO VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO BTM/SEO VERMELHO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO SEM/SER (MACHO G FEMEA G) AMARELO GRAVADO", "Unidade": "UN"}, {"Produto": "CONJUNTO SEM/SER (MACHO G FEMEA G) AMARELO GRAVADO(269974-01)Num De 418 Ate 467 (1X", "Unidade": "UN"}, {"Produto": "CONJUNTO SEM/SER VERDE GRAVADO", "Unidade": "UN"}, {"Produto": "CONTROLLER CTO (LT)", "Unidade": "LT"}, {"Produto": "CURSONEGRIL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "CX BHL/BQR AMARELO (PCT 50 UNID.)", "Unidade": "CX"}, {"Produto": "CX BHL/BQR AMARELO GRAVADO", "Unidade": "CX"}, {"Produto": "CX BHL/BRO AMARELO SEM NUMERAÇÃO", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0251/0275", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0276/0300", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0301/0325", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0326/0350", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0351/0375", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0376/0400", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0401/0425", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0426/0450", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0451/0475", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0476/0500", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0501/0525", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0526/0550", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0551/0575", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0576/0600", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0601/0625", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0626/0650", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0651/0675", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0676/0700", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0701/0725", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0726/0750", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0751/0775", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AMARELO NUMERO 0776/0800", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) AZUL NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) LARANJA - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/JUR (MACHO P FEMEA M) VERMELHO NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/JUR BRANCO SEM NUMERAÇÃO (DP DE 25 UNID.)", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0251/0275", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0276/0300", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0301/0325", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0326/0350", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0351/0375", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0376/0400", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0401/0425", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0426/0450", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0451/0475", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AMARELO NUMERO 0476/0500", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL - NUMERADO", "Unidade": "UN"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL - SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0251/0275", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0276/0300", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0301/0325", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0326/0350", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0351/0375", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) AZUL NUMERO 0376/0400", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) BRANCO SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) ROSA SEM NUMERACAO", "Unidade": "UN"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO - SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0001/0025", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0026/0050", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0051/0075", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0076/0100", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0101/0125", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0126/0150", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0151/0175", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0176/0200", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0201/0225", "Unidade": "CX"}, {"Produto": "CX BHL/SER (MACHO P FEMEA G) VERMELHO NUMERO 0226/0250", "Unidade": "CX"}, {"Produto": "CX BHL/SER VD SEM NUMERACAO", "Unidade": "CX"}, {"Produto": "DELEGOL (BARR 10 KG)", "Unidade": "UN"}, {"Produto": "DERMATOL (BISNAGA 25 GRS)", "Unidade": "BIS"}, {"Produto": "DERMATOL (BISNAGA 250 GRS)", "Unidade": "BIS"}, {"Produto": "DERMATOL (BISNAGA 60 GRS)", "Unidade": "BIS"}, {"Produto": "DEXAMAX (FR 10 ML)", "Unidade": "FR"}, {"Produto": "DIASEG (FR 30 ML)", "Unidade": "FR"}, {"Produto": "DIAZEN (FR 15 ML)", "Unidade": "FR"}, {"Produto": "DIB (DISP 10/30 GR)", "Unidade": "DP"}, {"Produto": "DOXIVEN 100 MG (CX 21 COMPR.)", "Unidade": "CX"}, {"Produto": "DRONTAL GATOS (CX. 4 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "DRONTAL PLUS SABOR CARNE (2 Compr.) 35 KGS", "Unidade": "CX"}, {"Produto": "DRONTAL PLUS SABOR CARNE TABL (1X2) 10 KGS", "Unidade": "CX"}, {"Produto": "DRONTAL PLUS SABOR CARNE TABL (1X4) 10 KGS", "Unidade": "CX"}, {"Produto": "DRONTAL PUPPY (FR 100 ML)", "Unidade": "FR"}, {"Produto": "DRONTAL PUPPY (FR 20 ML)", "Unidade": "FR"}, {"Produto": "DRONTAL S.O. CATS (0,35 ML)", "Unidade": "UN"}, {"Produto": "DRONTAL S.O. CATS (0,70 ML)", "Unidade": "UN"}, {"Produto": "DRONTAL S.O. CATS (1,12 ML)", "Unidade": "UN"}, {"Produto": "E.C.P. (CIPIONATO DE ESTRADIOL) FR 10 ML", "Unidade": "FR"}, {"Produto": "ENCEFALOGEN 10 DS (10 FR 2 ML)", "Unidade": "CX"}, {"Produto": "ENROFLOXACINA VENCOFARMA (CX 150 MG)", "Unidade": "CX"}, {"Produto": "ENROFLOXACINA VENCOFARMA (CX 50 MG 10 COMP)", "Unidade": "CX"}, {"Produto": "ENROFLOXACINO INJ 2,5% (FR 20 ML)", "Unidade": "FR"}, {"Produto": "ENROFLOXACINO INJ 5% (FR 20 ML)", "Unidade": "FR"}, {"Produto": "ESTROGIN (FR 100 ML)", "Unidade": "FR"}, {"Produto": "EXCELL 10 (10 DS) - FR 50 ML", "Unidade": "FR"}, {"Produto": "EXCELL 10 (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "EXCELL 10 (50 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "EXTRATOR DE BRINCOS PLASTICOS", "Unidade": "UN"}, {"Produto": "EZATECT INJ 1L (BR)", "Unidade": "FR"}, {"Produto": "EZATECT INJ 50 ML (BR)", "Unidade": "FR"}, {"Produto": "EZATECT INJ 500 ML (BR)", "Unidade": "FR"}, {"Produto": "FAGOLAC (FR 100 GR)", "Unidade": "FR"}, {"Produto": "FAGOLAC (FR 500 GR)", "Unidade": "FR"}, {"Produto": "FIPROBAN 0,67 ML (UN)", "Unidade": "CX"}, {"Produto": "FIPROBAN 1,34 ML (UN)", "Unidade": "CX"}, {"Produto": "FIPROBAN 2,68 ML (UN)", "Unidade": "CX"}, {"Produto": "FIPROBAN 4,02 ML (UN)", "Unidade": "CX"}, {"Produto": "FIPROBAN GATOS 0,50 ML (UN)", "Unidade": "CX"}, {"Produto": "FLEEGARD SPRAY (FR 300 ML)", "Unidade": "FR"}, {"Produto": "FLORA FIX (SERINGA 15 GRS)", "Unidade": "TUB"}, {"Produto": "FLOTRIL INJ 10% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "FLOXIVET PLUS (FR 50 ML)", "Unidade": "FR"}, {"Produto": "FLUNAMINE (FR 10 ML)", "Unidade": "FR"}, {"Produto": "FLUNAMINE (FR 50 ML)", "Unidade": "FR"}, {"Produto": "FORTICILINA S 0,5 GRS (FR 5 ML)", "Unidade": "FR"}, {"Produto": "FORTICILINA S 4,0 GRS (FR 20 ML)", "Unidade": "FR"}, {"Produto": "FOSBOVI ENGORDA (SC 30 KGS)", "Unidade": "SC"}, {"Produto": "FREE 2.310 MG (CX. C/ 2 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "FREE 330 MG (CX. C/ 2 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "FREE 660 MG (CX. C/ 4 COMPRIMIDOS)", "Unidade": "CX"}, {"Produto": "FUSOGARD (FR 20 ML)", "Unidade": "FR"}, {"Produto": "GANASEG (FR 30 ML)", "Unidade": "FR"}, {"Produto": "GASTROGLOBULIN (FR 10 ML)", "Unidade": "FR"}, {"Produto": "GENTOCIN INJ 40 MG (FR 100 ML)", "Unidade": "FR"}, {"Produto": "GENTOCIN INJ 40 MG (FR 50 ML)", "Unidade": "FR"}, {"Produto": "GLICOSENSE (FR 30 ML)", "Unidade": "FR"}, {"Produto": "GLICOSENSE (FR 60 ML)", "Unidade": "FR"}, {"Produto": "GLUTELLAC (CART 8 AMP 50 ML)", "Unidade": "CAR"}, {"Produto": "HERPES HORSE 10 DS (10 FR 2 ML)", "Unidade": "CX"}, {"Produto": "IMPLANTADOR PARA CRESTAR (UNI)", "Unidade": "UN"}, {"Produto": "INFLUENZA HORSE 10 DS (10 FR 2 ML)", "Unidade": "CX"}, {"Produto": "INJETORA PARA BOOSTIN", "Unidade": "UN"}, {"Produto": "INVICTO 11,4 MG 1 CP", "Unidade": "UN"}, {"Produto": "INVICTO 11,4 MG 20 BLISTER C/ 1 CP", "Unidade": "UN"}, {"Produto": "INVICTO 11,4 MG 6 CP", "Unidade": "UN"}, {"Produto": "INVICTO 57 MG 1 CP", "Unidade": "UN"}, {"Produto": "INVICTO 57 MG 20 BLISTER C/ 1 CP", "Unidade": "UN"}, {"Produto": "INVICTO 57 MG 6 CP", "Unidade": "UN"}, {"Produto": "IVOTAN L.A. (FR 500 ML)", "Unidade": "FR"}, {"Produto": "KARAMUJO (DISP 30 GR)", "Unidade": "DP"}, {"Produto": "KETALEX (FR 10 ML)", "Unidade": "FR"}, {"Produto": "KETALEX (FR 50 ML)", "Unidade": "FR"}, {"Produto": "KETOPROFENO VENCOFARMA 1% (FR 10 ML)", "Unidade": "FR"}, {"Produto": "KETOPROFENO VENCOFARMA 10% (FR 10 ML)", "Unidade": "FR"}, {"Produto": "KETOPROFENO VENCOFARMA 10% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "KILTIX COLEIRA (GRANDE - 65 CM)", "Unidade": "UN"}, {"Produto": "KILTIX COLEIRA (MEDIA - 48 CM)", "Unidade": "UN"}, {"Produto": "KILTIX COLEIRA (PEQUENO - 35 CM)", "Unidade": "UN"}, {"Produto": "KINETOMAX (FR 100 ML)", "Unidade": "FR"}, {"Produto": "KINETOMAX (FR 20 ML)", "Unidade": "FR"}, {"Produto": "KINETOMAX (FR 50 ML)", "Unidade": "FR"}, {"Produto": "KIT BAYCOX IRON SUSP. ORAL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "KIT BAYCOX IRON SUSP. ORAL (FR 250 ML)", "Unidade": "FR"}, {"Produto": "KIT FURADOR ALLFLEX 6 MM", "Unidade": "UN"}, {"Produto": "K-OTHRINE PPU EW (FR 500 ML)", "Unidade": "FR"}, {"Produto": "LAMINA FURADOR ALLFLEX 6MM", "Unidade": "UN"}, {"Produto": "LANCER (FR 500 ML)", "Unidade": "LT"}, {"Produto": "LANCER L.A. (FR 500 ML)", "Unidade": "LT"}, {"Produto": "LANIRAT GIRASSOL (200 GR)", "Unidade": "UN"}, {"Produto": "LANIRAT PELLETS 20 GR EM 200 GRS (PACOTE)", "Unidade": "PCT"}, {"Produto": "LEITOR BASTAO 420 RFID COMP(280311-02)", "Unidade": "UN"}, {"Produto": "LEITOR BASTAO AWR250 C/ MAL", "Unidade": "CX"}, {"Produto": "LEPTO EQUUS 10 DS (10 FR 2 ML)", "Unidade": "CX"}, {"Produto": "LEPTOVEN 10 (25 DOSES) - FR 50 ML", "Unidade": "CX"}, {"Produto": "LEXINGTON 8 (5 FR 3 ML)", "Unidade": "CX"}, {"Produto": "LINFOVAC AMPOLA (10 DS 1 ML) - FR 10 ML", "Unidade": "FR"}, {"Produto": "LUVA IMV SENSITIVA ESPECIAL IMV", "Unidade": "UN"}, {"Produto": "MASOTEN 80% (PCT 1 KG )", "Unidade": "PCT"}, {"Produto": "MASTER SORO PLUS (1 FR LIOF + 1 FR) - 20 ML", "Unidade": "CX"}, {"Produto": "MASTICINE L (CX 12 SERG 10 GR)", "Unidade": "CX"}, {"Produto": "MICOTIL 300 INJ. (FR 10 ML)", "Unidade": "FR"}, {"Produto": "MICOTIL 300 INJ. (FR 50 ML)", "Unidade": "FR"}, {"Produto": "MILLENIUM (10 DS) - FR 50 ML", "Unidade": "FR"}, {"Produto": "MILLENIUM (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "MINOXEL 8 G (FR 100 ML)", "Unidade": "UN"}, {"Produto": "MINOXEL PLUS 5 G (FR 100 ML)", "Unidade": "UN"}, {"Produto": "NEGUVON (CX 150 GR)", "Unidade": "CX"}, {"Produto": "NEGUVON (CX 500 GR)", "Unidade": "CX"}, {"Produto": "NEGUVON (DISP 25/20 GR)", "Unidade": "DP"}, {"Produto": "NEGUVON+ASUNTOL PLUS (DISP 10/100 GR)", "Unidade": "DP"}, {"Produto": "NEGUVON+ASUNTOL PLUS (KIT PROMOCIONAL)", "Unidade": "DP"}, {"Produto": "NEPOREX (PCT 100 GR)", "Unidade": "PCT"}, {"Produto": "NOVORMON 5000 UI (FR 25 ML)", "Unidade": "FR"}, {"Produto": "NUCLEO ALL LANDS MILKA DIGEST SC 25KG", "Unidade": "SC"}, {"Produto": "NUCLEO ALL LANDS MILKA PRE PARTO SC 25KG", "Unidade": "SC"}, {"Produto": "NUCLEO ALL LANDS MILKA SC 25KG", "Unidade": "SC"}, {"Produto": "NUCLEO CRISTAL LAC SC 25KG", "Unidade": "SC"}, {"Produto": "NUTRICARE CALCIO", "Unidade": "FR"}, {"Produto": "NUTRICARE CONDROITINA E GLICOSAMINA", "Unidade": "FR"}, {"Produto": "NUTRICARE OMEGAS", "Unidade": "FR"}, {"Produto": "NUTRICARE VITAMINAS E MINERAIS", "Unidade": "FR"}, {"Produto": "OSURNIA (1 ML 2 TUBOS)", "Unidade": "FR"}, {"Produto": "PANACUR PO (ENV 25 GRS)", "Unidade": "UN"}, {"Produto": "PAPEL TOALHA CR 21X23 CM CASTROLANDIA", "Unidade": "SC"}, {"Produto": "PARAVEN (16 DS) - FR 50 ML", "Unidade": "FR"}, {"Produto": "POLIVEN 7 (16 DS) - FR 50 ML", "Unidade": "FR"}, {"Produto": "POLIVEN 7 (83 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "PRO PET (BISNAGA 14 GRS )", "Unidade": "BIS"}, {"Produto": "PRO PET BABY (SERINGA 14 GRS)", "Unidade": "BIS"}, {"Produto": "PRO PET PLUS (SERINGA 14 GRS)", "Unidade": "BIS"}, {"Produto": "PRO PET SENIOR (SERINGA 14 GRS)", "Unidade": "BIS"}, {"Produto": "PROFENDER SPOT ON (0,35 ML)", "Unidade": "UN"}, {"Produto": "PROFENDER SPOT ON (0,70 ML)", "Unidade": "UN"}, {"Produto": "PROFENDER SPOT ON (1,12 ML)", "Unidade": "UN"}, {"Produto": "PROTEXIN CONCENTRATE (KG)", "Unidade": "FR"}, {"Produto": "PUPPY ACTION (FR 30 ML)", "Unidade": "FR"}, {"Produto": "QUICK BAYT (DISP 2 KG)", "Unidade": "DP"}, {"Produto": "QUICK BAYT (DISP 20x50 GR)", "Unidade": "DP"}, {"Produto": "REPIDERMA SPRAY (FR 250 ML)", "Unidade": "FR"}, {"Produto": "REPOSICAO DA AGULHA PLASTICA DE ALIMENTACAO QUADRADA", "Unidade": "UN"}, {"Produto": "REVERIN PLUS L.A. (FR 50 ML)", "Unidade": "FR"}, {"Produto": "RODILON R PELLET RB (40x25 GR)", "Unidade": "KG"}, {"Produto": "ROMPUN (FR 10 ML)", "Unidade": "FR"}, {"Produto": "RONVAC (FR 10 DS 1 ML)", "Unidade": "FR"}, {"Produto": "RUK 1% INJ. (LT)", "Unidade": "LT"}, {"Produto": "RUMENSIN 100 PREMIX (SC 25 KG)", "Unidade": "UN"}, {"Produto": "RUMENSIN 200 (SC 25 KG)", "Unidade": "UN"}, {"Produto": "SABONETE ASUNTOL 80 G", "Unidade": "UN"}, {"Produto": "SAL MIN. ALL PHOS 80 - 25KG", "Unidade": "SC"}, {"Produto": "SEDALEX (FR 10 ML)", "Unidade": "FR"}, {"Produto": "SENSPERT CINOMOSE - KIT INDIVIDUAL", "Unidade": "KIT"}, {"Produto": "SENSPERT ERLIQUIOSE (E. canin Ab Test Kit)", "Unidade": "KIT"}, {"Produto": "SENSPERT FELV/FIV (FeLV Ag/FIV Ab Test Kit)", "Unidade": "KIT"}, {"Produto": "SENSPERT GIARDIA", "Unidade": "KIT"}, {"Produto": "SENSPERT PARVOVIROSE - KIT INDIVIDUAL", "Unidade": "KIT"}, {"Produto": "SERESTO COLEIRA (GRANDE - 45 GRS)", "Unidade": "UN"}, {"Produto": "SERESTO COLEIRA (PEQUENA - 12,5 GRS)", "Unidade": "UN"}, {"Produto": "SERINGA CANINSULIN 1 Ml", "Unidade": "UN"}, {"Produto": "SERINGA DESCARTAVEL 1 ML", "Unidade": "UN"}, {"Produto": "SERINGA VET 25 ML TRI (UN)", "Unidade": "UN"}, {"Produto": "SINCROSIN (FR 2 ML)", "Unidade": "FR"}, {"Produto": "SINCROSIN (FR 20 ML)", "Unidade": "FR"}, {"Produto": "SOLFAC EC 50 (LT)", "Unidade": "LT"}, {"Produto": "SOLUTICK (GL 05 LT)", "Unidade": "GL"}, {"Produto": "SOLUTICK (LT)", "Unidade": "LT"}, {"Produto": "SOLUTICK 5 L PROMOCIONAL (CX 4 FR+PISTOLA)", "Unidade": "KIT"}, {"Produto": "SOROGLOBULIN  (FR 10 ML)", "Unidade": "FR"}, {"Produto": "SOROGLOBULIN MAX (FR 10 ML)", "Unidade": "FR"}, {"Produto": "STARYCIDE SC 480 (FR 250 ML)", "Unidade": "FR"}, {"Produto": "SUIVEN (25 DS) - FR 50 ML", "Unidade": "FR"}, {"Produto": "SUPLEMENTO MAIS LEITE ADE (SC 25 KG)", "Unidade": "SC"}, {"Produto": "SUPLEMENTO PHOS 40 ADE SC 25KG", "Unidade": "SC"}, {"Produto": "SUPORTE P/ APLIC DE BR PLAS", "Unidade": "UN"}, {"Produto": "SUPRA PEN (FR 50 ML)", "Unidade": "FR"}, {"Produto": "SUPRAVAC 10 - FR 50 ML", "Unidade": "FR"}, {"Produto": "SUPRONAL L (SERG 8 GR)", "Unidade": "UN"}, {"Produto": "SYSTAMEX (LT)", "Unidade": "LT"}, {"Produto": "TAGPEN - CANETA P/ BRINCO ALLFLEX", "Unidade": "UN"}, {"Produto": "TANIDIL (BARRICA 2 KG)", "Unidade": "BAL"}, {"Produto": "TANIDIL (FR 200 GR)", "Unidade": "FR"}, {"Produto": "TANIDIL KIT PROMOCIONAL (3 DISP 200 GR)", "Unidade": "DP"}, {"Produto": "TETRABAC L.A. (FR 50 ML)", "Unidade": "FR"}, {"Produto": "TH4 VIRICIDA BACTERICIDA C/1LT", "Unidade": "LT"}, {"Produto": "TIGUVON SPOT-ON (FR 150 ML)", "Unidade": "FR"}, {"Produto": "TIGUVON SPOT-ON (FR 150 ML) KIT PROMOCIONAL", "Unidade": "DP"}, {"Produto": "TIGUVON SPOT-ON (LT)", "Unidade": "LT"}, {"Produto": "TIGUVON SPOT-ON (LT) KIT PROMOCIONAL", "Unidade": "DP"}, {"Produto": "TRISSULMAX (FR 20 ML)", "Unidade": "FR"}, {"Produto": "TRISSULMAX (FR 50 ML)", "Unidade": "FR"}, {"Produto": "TRISSULPETZ COMP. 500 MG (CX. C/ 15 COMP.)", "Unidade": "CX"}, {"Produto": "TRISSULPETZ SUSPENSAO (FR 20 ML)", "Unidade": "FR"}, {"Produto": "TRISSULPETZ SUSPENSAO (FR 50 ML)", "Unidade": "FR"}, {"Produto": "TRUCID (FR 50 ML)", "Unidade": "FR"}, {"Produto": "TRUCID (FR 500 ML)", "Unidade": "FR"}, {"Produto": "TRUCID (LT)", "Unidade": "LT"}, {"Produto": "TYLAN 200 LIQUIDO (FR 100 ML)", "Unidade": "FR"}, {"Produto": "TYLAN 200 LIQUIDO (FR 50 ML)", "Unidade": "FR"}, {"Produto": "TYLAN SOLUBLE (PCT 110 G)", "Unidade": "PCT"}, {"Produto": "VACINADOR FLUXO CONTIMUO ECOMATIC COM MANGEURIA 5 ML", "Unidade": "UN"}, {"Produto": "VACINADOR SMARTMATIK COM MANGUEIRA 5 ML", "Unidade": "UN"}, {"Produto": "VALLEEFER BS (FR 100 ML)", "Unidade": "FR"}, {"Produto": "VALLEEVITA ADE INJETAVEL (FR 250 ML)", "Unidade": "FR"}, {"Produto": "VENCOMAX 12 (25 FR LIOF + 25 FR DIL)", "Unidade": "CX"}, {"Produto": "VENCOSAT (1 FR LIOFIL. + 1 FR) - 5 ML", "Unidade": "UN"}, {"Produto": "VERAFLOX 25 MG ORAL SUSP. (FR 15 ML)", "Unidade": "FR"}, {"Produto": "VERAFLOX COMPRIMIDOS 60 MG", "Unidade": "CX"}, {"Produto": "VETFLOGIN (FR 10 ML)", "Unidade": "FR"}, {"Produto": "VETFLOGIN (FR 50 ML)", "Unidade": "FR"}, {"Produto": "VETIMAST PLUS VL (SERG)", "Unidade": "UN"}, {"Produto": "VETIMAST PLUS VS (SERG)", "Unidade": "UN"}, {"Produto": "VETRIDERM HIDRA SENSE SHAMPOO (FR 250 ML)", "Unidade": "FR"}, {"Produto": "VETRIDERM HIDRA SENSE SPRAY (FR 250 ML)", "Unidade": "FR"}, {"Produto": "VETRIDERM HIDRA SENSE SPRAY (FR 250 ML) *", "Unidade": "FR"}, {"Produto": "VETRIDERM NUTRISENSE CONDICIONADOR (LT)", "Unidade": "LT"}, {"Produto": "VETRIDERM NUTRISENSE SHAMPOO (LT)", "Unidade": "LT"}, {"Produto": "VETRIDERM NUTRISENSE SHAMPOO (LT) *", "Unidade": "LT"}, {"Produto": "VETRIDERM OTO (FR 100 ML)", "Unidade": "UN"}, {"Produto": "VETRIDERM OTO (FR 250 ML)", "Unidade": "UN"}, {"Produto": "VETRIDERM SHAMPOO NEUTRO (LT)", "Unidade": "LT"}, {"Produto": "VIDASEC (SC 20 KGS)", "Unidade": "UN"}, {"Produto": "VIGANTOL ADE (FR 100 ML)", "Unidade": "FR"}, {"Produto": "VIGANTOL ADE (FR 500 ML)", "Unidade": "FR"}, {"Produto": "VISION 10 (FR 25 DS)", "Unidade": "FR"}, {"Produto": "VISION 10 (FR 50 DS)", "Unidade": "FR"}, {"Produto": "XILAZINA 10% (FR 20 ML)", "Unidade": "FR"}, {"Produto": "XILAZINA 10% (FR 50 ML)", "Unidade": "FR"}, {"Produto": "ZIMPROVA (SC 25 KG)", "Unidade": "UN"}, {"Produto": "ZOLVIX (LT)", "Unidade": "LT"}, {"Produto": "BANAMINE (FR 100 ML)- (LC)", "Unidade": "FR"}, {"Produto": "FERTAGYL (FR 5 ML)", "Unidade": "FR"}, {"Produto": "FERTAGYL (FR 50 ML)", "Unidade": "FR"}, {"Produto": "BANAMINE TRANSDERMAL (FR 250 ML)", "Unidade": "FR"}, {"Produto": "BANAMINE TRANSDERMAL 1L", "Unidade": "LT"}, {"Produto": "BOVGUARD (GL 05 LT)", "Unidade": "GL"}, {"Produto": "BOVGUARD (LT)", "Unidade": "FR"}, {"Produto": "BOVGUARD PROMOCIONAL (CX 4 GL 5 LT+PISTOLA)", "Unidade": "KIT"}, {"Produto": "BOVILIS POLI-STAR + TE (50 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "BOVILIS POLI-STAR T (50 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "BOVILIS VISTA 5 L5 CFP (50 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "BOVILIS VISTA ONCE SQ (10 DS) - FR 20 ML", "Unidade": "FR"}, {"Produto": "BOVILIS VISTA ONCE SQ (50 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "CEPRAVIN (CX 20 BIS 3 GR)", "Unidade": "CX"}, {"Produto": "COBACTAN 2,5% INJET (FR 100 ML)", "Unidade": "FR"}, {"Produto": "COBACTAN 2,5% INJET (FR 50 ML)", "Unidade": "FR"}, {"Produto": "COBACTAN VL (CX 15 SERG)", "Unidade": "CX"}, {"Produto": "EXCELLER PROMOCIONAL KIT C 18 FR (FR 500 ML)", "Unidade": "KIT"}, {"Produto": "EXZOLT 5% POUR-ON (FR 250 ML)", "Unidade": "FR"}, {"Produto": "EXZOLT 5% POUR-ON (GL 05 LT)", "Unidade": "FR"}, {"Produto": "EXZOLT 5% POUR-ON (LT)", "Unidade": "FR"}, {"Produto": "FERTIGUARD SELENIUM MAX (FR 20 DS) - 100 ML - (LT)", "Unidade": "FR"}, {"Produto": "FERTIGUARD SELENIUM MAX (FR 50 DS) - 250 ML  - (LT)", "Unidade": "FR"}, {"Produto": "HALOCUR (FR 490 ML)", "Unidade": "FR"}, {"Produto": "ICT TRYPAMIZOL 100ML", "Unidade": "FR"}, {"Produto": "ICT TRYPAMIZOL 200ML", "Unidade": "FR"}, {"Produto": "ICT TRYPAMIZOL 50ML", "Unidade": "FR"}, {"Produto": "IMIZOL (FR 100 ML)", "Unidade": "FR"}, {"Produto": "MASTIJET FORTE (CX 20 SERG 8 GR)- (LC)", "Unidade": "CX"}, {"Produto": "MASTIJET VACA SECA (CX 20 SERG 9 GR)- (LC)", "Unidade": "CX"}, {"Produto": "MASTIPLAN LC (CX 20 SERG 8 GR)", "Unidade": "CX"}, {"Produto": "MASTI-SEAL (SERINGA 4 GR)", "Unidade": "UN"}, {"Produto": "METRICURE (SERG)", "Unidade": "UN"}, {"Produto": "PANACOXX SUSPENSAO (CX 6 LT e 2 APLICADOR)", "Unidade": "CX"}, {"Produto": "PANACOXX SUSPENSAO (FR 250 ML)", "Unidade": "FR"}, {"Produto": "PANACOXX SUSPENSAO (LT)", "Unidade": "LT"}, {"Produto": "PANACUR 10% SUSPENSAO (GL 10 LT)", "Unidade": "GL"}, {"Produto": "PANACUR 10% SUSPENSAO (LT)", "Unidade": "LT"}, {"Produto": "POTENTY (GL 05 LT)", "Unidade": "GL"}, {"Produto": "POTENTY (LT)", "Unidade": "LT"}, {"Produto": "RANGER 3,5% KIT C/ 15 FR (FR 500 ML)", "Unidade": "KIT"}, {"Produto": "RESFLOR GOLD (FR 100 ML)", "Unidade": "FR"}, {"Produto": "SOLUTION L.A. 3,5% (FR 500 ML)", "Unidade": "FR"}, {"Produto": "SOLUTION L.A. 3,5% (LT)", "Unidade": "LT"}, {"Produto": "SUPRAMEC POUR ON (LT)- (LC)", "Unidade": "LT"}, {"Produto": "TICK GARD (GL 05 LT)", "Unidade": "GL"}, {"Produto": "TICK GARD (GL 05 LT) S/APLICADOR", "Unidade": "GL"}, {"Produto": "TICK GARD (LT)", "Unidade": "LT"}, {"Produto": "VACINA POLIGUARD (20 DS) - FR 100 ML", "Unidade": "FR"}, {"Produto": "VACINA POLIGUARD (50 DS) - FR 250 ML", "Unidade": "FR"}, {"Produto": "ZUPREVO (FR 100 ML)", "Unidade": "FR"}, {"Produto": "ZUPREVO (FR 50 ML)", "Unidade": "FR"}, {"Produto": "CIOSIN (FR 100 ML)", "Unidade": "FR"}, {"Produto": "EXPERT BRINCO (DISP 20 BR)", "Unidade": "DP"}, {"Produto": "FERTILCARE BENZOATO SINCRONIZACAO (FR 100 ML)", "Unidade": "FR"}, {"Produto": "FERTILCARE IMPLANTE 1200 (DISP 10 UNID)", "Unidade": "DP"}, {"Produto": "FERTILCARE IMPLANTE 600 (DISP 10 UN)", "Unidade": "DP"}, {"Produto": "FERTILCARE OVULACAO (FR 100 ML)", "Unidade": "FR"}, {"Produto": "FOLLIGON 5000 UI (FR 25 ML)", "Unidade": "FR"}, {"Produto": "REGROW 100ML", "Unidade": "FR"}, {"Produto": "ROTAVEC CORONA 20 DS (FR 40 ML)", "Unidade": "FR"}, {"Produto": "VACINA COVEXIN 9 (FR 33 DS)", "Unidade": "FR"}, {"Produto": "VACINA COVEXIN 9 (FR 83 DS)", "Unidade": "FR"}, {"Produto": "PHAGEIN 500GR", "Unidade": "PCT"}];
+
+let promotorAtual = null;
+let dataAtual = null;
+let quinzenaAtual = null;
+let propriedadeAtual = null;
+let produtoSelecionado = null;
+let todasPropriedades = [];
+let carrinho = [];
+
+const NOMES_MES = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+
+function calcularQuinzena(dataISO){
+  const [ano, mes, dia] = dataISO.split("-").map(Number);
+  const numero = dia <= 15 ? "1ª" : "2ª";
+  const nomeMes = NOMES_MES[mes-1];
+  return `${numero} quinzena de ${nomeMes}/${ano}`;
+}
+
+function hojeISO(){
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off*60000);
+  return local.toISOString().slice(0,10);
+}
+
+function mostrarMsg(idContainer, texto, tipo){
+  const el = document.getElementById(idContainer);
+  const classe = tipo === "erro" ? "msg-erro" : tipo === "sucesso" ? "msg-sucesso" : "msg-info";
+  el.innerHTML = `<div class="msg ${classe}">${texto}</div>`;
+}
+function limparMsg(idContainer){ document.getElementById(idContainer).innerHTML = ""; }
+
+function formatarDataBR(iso){
+  const [a,m,d] = iso.split("-");
+  return `${d}/${m}/${a}`;
+}
+
+function formatarMoeda(v){
+  return v.toLocaleString("pt-BR", {style:"currency", currency:"BRL"});
+}
+
+/* ---------- Tela 1: Acesso ---------- */
+function preencherPromotores(){
+  const promotores = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort();
+  const sel = document.getElementById("selectPromotor");
+  promotores.forEach(p=>{
+    const op = document.createElement("option");
+    op.value = p; op.textContent = p;
+    sel.appendChild(op);
+  });
+  document.getElementById("inputData").value = hojeISO();
+}
+
+document.getElementById("btnEntrar").addEventListener("click", async ()=>{
+  limparMsg("msgAcesso");
+  const promotor = document.getElementById("selectPromotor").value;
+  const data = document.getElementById("inputData").value;
+
+  if(!promotor){ mostrarMsg("msgAcesso", "Selecione seu nome antes de continuar.", "erro"); return; }
+  if(!data){ mostrarMsg("msgAcesso", "Selecione a data do lançamento.", "erro"); return; }
+
+  promotorAtual = promotor;
+  dataAtual = data;
+  quinzenaAtual = calcularQuinzena(data);
+
+  document.getElementById("cabecalhoPromotor").textContent = promotor;
+
+  document.getElementById("telaAcesso").classList.add("oculto");
+  document.getElementById("telaPropriedade").classList.remove("oculto");
+
+  await carregarTodasPropriedades();
+});
+
+/* ---------- Tela 2: Propriedade (catálogo global) ---------- */
+async function carregarTodasPropriedades(){
+  limparMsg("msgPropriedade");
+  try{
+    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+      headers: { "x-api-key": CONFIG.API_KEY }
+    });
+    const dados = await resp.json();
+    todasPropriedades = (dados && dados.propriedades) || [];
+  }catch(err){
+    todasPropriedades = [];
+    mostrarMsg("msgPropriedade", "Não foi possível carregar as propriedades já cadastradas, mas você pode cadastrar uma nova normalmente.", "info");
+  }
+}
+
+document.getElementById("btnVoltarAcesso").addEventListener("click", ()=>{
+  document.getElementById("telaPropriedade").classList.add("oculto");
+  document.getElementById("telaAcesso").classList.remove("oculto");
+});
+
+document.getElementById("buscaPropriedade").addEventListener("input", (e)=>{
+  const termo = e.target.value.toLowerCase().trim();
+  const caixa = document.getElementById("sugestoesPropriedade");
+  if(termo.length < 1){ caixa.classList.add("oculto"); caixa.innerHTML=""; return; }
+
+  const resultados = todasPropriedades.filter(p=>p.toLowerCase().includes(termo)).slice(0,30);
+  if(resultados.length === 0){
+    caixa.innerHTML = '<div class="sugestao-vazia">Nenhuma propriedade encontrada. Use "+ Cadastrar propriedade nova" abaixo.</div>';
+  } else {
+    caixa.innerHTML = resultados.map(p=>`<div class="sugestao-item" data-propriedade="${p.replace(/"/g,'&quot;')}"><span>${p}</span></div>`).join('');
+  }
+  caixa.classList.remove("oculto");
+});
+
+document.getElementById("sugestoesPropriedade").addEventListener("click", (e)=>{
+  const item = e.target.closest(".sugestao-item");
+  if(!item) return;
+  const nome = item.getAttribute("data-propriedade");
+  document.getElementById("buscaPropriedade").value = nome;
+  document.getElementById("sugestoesPropriedade").classList.add("oculto");
+  document.getElementById("propriedadeChip").textContent = nome;
+  document.getElementById("propriedadeEscolhidaWrap").classList.remove("oculto");
+});
+
+document.addEventListener("click", (e)=>{
+  const caixa = document.getElementById("sugestoesPropriedade");
+  if(caixa && !caixa.contains(e.target) && e.target.id !== "buscaPropriedade"){
+    caixa.classList.add("oculto");
+  }
+  const caixaProd = document.getElementById("sugestoesProduto");
+  if(caixaProd && !caixaProd.contains(e.target) && e.target.id !== "buscaProduto"){
+    caixaProd.classList.add("oculto");
+  }
+});
+
+document.getElementById("btnContinuarPropriedade").addEventListener("click", ()=>{
+  limparMsg("msgPropriedade");
+
+  const propriedadeEscolhida = document.getElementById("propriedadeChip").textContent.trim();
+  if(!propriedadeEscolhida){
+    mostrarMsg("msgPropriedade", "Busque e selecione uma propriedade, ou cadastre uma nova.", "erro");
+    return;
+  }
+
+  irParaLancamento(propriedadeEscolhida);
+});
+
+function irParaLancamento(propriedade){
+  propriedadeAtual = propriedade;
+  document.getElementById("resumoPropriedade").textContent = propriedadeAtual;
+  document.getElementById("resumoData").textContent = formatarDataBR(dataAtual);
+  document.getElementById("resumoQuinzena").textContent = quinzenaAtual;
+
+  preencherRevendasItem(promotorAtual);
+
+  document.getElementById("telaPropriedade").classList.add("oculto");
+  document.getElementById("telaCadastroPropriedade").classList.add("oculto");
+  document.getElementById("telaLancamento").classList.remove("oculto");
+}
+
+document.getElementById("btnTrocarPropriedade").addEventListener("click", ()=>{
+  document.getElementById("telaLancamento").classList.add("oculto");
+  document.getElementById("telaPropriedade").classList.remove("oculto");
+  document.getElementById("buscaPropriedade").value = "";
+  document.getElementById("propriedadeChip").textContent = "";
+  document.getElementById("propriedadeEscolhidaWrap").classList.add("oculto");
+  limparMsg("msgLancamento");
+  carregarTodasPropriedades();
+});
+
+document.getElementById("btnTrocar").addEventListener("click", ()=>{
+  carrinho = [];
+  atualizarCarrinho();
+  document.getElementById("telaLancamento").classList.add("oculto");
+  document.getElementById("telaAcesso").classList.remove("oculto");
+  document.getElementById("cabecalhoPromotor").textContent = "";
+  limparMsg("msgLancamento");
+});
+
+/* ---------- Assistente de cadastro de propriedade (3 etapas) ---------- */
+function mostrarEtapaCadastro(n){
+  [1,2,3].forEach(i=>{
+    document.getElementById("etapaCad" + i).classList.toggle("oculto", i !== n);
+    document.getElementById("pontoEtapa" + i).classList.toggle("ativo", i <= n);
+  });
+}
+
+document.getElementById("btnAbrirCadastroPropriedade").addEventListener("click", ()=>{
+  limparMsg("msgPropriedade");
+
+  document.getElementById("cpNome").value = "";
+  document.getElementById("cpMunicipio").value = "";
+  document.getElementById("cpProprietario").value = "";
+  document.getElementById("cpDecisor").value = "";
+  document.getElementById("cpMatrizes").value = 0;
+  document.getElementById("cpPrimiparas").value = 0;
+  document.getElementById("cpNovilhas").value = 0;
+  document.getElementById("cpBezerrosMachos").value = 0;
+  document.getElementById("cpBezerrosFemeas").value = 0;
+  document.getElementById("cpGarrotes").value = 0;
+  document.getElementById("cpTouros").value = 0;
+  document.getElementById("cpEquinos").value = 0;
+  document.getElementById("cpTipoPropriedade").value = "";
+
+  const selVendedor = document.getElementById("cpVendedor");
+  selVendedor.innerHTML = "";
+  const promotores = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort();
+  promotores.forEach(p=>{
+    const op = document.createElement("option");
+    op.value = p; op.textContent = p;
+    if(p === promotorAtual) op.selected = true;
+    selVendedor.appendChild(op);
+  });
+
+  mostrarEtapaCadastro(1);
+  limparMsg("msgCadastroPropriedade");
+  document.getElementById("telaPropriedade").classList.add("oculto");
+  document.getElementById("telaCadastroPropriedade").classList.remove("oculto");
+});
+
+document.getElementById("btnCadCancelar1").addEventListener("click", ()=>{
+  document.getElementById("telaCadastroPropriedade").classList.add("oculto");
+  document.getElementById("telaPropriedade").classList.remove("oculto");
+});
+
+document.getElementById("btnCadAvancar1").addEventListener("click", ()=>{
+  limparMsg("msgCadastroPropriedade");
+  const nome = document.getElementById("cpNome").value.trim();
+  const municipio = document.getElementById("cpMunicipio").value.trim();
+  const proprietario = document.getElementById("cpProprietario").value.trim();
+  const vendedor = document.getElementById("cpVendedor").value;
+
+  if(!nome){ mostrarMsg("msgCadastroPropriedade", "Informe o nome da propriedade.", "erro"); return; }
+  if(!municipio){ mostrarMsg("msgCadastroPropriedade", "Informe o município.", "erro"); return; }
+  if(!proprietario){ mostrarMsg("msgCadastroPropriedade", "Informe o proprietário.", "erro"); return; }
+  if(!vendedor){ mostrarMsg("msgCadastroPropriedade", "Selecione o vendedor responsável.", "erro"); return; }
+
+  mostrarEtapaCadastro(2);
+});
+
+document.getElementById("btnCadVoltar2").addEventListener("click", ()=> mostrarEtapaCadastro(1));
+
+document.getElementById("btnCadAvancar2").addEventListener("click", ()=>{
+  limparMsg("msgCadastroPropriedade");
+  if(!document.getElementById("cpTipoPropriedade").value){
+    mostrarMsg("msgCadastroPropriedade", "Selecione a classificação da atividade principal.", "erro");
+    return;
+  }
+  mostrarEtapaCadastro(3);
+});
+
+document.getElementById("btnCadVoltar3").addEventListener("click", ()=> mostrarEtapaCadastro(2));
+
+document.getElementById("btnCadConcluir").addEventListener("click", async ()=>{
+  limparMsg("msgCadastroPropriedade");
+
+  const payload = {
+    Propriedade: document.getElementById("cpNome").value.trim(),
+    Municipio: document.getElementById("cpMunicipio").value.trim(),
+    Proprietario: document.getElementById("cpProprietario").value.trim(),
+    Decisor: document.getElementById("cpDecisor").value.trim(),
+    Vendedor_Responsavel: document.getElementById("cpVendedor").value,
+    Tipo_Propriedade: document.getElementById("cpTipoPropriedade").value,
+    Matrizes: Number(document.getElementById("cpMatrizes").value) || 0,
+    Primiparas: Number(document.getElementById("cpPrimiparas").value) || 0,
+    Novilhas: Number(document.getElementById("cpNovilhas").value) || 0,
+    Bezerros_Machos: Number(document.getElementById("cpBezerrosMachos").value) || 0,
+    Bezerros_Femeas: Number(document.getElementById("cpBezerrosFemeas").value) || 0,
+    Garrotes: Number(document.getElementById("cpGarrotes").value) || 0,
+    Touros: Number(document.getElementById("cpTouros").value) || 0,
+    Equinos: Number(document.getElementById("cpEquinos").value) || 0,
+    Cadastrada_Por: promotorAtual
+  };
+
+  const btn = document.getElementById("btnCadConcluir");
+  btn.disabled = true;
+  const overlay = document.getElementById("overlayCarregando");
+  overlay.classList.remove("oculto");
+
+  try{
+    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG.API_KEY
+      },
+      body: JSON.stringify(payload)
+    });
+    const dados = await resp.json().catch(()=>({}));
+    if(!resp.ok){
+      throw new Error((dados && dados.erro) || ("O servidor recusou o cadastro (status " + resp.status + ").") );
+    }
+
+    todasPropriedades.push(payload.Propriedade);
+    irParaLancamento(payload.Propriedade);
+  }catch(err){
+    mostrarMsg("msgCadastroPropriedade", "Erro ao cadastrar. Tente novamente em instantes. (" + err.message + ")", "erro");
+  }finally{
+    overlay.classList.add("oculto");
+    btn.disabled = false;
+  }
+});
+
+/* ---------- Tela 3: Revenda (por item) ---------- */
+function preencherRevendasItem(promotor){
+  const sel = document.getElementById("selectRevendaItem");
+  sel.innerHTML = '<option value="">Selecione...</option>';
+  PROMOTOR_CLIENTE.filter(p=>p.Promotor === promotor).forEach(p=>{
+    const op = document.createElement("option");
+    op.value = p.Cliente; op.textContent = p.Cliente;
+    sel.appendChild(op);
+  });
+}
+
+/* ---------- Busca de produto ---------- */
+document.getElementById("buscaProduto").addEventListener("input", (e)=>{
+  const termo = e.target.value.toLowerCase().trim();
+  const caixa = document.getElementById("sugestoesProduto");
+  if(termo.length < 2){ caixa.classList.add("oculto"); caixa.innerHTML=""; return; }
+
+  const resultados = PRODUTOS.filter(p=>p.Produto.toLowerCase().includes(termo)).slice(0,30);
+  if(resultados.length === 0){
+    caixa.innerHTML = '<div class="sugestao-vazia">Nenhum produto encontrado</div>';
+  } else {
+    caixa.innerHTML = resultados.map(p=>`
+      <div class="sugestao-item" data-produto="${p.Produto.replace(/"/g,'&quot;')}" data-unidade="${p.Unidade}">
+        <span>${p.Produto}</span><span class="unidade-tag">${p.Unidade}</span>
+      </div>`).join('');
+  }
+  caixa.classList.remove("oculto");
+});
+
+document.getElementById("sugestoesProduto").addEventListener("click", (e)=>{
+  const item = e.target.closest(".sugestao-item");
+  if(!item) return;
+  produtoSelecionado = { Produto: item.getAttribute("data-produto"), Unidade: item.getAttribute("data-unidade") };
+  document.getElementById("buscaProduto").value = produtoSelecionado.Produto;
+  document.getElementById("sugestoesProduto").classList.add("oculto");
+  document.getElementById("produtoChip").textContent = `${produtoSelecionado.Produto} (${produtoSelecionado.Unidade})`;
+  document.getElementById("produtoSelecionadoWrap").classList.remove("oculto");
+  document.getElementById("inputPreco").value = "";
+  document.getElementById("inputVolume").value = "";
+  atualizarTotalLinha();
+});
+
+function atualizarTotalLinha(){
+  const preco = parseFloat(document.getElementById("inputPreco").value) || 0;
+  const volume = parseFloat(document.getElementById("inputVolume").value) || 0;
+  document.getElementById("totalLinha").textContent = formatarMoeda(preco * volume);
+}
+document.getElementById("inputPreco").addEventListener("input", atualizarTotalLinha);
+document.getElementById("inputVolume").addEventListener("input", atualizarTotalLinha);
+
+document.getElementById("btnAdicionarItem").addEventListener("click", ()=>{
+  limparMsg("msgLancamento");
+
+  const revenda = document.getElementById("selectRevendaItem").value;
+  if(!revenda){ mostrarMsg("msgLancamento", "Selecione a revenda desta venda.", "erro"); return; }
+  if(!produtoSelecionado){ mostrarMsg("msgLancamento", "Selecione um produto.", "erro"); return; }
+
+  const preco = parseFloat(document.getElementById("inputPreco").value);
+  const volume = parseFloat(document.getElementById("inputVolume").value);
+  if(isNaN(preco) || preco < 0){ mostrarMsg("msgLancamento", "Informe um preço unitário válido.", "erro"); return; }
+  if(isNaN(volume) || volume <= 0){ mostrarMsg("msgLancamento", "Informe um volume válido (maior que zero).", "erro"); return; }
+
+  carrinho.push({
+    Nome_Promotor: promotorAtual,
+    Revenda: revenda,
+    Propriedade: propriedadeAtual,
+    Produto: produtoSelecionado.Produto,
+    Unidade: produtoSelecionado.Unidade,
+    Preco_Unitario: preco,
+    Volume: volume,
+    Valor_Total: preco * volume,
+    Dia_Lancamento: dataAtual,
+    Quinzena: quinzenaAtual
+  });
+
+  produtoSelecionado = null;
+  document.getElementById("buscaProduto").value = "";
+  document.getElementById("produtoSelecionadoWrap").classList.add("oculto");
+  atualizarCarrinho();
+});
+
+/* ---------- Carrinho ---------- */
+function atualizarCarrinho(){
+  document.getElementById("contadorItens").textContent = carrinho.length;
+  const container = document.getElementById("listaCarrinho");
+  container.innerHTML = carrinho.map((item, idx)=>`
+    <div class="item-carrinho">
+      <div class="item-carrinho-info">
+        <b>${item.Revenda}</b> — ${item.Propriedade} — ${item.Produto} (${item.Unidade})<br>
+        <span class="item-carrinho-detalhe">${item.Volume} x ${formatarMoeda(item.Preco_Unitario)} = <b>${formatarMoeda(item.Valor_Total)}</b></span>
+      </div>
+      <button class="btn-remover" data-idx="${idx}" type="button" title="Remover">×</button>
+    </div>
+  `).join("");
+
+  const totalGeral = carrinho.reduce((acc, item) => acc + item.Valor_Total, 0);
+  document.getElementById("totalGeral").textContent = formatarMoeda(totalGeral);
+}
+
+document.getElementById("listaCarrinho").addEventListener("click", (e)=>{
+  const btn = e.target.closest(".btn-remover");
+  if(!btn) return;
+  const idx = Number(btn.getAttribute("data-idx"));
+  carrinho.splice(idx, 1);
+  atualizarCarrinho();
+});
+
+/* ---------- Envio ---------- */
+document.getElementById("btnEnviar").addEventListener("click", async ()=>{
+  limparMsg("msgLancamento");
+
+  if(carrinho.length === 0){
+    mostrarMsg("msgLancamento", "Adicione pelo menos um item antes de enviar.", "erro");
+    return;
+  }
+
+  const observacao = document.getElementById("inputObservacao").value.trim();
+  if(!observacao){
+    mostrarMsg("msgLancamento", "Preencha a observação da visita antes de enviar.", "erro");
+    return;
+  }
+
+  const overlay = document.getElementById("overlayCarregando");
+  const btn = document.getElementById("btnEnviar");
+  overlay.classList.remove("oculto");
+  btn.disabled = true;
+
+  try{
+    const lancamentosComObservacao = carrinho.map(item => ({ ...item, Observacao_Visita: observacao }));
+    const resp = await fetch(CONFIG.URL_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG.API_KEY
+      },
+      body: JSON.stringify({ lancamentos: lancamentosComObservacao })
+    });
+    if(!resp.ok) throw new Error("O servidor recusou o envio (status " + resp.status + ").");
+
+    mostrarMsg("msgLancamento", `Lançamento enviado com sucesso! ${carrinho.length} item(ns) registrado(s) em ${formatarDataBR(dataAtual)}.`, "sucesso");
+    carrinho = [];
+    document.getElementById("inputObservacao").value = "";
+    atualizarCarrinho();
+    window.scrollTo({top:0, behavior:"smooth"});
+  }catch(err){
+    mostrarMsg("msgLancamento", "Erro ao enviar. Tente novamente em instantes. (" + err.message + ")", "erro");
+  }finally{
+    overlay.classList.add("oculto");
+    btn.disabled = false;
+  }
+});
+
+preencherPromotores();
+</script>
+
+</body>
+</html>
