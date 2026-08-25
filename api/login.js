@@ -3,16 +3,29 @@
 // token assinado que o app guarda no navegador para as próximas requisições.
 //
 // Tabela "Usuarios" — colunas nesta ordem:
-//   Nome | Login | Senha_Hash | Cargo | Ativo
-//   (Cargo = "Gerente" ou "Promotor"; Ativo = TRUE/FALSE)
+//   PROMOTOR | CARGO | SENHA
+//   (PROMOTOR é usado como nome de exibição E como login; CARGO = "PROMOTOR",
+//   "GERENTE" ou "DESENVOLVER"; SENHA fica em texto puro — aceitável para esta
+//   ferramenta interna de baixo risco. Sem coluna de "Ativo": todo mundo na
+//   tabela é considerado ativo.)
 //
 // Variáveis de ambiente necessárias (além das já existentes TENANT_ID, CLIENT_ID,
 // CLIENT_SECRET, API_KEY, DRIVE_ID, ITEM_ID):
-//   AUTH_SECRET   - uma string secreta qualquer, só sua, usada para assinar os tokens
-//                   e gerar os hashes de senha. Troque por algo longo e aleatório.
+//   AUTH_SECRET   - uma string secreta qualquer, só sua, usada para assinar os tokens.
+//                   Troque por algo longo e aleatório.
 // Opcional: TABLE_USUARIOS (padrão "Usuarios")
 
-const { hashSenha, senhaConfere, criarToken } = require("./_lib/auth");
+const { hashSenha, criarToken } = require("./_lib/auth");
+
+// Normaliza variações de escrita do cargo (ex.: "Gerente", "Desenvolver",
+// "Desenvolvedor") para os valores canônicos que o resto do sistema espera:
+// "Gerente", "Desenvolvedor" ou "Promotor".
+function normalizarCargo(cargo) {
+  const c = String(cargo || "").trim().toLowerCase();
+  if (c.includes("desenvolv")) return "Desenvolvedor";
+  if (c.includes("gerente")) return "Gerente";
+  return "Promotor";
+}
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -80,29 +93,24 @@ module.exports = async function handler(req, res) {
     }
 
     const linhas = (dadosGraph.value || []).map(r => r.values && r.values[0]).filter(Boolean);
-    // cada linha: [Nome, Login, Senha_Hash, Cargo, Ativo]
-    const linhaUsuario = linhas.find(l => String(l[1] || "").trim().toLowerCase() === String(login).trim().toLowerCase());
+    // cada linha: [PROMOTOR, CARGO, SENHA] — o valor de PROMOTOR serve como nome E como login
+    const linhaUsuario = linhas.find(l => String(l[0] || "").trim().toLowerCase() === String(login).trim().toLowerCase());
 
     if (!linhaUsuario) {
       res.status(401).json({ erro: "Login ou senha inválidos." });
       return;
     }
 
-    const [nome, , senhaHash, cargo, ativo] = linhaUsuario;
+    const [nome, cargo, senhaPlana] = linhaUsuario;
 
-    const estaAtivo = ativo === true || String(ativo).trim().toUpperCase() === "TRUE" || String(ativo).trim() === "1";
-    if (!estaAtivo) {
-      res.status(401).json({ erro: "Usuário desativado. Fale com seu gerente." });
-      return;
-    }
-
-    if (!senhaConfere(senha, senhaHash)) {
+    if (String(senha) !== String(senhaPlana || "").trim()) {
       res.status(401).json({ erro: "Login ou senha inválidos." });
       return;
     }
 
-    const token = criarToken({ login: String(login).trim(), nome, cargo });
-    res.status(200).json({ token, nome, cargo });
+    const cargoNormalizado = normalizarCargo(cargo);
+    const token = criarToken({ login: String(login).trim(), nome, cargo: cargoNormalizado });
+    res.status(200).json({ token, nome, cargo: cargoNormalizado });
   } catch (err) {
     res.status(500).json({ erro: "Erro interno.", detalhe: String(err.message || err) });
   }
