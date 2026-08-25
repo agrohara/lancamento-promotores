@@ -18,6 +18,7 @@
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
+const { paraNumero } = require("./_lib/numeros");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -108,9 +109,9 @@ module.exports = async function handler(req, res) {
         Propriedade: String(l[2] || ""),
         Produto: String(l[3] || ""),
         Unidade: String(l[4] || ""),
-        Preco_Unitario: Number(l[5]) || 0,
-        Volume: Number(l[6]) || 0,
-        Valor_Total: Number(l[7]) || 0,
+        Preco_Unitario: paraNumero(l[5]),
+        Volume: paraNumero(l[6]),
+        Valor_Total: paraNumero(l[7]),
         Dia_Lancamento: paraISO(l[8]),
         Quinzena: String(l[9] || "")
       }));

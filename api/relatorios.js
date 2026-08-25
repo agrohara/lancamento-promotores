@@ -13,6 +13,7 @@
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
+const { paraNumero } = require("./_lib/numeros");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -113,7 +114,7 @@ module.exports = async function handler(req, res) {
     // Lancamentos: Nome_Promotor,Revenda,Propriedade,Produto,Unidade,Preco_Unitario,Volume,Valor_Total,Dia_Lancamento,Quinzena,Observacao_Visita
     let pedidos = linhasLancamentos.map(l => ({
       promotor: String(l[0] || "").trim(),
-      valor: Number(l[7]) || 0,
+      valor: paraNumero(l[7]),
       data: paraISO(l[8])
     })).filter(p => p.promotor && p.data);
 
