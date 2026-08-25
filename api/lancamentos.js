@@ -16,13 +16,18 @@
 //                     (o HTML envia esse valor no cabeçalho x-api-key)
 // Opcionais (só se o arquivo mudar de lugar): DRIVE_ID, ITEM_ID, TABLE_NAME
 
+const { usuarioDaRequisicao } = require("./_lib/auth");
+
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
 const TABLE_LANCAMENTOS_PADRAO = "Lancamentos";
+const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
 function validarRegistro(r) {
   if (!r || typeof r !== "object") return false;
-  if (!r.Nome_Promotor || !r.Revenda || !r.Propriedade || !r.Produto || !r.Dia_Lancamento || !r.Quinzena || !r.Observacao_Visita) return false;
+  // A observação da visita agora é registrada separadamente (ver api/visitas.js),
+  // então aqui ela é opcional — o pedido pode ser lançado sozinho.
+  if (!r.Nome_Promotor || !r.Revenda || !r.Propriedade || !r.Produto || !r.Dia_Lancamento || !r.Quinzena) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(r.Dia_Lancamento))) return false;
 
   const preco = Number(r.Preco_Unitario);
@@ -70,16 +75,24 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const lancamentos = (req.body && req.body.lancamentos) || [];
+  let lancamentos = (req.body && req.body.lancamentos) || [];
   if (!Array.isArray(lancamentos) || lancamentos.length === 0) {
     res.status(400).json({ erro: "Envie 'lancamentos' como um array não vazio." });
     return;
   }
 
+  // Se o usuário logado não for Gerente/Desenvolvedor, o nome do promotor gravado
+  // é sempre o do próprio usuário logado — evita que alguém lance venda em nome de
+  // outro promotor só editando o payload.
+  const usuario = usuarioDaRequisicao(req);
+  if (usuario && !CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase())) {
+    lancamentos = lancamentos.map(r => ({ ...r, Nome_Promotor: usuario.nome }));
+  }
+
   const invalidos = lancamentos.filter(r => !validarRegistro(r));
   if (invalidos.length > 0) {
     res.status(400).json({
-      erro: "Um ou mais registros estão incompletos, com data em formato inválido (esperado AAAA-MM-DD), preço/volume inválidos ou sem observação da visita.",
+      erro: "Um ou mais registros estão incompletos, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
       invalidos
     });
     return;
@@ -102,7 +115,7 @@ module.exports = async function handler(req, res) {
       Number(r.Preco_Unitario) * Number(r.Volume),
       r.Dia_Lancamento,
       r.Quinzena,
-      r.Observacao_Visita
+      r.Observacao_Visita || ""
     ]);
 
     const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableLancamentos}')/rows/add`;
