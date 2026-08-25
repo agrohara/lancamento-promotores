@@ -58,20 +58,77 @@ async function obterToken() {
   return dados.access_token;
 }
 
+async function obterLinhas(token, driveId, itemId, tableName) {
+  const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableName}')/rows?$select=values`;
+  const resp = await fetch(urlGraph, {
+    method: "GET",
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const dados = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const erro = new Error("Falha ao ler tabela '" + tableName + "'.");
+    erro.detalhe = dados;
+    throw erro;
+  }
+  return (dados.value || []).map(r => r.values && r.values[0]).filter(Boolean);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.status(204).end();
     return;
   }
 
-  if (req.method !== "POST") {
-    res.status(405).json({ erro: "Use POST." });
-    return;
-  }
-
   const chaveEnviada = req.headers["x-api-key"];
   if (!process.env.API_KEY || chaveEnviada !== process.env.API_KEY) {
     res.status(401).json({ erro: "Não autorizado." });
+    return;
+  }
+
+  if (req.method === "GET") {
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+    const promotorFiltro = ehGestor ? String((req.query && req.query.promotor) || "").trim() : usuario.nome;
+
+    try {
+      const token = await obterToken();
+      const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
+      const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
+      const tableLancamentos = process.env.TABLE_NAME || TABLE_LANCAMENTOS_PADRAO;
+
+      const linhas = await obterLinhas(token, driveId, itemId, tableLancamentos);
+      let lancamentos = linhas.map(l => ({
+        Nome_Promotor: String(l[0] || ""),
+        Revenda: String(l[1] || ""),
+        Propriedade: String(l[2] || ""),
+        Produto: String(l[3] || ""),
+        Unidade: String(l[4] || ""),
+        Preco_Unitario: Number(l[5]) || 0,
+        Volume: Number(l[6]) || 0,
+        Valor_Total: Number(l[7]) || 0,
+        Dia_Lancamento: String(l[8] || ""),
+        Quinzena: String(l[9] || "")
+      }));
+
+      if (promotorFiltro) {
+        lancamentos = lancamentos.filter(r => r.Nome_Promotor.toLowerCase() === promotorFiltro.toLowerCase());
+      }
+
+      lancamentos.sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
+
+      res.status(200).json({ lancamentos });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao ler lançamentos via Graph API.", detalhe: err.detalhe || String(err.message || err) });
+    }
+    return;
+  }
+
+  if (req.method !== "POST") {
+    res.status(405).json({ erro: "Use GET ou POST." });
     return;
   }
 

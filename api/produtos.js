@@ -85,7 +85,11 @@ module.exports = async function handler(req, res) {
         Produto: String(l.valores[0] || "").trim(),
         Unidade: String(l.valores[1] || "").trim(),
         Preco_Padrao: l.valores[2] === "" || l.valores[2] === undefined ? null : Number(l.valores[2]),
-        Ativo: l.valores[3] === true || String(l.valores[3]).trim().toUpperCase() === "TRUE" || String(l.valores[3]).trim() === "1"
+        // Trata como ativo tudo que não for explicitamente "falso" — cobre TRUE/VERDADEIRO/1/
+        // vazio, já que nem todo cliente do Excel grava o booleano do mesmo jeito.
+        Ativo: !["false", "falso", "0", "não", "nao", "inativo"].includes(
+          String(l.valores[3] === undefined || l.valores[3] === null ? "" : l.valores[3]).trim().toLowerCase()
+        )
       })).filter(p => p.Produto);
 
       produtos.sort((a, b) => a.Produto.localeCompare(b.Produto, "pt-BR"));

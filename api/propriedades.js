@@ -2,8 +2,10 @@
 // via Microsoft Graph API. O catálogo é GLOBAL (uma propriedade não pertence a uma
 // única revenda — pode ser atendida por revendas diferentes da carteira de cada promotor).
 //
-// GET  /api/propriedades          -> lista os nomes de todas as propriedades cadastradas
-// POST /api/propriedades          -> cadastra uma propriedade nova, com os dados completos
+// GET  /api/propriedades              -> lista os nomes de todas as propriedades cadastradas
+// GET  /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade
+// GET  /api/propriedades?completo=1   -> devolve os dados completos de TODAS (usado na exportação)
+// POST /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
 //
 // Ordem das colunas na tabela "Propriedades":
 //   Propriedade | Municipio | Proprietario | Decisor | Vendedor_Responsavel | Tipo_Propriedade |
@@ -89,6 +91,43 @@ module.exports = async function handler(req, res) {
     try {
       const token = await obterToken();
       const linhas = await obterLinhas(token, driveId, itemId, tableName);
+
+      const paraObjeto = (l) => ({
+        Propriedade: String(l[0] || ""),
+        Municipio: String(l[1] || ""),
+        Proprietario: String(l[2] || ""),
+        Decisor: String(l[3] || ""),
+        Vendedor_Responsavel: String(l[4] || ""),
+        Tipo_Propriedade: String(l[5] || ""),
+        Matrizes: Number(l[6]) || 0,
+        Primiparas: Number(l[7]) || 0,
+        Novilhas: Number(l[8]) || 0,
+        Bezerros_Machos: Number(l[9]) || 0,
+        Bezerros_Femeas: Number(l[10]) || 0,
+        Garrotes: Number(l[11]) || 0,
+        Touros: Number(l[12]) || 0,
+        Equinos: Number(l[13]) || 0,
+        Cadastrada_Por: String(l[14] || ""),
+        Data_Cadastro: String(l[15] || "")
+      });
+
+      const nomeBuscado = String((req.query && req.query.nome) || "").trim();
+      if (nomeBuscado) {
+        const linhaAlvo = linhas.find(l => String(l[0] || "").trim().toLowerCase() === nomeBuscado.toLowerCase());
+        if (!linhaAlvo) {
+          res.status(404).json({ erro: "Propriedade não encontrada." });
+          return;
+        }
+        res.status(200).json({ propriedade: paraObjeto(linhaAlvo) });
+        return;
+      }
+
+      if (req.query && req.query.completo) {
+        const propriedades = linhas.map(paraObjeto).filter(p => p.Propriedade);
+        propriedades.sort((a, b) => a.Propriedade.localeCompare(b.Propriedade, "pt-BR"));
+        res.status(200).json({ propriedades });
+        return;
+      }
 
       const propriedades = [...new Set(
         linhas
