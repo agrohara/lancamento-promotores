@@ -597,8 +597,24 @@ function hojeISO() {
 }
 
 function formatarDataBR(dataISO) {
-  const [ano, mes, dia] = dataISO.split("-");
-  return `${dia}/${mes}/${ano}`;
+  if (dataISO === undefined || dataISO === null || dataISO === "") return "—";
+  const str = String(dataISO).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const [ano, mes, dia] = str.split("-");
+    return `${dia}/${mes}/${ano}`;
+  }
+  // Às vezes o Excel grava a data como número serial (dias desde 1899-12-30) em vez
+  // de manter o texto "AAAA-MM-DD" — trata esse caso também para não mostrar "undefined".
+  const serial = Number(str);
+  if (!Number.isNaN(serial) && serial > 0) {
+    const base = new Date(Date.UTC(1899, 11, 30));
+    const data = new Date(base.getTime() + serial * 86400000);
+    const dia = String(data.getUTCDate()).padStart(2, "0");
+    const mes = String(data.getUTCMonth() + 1).padStart(2, "0");
+    const ano = data.getUTCFullYear();
+    return `${dia}/${mes}/${ano}`;
+  }
+  return str;
 }
 
 function formatarMoeda(valor) {
