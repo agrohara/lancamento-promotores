@@ -19,6 +19,7 @@
 // CLIENT_SECRET, API_KEY). Opcionais: DRIVE_ID, ITEM_ID, TABLE_VISITAS (padrão "Visitas")
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
+const { paraISO } = require("./_lib/datas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -101,7 +102,7 @@ module.exports = async function handler(req, res) {
         Tipo_Visita: String(l[2] || ""),
         Observacao: String(l[3] || ""),
         Foto_URL: String(l[4] || ""),
-        Dia_Visita: String(l[7] || ""),
+        Dia_Visita: paraISO(l[7]),
         Quinzena: String(l[8] || "")
       }));
 

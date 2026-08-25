@@ -17,6 +17,7 @@
 // Opcionais (só se o arquivo mudar de lugar): DRIVE_ID, ITEM_ID, TABLE_NAME
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
+const { paraISO } = require("./_lib/datas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -110,7 +111,7 @@ module.exports = async function handler(req, res) {
         Preco_Unitario: Number(l[5]) || 0,
         Volume: Number(l[6]) || 0,
         Valor_Total: Number(l[7]) || 0,
-        Dia_Lancamento: String(l[8] || ""),
+        Dia_Lancamento: paraISO(l[8]),
         Quinzena: String(l[9] || "")
       }));
 

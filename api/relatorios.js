@@ -12,6 +12,7 @@
 // TABLE_NAME (Lancamentos), TABLE_VISITAS (Visitas)
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
+const { paraISO } = require("./_lib/datas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -113,13 +114,13 @@ module.exports = async function handler(req, res) {
     let pedidos = linhasLancamentos.map(l => ({
       promotor: String(l[0] || "").trim(),
       valor: Number(l[7]) || 0,
-      data: String(l[8] || "").trim()
+      data: paraISO(l[8])
     })).filter(p => p.promotor && p.data);
 
     // Visitas: Nome_Promotor,Propriedade,Tipo_Visita,Observacao,Foto_URL,Latitude,Longitude,Dia_Visita,Quinzena
     let visitas = linhasVisitas.map(v => ({
       promotor: String(v[0] || "").trim(),
-      data: String(v[7] || "").trim()
+      data: paraISO(v[7])
     })).filter(v => v.promotor && v.data);
 
     if (filtroPromotor) {

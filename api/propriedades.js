@@ -16,6 +16,8 @@
 //   TENANT_ID, CLIENT_ID, CLIENT_SECRET, API_KEY
 // Opcionais: DRIVE_ID, ITEM_ID, TABLE_PROPRIEDADES
 
+const { paraISO } = require("./_lib/datas");
+
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
 const TABLE_PROPRIEDADES_PADRAO = "Propriedades";
@@ -108,7 +110,7 @@ module.exports = async function handler(req, res) {
         Touros: Number(l[12]) || 0,
         Equinos: Number(l[13]) || 0,
         Cadastrada_Por: String(l[14] || ""),
-        Data_Cadastro: String(l[15] || "")
+        Data_Cadastro: paraISO(l[15])
       });
 
       const nomeBuscado = String((req.query && req.query.nome) || "").trim();
