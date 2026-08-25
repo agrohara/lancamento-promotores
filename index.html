@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Agro Hara · Gestão de Campo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --azul:#3d8b28;
@@ -87,7 +88,7 @@
   .aviso-em-breve{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;border-radius:10px;padding:16px;font-size:14px;line-height:1.5;}
 
   /* ---------- FAZENDAS (lista) ---------- */
-  .item-fazenda{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:14px 16px;margin-bottom:8px;font-size:14px;font-weight:600;}
+  .item-fazenda{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:14px 16px;margin-bottom:8px;font-size:14px;font-weight:600;cursor:pointer;}
   .carregando-lista{padding:20px;text-align:center;color:#8a9690;font-size:13px;}
 
   /* ---------- CATÁLOGO ---------- */
@@ -103,6 +104,24 @@
   .item-catalogo-editar input{margin-bottom:10px;padding:8px;font-size:14px;}
   .campo-check{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:13px;font-weight:600;color:#44525c;}
   .campo-check input{width:auto;margin:0;}
+
+  /* ---------- HISTÓRICO ---------- */
+  .filtro-historico{display:flex;gap:8px;margin-bottom:14px;}
+  .chip-filtro{background:#fff;border:1px solid var(--cinza-borda);border-radius:20px;padding:8px 16px;
+    font-size:13px;font-weight:700;color:#5b6771;cursor:pointer;}
+  .chip-filtro.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
+  .item-historico{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
+  .item-historico-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .item-historico-titulo{font-size:14px;font-weight:700;}
+  .item-historico-sub{font-size:12px;color:#5b6771;margin-top:2px;}
+  .item-historico-valor{font-size:13px;font-weight:700;color:var(--azul);flex:0 0 auto;}
+  .item-historico-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid var(--cinza-fundo);font-size:13px;line-height:1.6;color:#44525c;}
+  .item-historico-detalhe .linha-produto{display:flex;justify-content:space-between;padding:3px 0;}
+
+  /* ---------- FAZENDA (detalhe) ---------- */
+  .campo-detalhe{padding:8px 0;border-bottom:1px solid var(--cinza-fundo);font-size:14px;display:flex;justify-content:space-between;gap:10px;}
+  .campo-detalhe:last-child{border-bottom:none;}
+  .campo-detalhe b{color:#44525c;}
 
   /* ---------- RELATÓRIOS ---------- */
   .item-ranking{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:10px 14px;
@@ -330,7 +349,11 @@
         <button class="acao-rapida" data-acao="novoPedido" type="button"><span class="acao-icone">🛒</span>Novo Pedido</button>
       </div>
       <h3 class="subtitulo-secao">Histórico</h3>
-      <div class="aviso-em-breve">O histórico de visitas e pedidos chega em uma próxima etapa.</div>
+      <div class="filtro-historico">
+        <button class="chip-filtro ativo" data-filtro-historico="visitas" type="button">Visitas</button>
+        <button class="chip-filtro" data-filtro-historico="pedidos" type="button">Pedidos</button>
+      </div>
+      <div id="historicoLista"><div class="carregando-lista">Carregando...</div></div>
     </section>
 
     <!-- ESCOLHER FAZENDA (compartilhado por Visita e Pedido) -->
@@ -373,12 +396,6 @@
           <option value="Relacionamento">Relacionamento</option>
           <option value="Outra">Outra</option>
         </select>
-      </div>
-
-      <div class="card">
-        <p class="subtitulo">Localização</p>
-        <div id="statusGps" class="total-linha">Capturando localização...</div>
-        <button class="btn btn-secundario" id="btnRecapturarGps" type="button" style="margin-top:10px;">Tentar novamente</button>
       </div>
 
       <div class="card">
@@ -491,6 +508,12 @@
         <h3 class="subtitulo-secao">Ranking por promotor</h3>
         <div id="listaRankingPromotores"></div>
       </div>
+
+      <div id="areaExportar" class="oculto">
+        <h3 class="subtitulo-secao">Exportar dados</h3>
+        <div id="msgExportar"></div>
+        <button class="btn btn-secundario" id="btnExportarExcel" type="button">Baixar Excel (Pedidos, Visitas, Fazendas)</button>
+      </div>
     </section>
 
     <!-- PERFIL -->
@@ -553,8 +576,6 @@ let modoRegistro = null;      // "visita" ou "pedido"
 let todosProdutos = [];
 let fotoBase64 = null;
 let fotoNomeArquivo = null;
-let gpsLatitude = null;
-let gpsLongitude = null;
 
 /* =========================================================================
    UTILITÁRIOS
@@ -703,9 +724,15 @@ function mostrarPagina(nome) {
 document.querySelectorAll(".nav-item").forEach(btn => {
   btn.addEventListener("click", () => {
     const pagina = btn.getAttribute("data-pagina");
-    if (pagina === "fazendas") {
+    if (pagina === "inicio") {
+      mostrarPagina("inicio");
+      carregarDashboard();
+    } else if (pagina === "fazendas") {
       mostrarPagina("fazendas");
       carregarListaFazendas();
+    } else if (pagina === "visitas") {
+      mostrarPagina("visitas");
+      carregarHistorico();
     } else if (pagina === "catalogo") {
       mostrarPagina("catalogo");
       carregarCatalogo();
@@ -795,8 +822,51 @@ function renderizarListaFazendas(lista) {
     container.innerHTML = '<div class="carregando-lista">Nenhuma fazenda encontrada.</div>';
     return;
   }
-  container.innerHTML = lista.map(nome => `<div class="item-fazenda">${nome}</div>`).join("");
+  container.innerHTML = lista.map((nome, i) => `
+    <div class="item-fazenda" data-abrir-fazenda="${nome.replace(/"/g,'&quot;')}">
+      ${nome}
+      <div class="item-catalogo-editar oculto" id="detalheFazenda${i}"></div>
+    </div>
+  `).join("");
 }
+
+document.getElementById("listaFazendas").addEventListener("click", async (e) => {
+  const item = e.target.closest("[data-abrir-fazenda]");
+  if (!item) return;
+  const nome = item.getAttribute("data-abrir-fazenda");
+  const areaDetalhe = item.querySelector(".item-catalogo-editar");
+  const jaAberto = !areaDetalhe.classList.contains("oculto");
+  document.querySelectorAll("#listaFazendas .item-catalogo-editar").forEach(el => el.classList.add("oculto"));
+  if (jaAberto) return;
+
+  areaDetalhe.classList.remove("oculto");
+  areaDetalhe.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar os dados.");
+    const p = dados.propriedade;
+    areaDetalhe.innerHTML = `
+      <div class="campo-detalhe"><span>Município</span><b>${p.Municipio || "—"}</b></div>
+      <div class="campo-detalhe"><span>Proprietário</span><b>${p.Proprietario || "—"}</b></div>
+      <div class="campo-detalhe"><span>Decisor</span><b>${p.Decisor || "—"}</b></div>
+      <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
+      <div class="campo-detalhe"><span>Tipo</span><b>${p.Tipo_Propriedade || "—"}</b></div>
+      <div class="campo-detalhe"><span>Matrizes</span><b>${p.Matrizes}</b></div>
+      <div class="campo-detalhe"><span>Primíparas</span><b>${p.Primiparas}</b></div>
+      <div class="campo-detalhe"><span>Novilhas</span><b>${p.Novilhas}</b></div>
+      <div class="campo-detalhe"><span>Bezerros machos</span><b>${p.Bezerros_Machos}</b></div>
+      <div class="campo-detalhe"><span>Bezerros fêmeas</span><b>${p.Bezerros_Femeas}</b></div>
+      <div class="campo-detalhe"><span>Garrotes</span><b>${p.Garrotes}</b></div>
+      <div class="campo-detalhe"><span>Touros</span><b>${p.Touros}</b></div>
+      <div class="campo-detalhe"><span>Equinos</span><b>${p.Equinos}</b></div>
+      <div class="campo-detalhe"><span>Cadastrada por</span><b>${p.Cadastrada_Por || "—"}</b></div>
+      <div class="campo-detalhe"><span>Data do cadastro</span><b>${p.Data_Cadastro ? formatarDataBR(p.Data_Cadastro) : "—"}</b></div>
+    `;
+  } catch (err) {
+    areaDetalhe.innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
+  }
+});
 
 document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
   const termo = e.target.value.toLowerCase().trim();
@@ -1016,7 +1086,6 @@ function prepararVisitaCorpo(fazenda) {
   fotoBase64 = null;
   fotoNomeArquivo = null;
   limparMsg("msgVisita");
-  capturarGps();
 }
 
 document.getElementById("btnTrocarFazendaVisita").addEventListener("click", () => {
@@ -1026,30 +1095,6 @@ document.getElementById("btnTrocarFazendaVisita").addEventListener("click", () =
 document.getElementById("btnCancelarVisita").addEventListener("click", () => {
   mostrarPagina("inicio");
 });
-
-function capturarGps() {
-  const status = document.getElementById("statusGps");
-  gpsLatitude = null;
-  gpsLongitude = null;
-  status.textContent = "Capturando localização...";
-  if (!navigator.geolocation) {
-    status.textContent = "Este dispositivo/navegador não suporta localização. Você pode continuar sem ela.";
-    return;
-  }
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      gpsLatitude = pos.coords.latitude;
-      gpsLongitude = pos.coords.longitude;
-      status.textContent = `Localização capturada ✓ (${gpsLatitude.toFixed(5)}, ${gpsLongitude.toFixed(5)})`;
-    },
-    () => {
-      status.textContent = "Não foi possível capturar a localização (permissão negada ou indisponível). Você pode continuar sem ela.";
-    },
-    { enableHighAccuracy: true, timeout: 10000 }
-  );
-}
-
-document.getElementById("btnRecapturarGps").addEventListener("click", capturarGps);
 
 document.getElementById("inputFoto").addEventListener("change", (e) => {
   const arquivo = e.target.files && e.target.files[0];
@@ -1118,8 +1163,6 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
       Tipo_Visita: tipo,
       Observacao: observacao,
       Foto_URL: fotoUrl,
-      Latitude: gpsLatitude,
-      Longitude: gpsLongitude,
       Dia_Visita: dataAtual,
       Quinzena: quinzenaAtual
     };
@@ -1347,6 +1390,133 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 });
 
 /* =========================================================================
+   HISTÓRICO (Visitas e Pedidos já lançados)
+   ========================================================================= */
+let modoHistorico = "visitas";
+let cacheHistoricoVisitas = null;
+let cacheHistoricoPedidos = null;
+
+document.querySelectorAll("[data-filtro-historico]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    modoHistorico = btn.getAttribute("data-filtro-historico");
+    document.querySelectorAll("[data-filtro-historico]").forEach(b => b.classList.toggle("ativo", b === btn));
+    renderizarHistoricoAtual();
+  });
+});
+
+async function carregarHistorico() {
+  document.getElementById("historicoLista").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  cacheHistoricoVisitas = null;
+  cacheHistoricoPedidos = null;
+  renderizarHistoricoAtual();
+}
+
+async function garantirCacheHistorico() {
+  const authHeader = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
+
+  if (modoHistorico === "visitas" && cacheHistoricoVisitas === null) {
+    try {
+      const resp = await fetch(CONFIG.URL_VISITAS, { headers: authHeader });
+      const dados = await resp.json();
+      cacheHistoricoVisitas = resp.ok ? (dados.visitas || []) : [];
+    } catch (err) {
+      cacheHistoricoVisitas = [];
+    }
+  }
+
+  if (modoHistorico === "pedidos" && cacheHistoricoPedidos === null) {
+    try {
+      const resp = await fetch(CONFIG.URL_API, { headers: authHeader });
+      const dados = await resp.json();
+      cacheHistoricoPedidos = resp.ok ? (dados.lancamentos || []) : [];
+    } catch (err) {
+      cacheHistoricoPedidos = [];
+    }
+  }
+}
+
+function agruparPedidos(lancamentos) {
+  const mapa = new Map();
+  for (const l of lancamentos) {
+    const chave = `${l.Nome_Promotor}|${l.Propriedade}|${l.Dia_Lancamento}`;
+    if (!mapa.has(chave)) {
+      mapa.set(chave, {
+        Nome_Promotor: l.Nome_Promotor,
+        Propriedade: l.Propriedade,
+        Dia_Lancamento: l.Dia_Lancamento,
+        Quinzena: l.Quinzena,
+        valorTotal: 0,
+        itens: []
+      });
+    }
+    const grupo = mapa.get(chave);
+    grupo.valorTotal += l.Valor_Total;
+    grupo.itens.push(l);
+  }
+  return [...mapa.values()].sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
+}
+
+async function renderizarHistoricoAtual() {
+  await garantirCacheHistorico();
+  const container = document.getElementById("historicoLista");
+  const gestor = ehGestor();
+
+  if (modoHistorico === "visitas") {
+    const lista = cacheHistoricoVisitas || [];
+    if (lista.length === 0) {
+      container.innerHTML = '<div class="carregando-lista">Nenhuma visita registrada ainda.</div>';
+      return;
+    }
+    container.innerHTML = lista.map((v, i) => `
+      <div class="item-historico" data-toggle-historico="v${i}">
+        <div class="item-historico-topo">
+          <div>
+            <div class="item-historico-titulo">${v.Propriedade}</div>
+            <div class="item-historico-sub">${v.Tipo_Visita} · ${formatarDataBR(v.Dia_Visita)}${gestor ? " · " + v.Nome_Promotor : ""}</div>
+          </div>
+        </div>
+        <div class="item-historico-detalhe oculto" id="hv${i}">
+          <div>${v.Observacao || "Sem observação."}</div>
+          ${v.Foto_URL ? `<div style="margin-top:8px;"><a href="${v.Foto_URL}" target="_blank" rel="noopener">Ver foto</a></div>` : ""}
+        </div>
+      </div>
+    `).join("");
+  } else {
+    const grupos = agruparPedidos(cacheHistoricoPedidos || []);
+    if (grupos.length === 0) {
+      container.innerHTML = '<div class="carregando-lista">Nenhum pedido registrado ainda.</div>';
+      return;
+    }
+    container.innerHTML = grupos.map((g, i) => `
+      <div class="item-historico" data-toggle-historico="p${i}">
+        <div class="item-historico-topo">
+          <div>
+            <div class="item-historico-titulo">${g.Propriedade}</div>
+            <div class="item-historico-sub">${formatarDataBR(g.Dia_Lancamento)}${gestor ? " · " + g.Nome_Promotor : ""}</div>
+          </div>
+          <div class="item-historico-valor">${formatarMoeda(g.valorTotal)}</div>
+        </div>
+        <div class="item-historico-detalhe oculto" id="hp${i}">
+          ${g.itens.map(item => `
+            <div class="linha-produto">
+              <span>${item.Produto} (${item.Revenda})</span>
+              <span>${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `).join("");
+  }
+
+  container.querySelectorAll("[data-toggle-historico]").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = "h" + el.getAttribute("data-toggle-historico");
+      document.getElementById(id).classList.toggle("oculto");
+    });
+  });
+}
+
+/* =========================================================================
    CATÁLOGO (CRUD de produtos, só Gerente/Desenvolvedor edita)
    ========================================================================= */
 function podeEditarCatalogo() {
@@ -1516,6 +1686,7 @@ async function carregarRelatorios() {
 
   const filtroWrap = document.getElementById("filtroRelatoriosWrap");
   filtroWrap.classList.toggle("oculto", !gestor);
+  document.getElementById("areaExportar").classList.toggle("oculto", !gestor);
   if (gestor && document.getElementById("selectFiltroPromotor").options.length <= 1) {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
@@ -1597,6 +1768,93 @@ function desenharGraficoQuinzenas(porQuinzena) {
 }
 
 document.getElementById("selectFiltroPromotor").addEventListener("change", carregarRelatorios);
+
+/* =========================================================================
+   EXPORTAR PARA EXCEL (só Gerente/Desenvolvedor)
+   ========================================================================= */
+document.getElementById("btnExportarExcel").addEventListener("click", async () => {
+  limparMsg("msgExportar");
+  if (typeof XLSX === "undefined") {
+    mostrarMsg("msgExportar", "Não foi possível carregar a biblioteca de exportação. Verifique sua conexão e recarregue a página.", "erro");
+    return;
+  }
+
+  const btn = document.getElementById("btnExportarExcel");
+  btn.disabled = true;
+  btn.textContent = "Gerando...";
+  const authHeader = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
+
+  try {
+    const [respPedidos, respVisitas, respFazendas] = await Promise.all([
+      fetch(CONFIG.URL_API, { headers: authHeader }),
+      fetch(CONFIG.URL_VISITAS, { headers: authHeader }),
+      fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: { "x-api-key": CONFIG.API_KEY } })
+    ]);
+
+    const dadosPedidos = await respPedidos.json().catch(() => ({}));
+    const dadosVisitas = await respVisitas.json().catch(() => ({}));
+    const dadosFazendas = await respFazendas.json().catch(() => ({}));
+
+    if (!respPedidos.ok || !respVisitas.ok || !respFazendas.ok) {
+      throw new Error("Não foi possível buscar todos os dados para exportar.");
+    }
+
+    const pedidos = (dadosPedidos.lancamentos || []).map(l => ({
+      Promotor: l.Nome_Promotor,
+      Revenda: l.Revenda,
+      Fazenda: l.Propriedade,
+      Produto: l.Produto,
+      Unidade: l.Unidade,
+      Preco_Unitario: l.Preco_Unitario,
+      Volume: l.Volume,
+      Valor_Total: l.Valor_Total,
+      Data: l.Dia_Lancamento,
+      Quinzena: l.Quinzena
+    }));
+
+    const visitas = (dadosVisitas.visitas || []).map(v => ({
+      Promotor: v.Nome_Promotor,
+      Fazenda: v.Propriedade,
+      Tipo_Visita: v.Tipo_Visita,
+      Observacao: v.Observacao,
+      Data: v.Dia_Visita,
+      Quinzena: v.Quinzena,
+      Foto: v.Foto_URL
+    }));
+
+    const fazendas = (dadosFazendas.propriedades || []).map(p => ({
+      Fazenda: p.Propriedade,
+      Municipio: p.Municipio,
+      Proprietario: p.Proprietario,
+      Decisor: p.Decisor,
+      Vendedor_Responsavel: p.Vendedor_Responsavel,
+      Tipo: p.Tipo_Propriedade,
+      Matrizes: p.Matrizes,
+      Primiparas: p.Primiparas,
+      Novilhas: p.Novilhas,
+      Bezerros_Machos: p.Bezerros_Machos,
+      Bezerros_Femeas: p.Bezerros_Femeas,
+      Garrotes: p.Garrotes,
+      Touros: p.Touros,
+      Equinos: p.Equinos,
+      Cadastrada_Por: p.Cadastrada_Por,
+      Data_Cadastro: p.Data_Cadastro
+    }));
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pedidos), "Pedidos");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(visitas), "Visitas");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fazendas), "Fazendas");
+
+    const dataArquivo = hojeISO();
+    XLSX.writeFile(wb, `agro-hara-dados-${dataArquivo}.xlsx`);
+  } catch (err) {
+    mostrarMsg("msgExportar", err.message, "erro");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
+  }
+});
 </script>
 </body>
 </html>
