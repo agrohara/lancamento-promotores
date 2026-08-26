@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Agro Hara · Gestão de Campo</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
@@ -502,6 +502,7 @@
         <div class="card" style="position:relative;">
           <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
           <input type="text" id="buscaHistoricoRel" placeholder="Digite para buscar..." autocomplete="off">
+          <div id="sugestoesBuscaHistorico" class="sugestoes oculto"></div>
           <div id="msgBuscaHistoricoRel"></div>
           <div id="listaBuscaHistoricoRel"></div>
         </div>
@@ -1820,6 +1821,30 @@ document.getElementById("selectFiltroQuinzena").addEventListener("change", carre
    ========================================================================= */
 let temporizadorBuscaHistorico = null;
 
+function listaSugestoesHistorico() {
+  const fazendas = (todasPropriedades || []).map(nome => ({ nome, tipo: "Fazenda" }));
+  const revendas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].map(nome => ({ nome, tipo: "Revenda" }));
+  return [...fazendas, ...revendas];
+}
+
+function renderizarSugestoesHistorico(termo) {
+  const caixa = document.getElementById("sugestoesBuscaHistorico");
+  const termoBusca = termo.toLowerCase();
+  const opcoes = listaSugestoesHistorico().filter(o => o.nome.toLowerCase().includes(termoBusca)).slice(0, 8);
+  if (opcoes.length === 0) {
+    caixa.classList.add("oculto");
+    caixa.innerHTML = "";
+    return;
+  }
+  caixa.innerHTML = opcoes.map(o => `
+    <div class="sugestao-item" data-nome-sugestao="${o.nome.replace(/"/g, "&quot;")}">
+      <span>${o.nome}</span>
+      <span class="unidade-tag">${o.tipo}</span>
+    </div>
+  `).join("");
+  caixa.classList.remove("oculto");
+}
+
 document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
   const termo = e.target.value.trim();
   clearTimeout(temporizadorBuscaHistorico);
@@ -1827,9 +1852,32 @@ document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
   limparMsg("msgBuscaHistoricoRel");
   if (termo.length < 2) {
     lista.innerHTML = "";
+    document.getElementById("sugestoesBuscaHistorico").classList.add("oculto");
     return;
   }
+  if (todasPropriedades.length === 0) carregarTodasPropriedades().then(() => renderizarSugestoesHistorico(termo));
+  else renderizarSugestoesHistorico(termo);
   temporizadorBuscaHistorico = setTimeout(() => buscarHistoricoRel(termo), 400);
+});
+
+document.getElementById("buscaHistoricoRel").addEventListener("focus", (e) => {
+  const termo = e.target.value.trim();
+  if (termo.length >= 2) renderizarSugestoesHistorico(termo);
+});
+
+document.getElementById("buscaHistoricoRel").addEventListener("blur", () => {
+  setTimeout(() => document.getElementById("sugestoesBuscaHistorico").classList.add("oculto"), 150);
+});
+
+document.getElementById("sugestoesBuscaHistorico").addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-nome-sugestao]");
+  if (!item) return;
+  const nome = item.getAttribute("data-nome-sugestao");
+  const input = document.getElementById("buscaHistoricoRel");
+  input.value = nome;
+  document.getElementById("sugestoesBuscaHistorico").classList.add("oculto");
+  clearTimeout(temporizadorBuscaHistorico);
+  buscarHistoricoRel(nome);
 });
 
 async function buscarHistoricoRel(termo) {
