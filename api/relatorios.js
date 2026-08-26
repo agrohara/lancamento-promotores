@@ -3,9 +3,11 @@
 // um Promotor só recebe os próprios números; Gerente/Desenvolvedor pode ver todo
 // mundo, ou filtrar por um promotor específico.
 //
-// GET /api/relatorios              -> Promotor: seus dados. Gerente: todos os promotores.
+// GET /api/relatorios              -> Promotor: seus dados da quinzena atual. Gerente: todos.
 // GET /api/relatorios?promotor=X   -> Gerente/Desenvolvedor: só os dados do promotor X.
 //                                     (Promotor comum ignora esse parâmetro — sempre vê só o próprio.)
+// GET /api/relatorios?quinzena=AAAA-MM-N -> mostra o resumo dessa quinzena específica
+//                                     (chave devolvida em "todasQuinzenas") em vez da atual.
 //
 // Variáveis de ambiente: as mesmas dos outros endpoints (TENANT_ID, CLIENT_ID,
 // CLIENT_SECRET, API_KEY, AUTH_SECRET). Opcionais: DRIVE_ID, ITEM_ID,
@@ -151,7 +153,9 @@ module.exports = async function handler(req, res) {
       q.totalVisitas += 1;
     }
 
-    const porQuinzena = [...mapaQuinzenas.values()].sort((a, b) => a.chave.localeCompare(b.chave)).slice(-6);
+    const todasQuinzenasOrdenadas = [...mapaQuinzenas.values()].sort((a, b) => a.chave.localeCompare(b.chave));
+    const porQuinzena = todasQuinzenasOrdenadas.slice(-6);
+    const todasQuinzenas = [...todasQuinzenasOrdenadas].reverse().map(q => ({ chave: q.chave, rotulo: q.rotulo }));
 
     // Ranking por promotor (só relevante quando o gestor não filtrou por um nome específico)
     const mapaPromotor = new Map();
@@ -172,13 +176,16 @@ module.exports = async function handler(req, res) {
     }
     const porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
 
-    const chaveAtual = quinzenaChave(new Date().toISOString().slice(0, 10));
-    const idxAtual = porQuinzena.findIndex(q => q.chave === chaveAtual);
-    const atual = idxAtual >= 0 ? porQuinzena[idxAtual] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
-    const anterior = idxAtual > 0 ? porQuinzena[idxAtual - 1] : null;
+    // Quinzena a mostrar como "atual": a pedida via ?quinzena=, ou (padrão) a quinzena de hoje.
+    const quinzenaPedida = String((req.query && req.query.quinzena) || "").trim();
+    const chaveAtual = quinzenaPedida || quinzenaChave(new Date().toISOString().slice(0, 10));
+    const idxAtual = todasQuinzenasOrdenadas.findIndex(q => q.chave === chaveAtual);
+    const atual = idxAtual >= 0 ? todasQuinzenasOrdenadas[idxAtual] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
+    const anterior = idxAtual > 0 ? todasQuinzenasOrdenadas[idxAtual - 1] : null;
 
     res.status(200).json({
       filtroAplicado: filtroPromotor || null,
+      quinzenaMostrada: chaveAtual,
       ehGestor,
       resumoAtual: {
         valorPedidos: atual.valorPedidos || 0,
@@ -191,6 +198,7 @@ module.exports = async function handler(req, res) {
         totalVisitas: anterior.totalVisitas || 0
       } : null,
       porQuinzena,
+      todasQuinzenas,
       porPromotor: ehGestor && !filtroPromotor ? porPromotor : []
     });
   } catch (err) {

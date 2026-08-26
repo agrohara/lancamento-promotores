@@ -15,6 +15,10 @@
 //   API_KEY         - uma senha simples inventada por você, para proteger este endpoint
 //                     (o HTML envia esse valor no cabeçalho x-api-key)
 // Opcionais (só se o arquivo mudar de lugar): DRIVE_ID, ITEM_ID, TABLE_NAME
+//
+// GET também aceita, combináveis: ?propriedade=X (busca parcial no nome da fazenda),
+// ?revenda=X (busca parcial no nome da revenda) — usados na busca de histórico do
+// relatório (Gerente/Desenvolvedor).
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
@@ -118,6 +122,14 @@ module.exports = async function handler(req, res) {
 
       if (promotorFiltro) {
         lancamentos = lancamentos.filter(r => r.Nome_Promotor.toLowerCase() === promotorFiltro.toLowerCase());
+      }
+      const propriedadeFiltro = String((req.query && req.query.propriedade) || "").trim().toLowerCase();
+      if (propriedadeFiltro) {
+        lancamentos = lancamentos.filter(r => r.Propriedade.toLowerCase().includes(propriedadeFiltro));
+      }
+      const revendaFiltro = String((req.query && req.query.revenda) || "").trim().toLowerCase();
+      if (revendaFiltro) {
+        lancamentos = lancamentos.filter(r => r.Revenda.toLowerCase().includes(revendaFiltro));
       }
 
       lancamentos.sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
