@@ -492,6 +492,21 @@
         </select>
       </div>
 
+      <label for="selectFiltroQuinzena">Quinzena</label>
+      <select id="selectFiltroQuinzena">
+        <option value="">Quinzena atual</option>
+      </select>
+
+      <div id="areaBuscaHistorico" class="oculto">
+        <h3 class="subtitulo-secao">Buscar fazenda, cliente ou revenda</h3>
+        <div class="card" style="position:relative;">
+          <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
+          <input type="text" id="buscaHistoricoRel" placeholder="Digite para buscar..." autocomplete="off">
+          <div id="msgBuscaHistoricoRel"></div>
+          <div id="listaBuscaHistoricoRel"></div>
+        </div>
+      </div>
+
       <div class="grid-cartoes">
         <div class="cartao cartao-escuro"><div class="cartao-numero" id="relValorAtual">—</div><div class="cartao-legenda">Vendas na quinzena</div></div>
         <div class="cartao cartao-claro"><div class="cartao-numero" id="relVisitasAtual">—</div><div class="cartao-legenda">Visitas na quinzena</div></div>
@@ -1703,6 +1718,7 @@ async function carregarRelatorios() {
   const filtroWrap = document.getElementById("filtroRelatoriosWrap");
   filtroWrap.classList.toggle("oculto", !gestor);
   document.getElementById("areaExportar").classList.toggle("oculto", !gestor);
+  document.getElementById("areaBuscaHistorico").classList.toggle("oculto", !gestor);
   if (gestor && document.getElementById("selectFiltroPromotor").options.length <= 1) {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
@@ -1710,8 +1726,10 @@ async function carregarRelatorios() {
   }
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
+  const quinzenaFiltro = document.getElementById("selectFiltroQuinzena").value;
   const url = new URL(CONFIG.URL_RELATORIOS, window.location.origin);
   if (promotorFiltro) url.searchParams.set("promotor", promotorFiltro);
+  if (quinzenaFiltro) url.searchParams.set("quinzena", quinzenaFiltro);
 
   try {
     const resp = await fetch(url.toString(), {
@@ -1722,6 +1740,17 @@ async function carregarRelatorios() {
     });
     const dados = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível carregar os relatórios.");
+
+    const selectQuinzena = document.getElementById("selectFiltroQuinzena");
+    if (dados.todasQuinzenas && dados.todasQuinzenas.length > 0) {
+      const valorAtualSelecionado = quinzenaFiltro || dados.quinzenaMostrada || "";
+      selectQuinzena.innerHTML = dados.todasQuinzenas.map(q =>
+        `<option value="${q.chave}">${q.rotulo}</option>`
+      ).join("");
+      if ([...selectQuinzena.options].some(o => o.value === valorAtualSelecionado)) {
+        selectQuinzena.value = valorAtualSelecionado;
+      }
+    }
 
     document.getElementById("relValorAtual").textContent = formatarMoeda(dados.resumoAtual.valorPedidos);
     document.getElementById("relVisitasAtual").textContent = dados.resumoAtual.totalVisitas;
@@ -1784,6 +1813,76 @@ function desenharGraficoQuinzenas(porQuinzena) {
 }
 
 document.getElementById("selectFiltroPromotor").addEventListener("change", carregarRelatorios);
+document.getElementById("selectFiltroQuinzena").addEventListener("change", carregarRelatorios);
+
+/* =========================================================================
+   BUSCA DE HISTÓRICO POR FAZENDA/CLIENTE/REVENDA (Gerente/Desenvolvedor)
+   ========================================================================= */
+let temporizadorBuscaHistorico = null;
+
+document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
+  const termo = e.target.value.trim();
+  clearTimeout(temporizadorBuscaHistorico);
+  const lista = document.getElementById("listaBuscaHistoricoRel");
+  limparMsg("msgBuscaHistoricoRel");
+  if (termo.length < 2) {
+    lista.innerHTML = "";
+    return;
+  }
+  temporizadorBuscaHistorico = setTimeout(() => buscarHistoricoRel(termo), 400);
+});
+
+async function buscarHistoricoRel(termo) {
+  const lista = document.getElementById("listaBuscaHistoricoRel");
+  lista.innerHTML = '<div class="carregando-lista">Buscando...</div>';
+  try {
+    const cabecalhos = {
+      "x-api-key": CONFIG.API_KEY,
+      "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+    };
+    const [respPropriedade, respRevenda] = await Promise.all([
+      fetch(`${CONFIG.URL_API}?propriedade=${encodeURIComponent(termo)}`, { headers: cabecalhos }),
+      fetch(`${CONFIG.URL_API}?revenda=${encodeURIComponent(termo)}`, { headers: cabecalhos })
+    ]);
+    const [dadosPropriedade, dadosRevenda] = await Promise.all([
+      respPropriedade.json().catch(() => ({})),
+      respRevenda.json().catch(() => ({}))
+    ]);
+    if (!respPropriedade.ok && !respRevenda.ok) {
+      throw new Error((dadosPropriedade && dadosPropriedade.erro) || (dadosRevenda && dadosRevenda.erro) || "Não foi possível buscar.");
+    }
+
+    const chave = r => `${r.Nome_Promotor}|${r.Propriedade}|${r.Produto}|${r.Dia_Lancamento}|${r.Valor_Total}`;
+    const mapaResultados = new Map();
+    [...(dadosPropriedade.lancamentos || []), ...(dadosRevenda.lancamentos || [])].forEach(r => {
+      mapaResultados.set(chave(r), r);
+    });
+    const resultados = [...mapaResultados.values()].sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
+
+    if (resultados.length === 0) {
+      lista.innerHTML = '<div class="carregando-lista">Nenhum pedido encontrado para essa busca.</div>';
+      return;
+    }
+
+    const totalGeral = resultados.reduce((soma, r) => soma + (Number(r.Valor_Total) || 0), 0);
+    lista.innerHTML = `
+      <div class="total-linha">${resultados.length} pedido(s) encontrado(s) · Total: <b>${formatarMoeda(totalGeral)}</b></div>
+    ` + resultados.map(r => `
+      <div class="item-historico">
+        <div class="item-historico-topo">
+          <div>
+            <div class="item-historico-titulo">${r.Propriedade}${r.Revenda ? " · " + r.Revenda : ""}</div>
+            <div class="item-historico-sub">${r.Produto} · ${formatarDataBR(r.Dia_Lancamento)} · ${r.Nome_Promotor}</div>
+          </div>
+          <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    lista.innerHTML = "";
+    mostrarMsg("msgBuscaHistoricoRel", err.message, "erro");
+  }
+}
 
 /* =========================================================================
    EXPORTAR PARA EXCEL (só Gerente/Desenvolvedor)
