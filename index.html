@@ -362,8 +362,8 @@
       <div class="card">
         <div id="msgEscolherFazenda"></div>
         <label for="buscaFazendaLanc">Buscar fazenda já cadastrada</label>
-        <input type="text" id="buscaFazendaLanc" placeholder="Digite o nome da fazenda..." autocomplete="off">
-        <div id="sugestoesFazendaLanc" class="sugestoes oculto"></div>
+        <input type="text" id="buscaFazendaLanc" list="datalistFazendaLanc" placeholder="Selecione ou digite para buscar..." autocomplete="off">
+        <datalist id="datalistFazendaLanc"></datalist>
         <div id="fazendaEscolhidaWrap" class="oculto">
           <div class="produto-chip" id="fazendaChip"></div>
         </div>
@@ -486,36 +486,26 @@
       <div id="msgRelatorios"></div>
 
       <div id="filtroRelatoriosWrap" class="oculto">
-        <label for="selectFiltroPromotor">Promotor</label>
+        <label for="selectFiltroPromotor">1. Promotor</label>
         <select id="selectFiltroPromotor">
           <option value="">Todos os promotores</option>
         </select>
       </div>
 
-      <label for="selectFiltroQuinzena">Quinzena</label>
+      <label for="selectFiltroQuinzena">2. Período (opcional)</label>
       <select id="selectFiltroQuinzena">
-        <option value="">Quinzena atual</option>
+        <option value="">Todo o período</option>
       </select>
 
-      <div id="areaBuscaHistorico" class="oculto">
-        <h3 class="subtitulo-secao">Buscar fazenda, cliente ou revenda</h3>
-        <div class="card">
-          <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
-          <input type="text" id="buscaHistoricoRel" list="datalistHistorico" placeholder="Selecione ou digite para buscar..." autocomplete="off">
-          <datalist id="datalistHistorico"></datalist>
-          <div id="msgBuscaHistoricoRel"></div>
-          <div id="listaBuscaHistoricoRel"></div>
-        </div>
-      </div>
-
       <div class="grid-cartoes">
-        <div class="cartao cartao-escuro"><div class="cartao-numero" id="relValorAtual">—</div><div class="cartao-legenda">Vendas na quinzena</div></div>
-        <div class="cartao cartao-claro"><div class="cartao-numero" id="relVisitasAtual">—</div><div class="cartao-legenda">Visitas na quinzena</div></div>
-        <div class="cartao cartao-escuro"><div class="cartao-numero" id="relPedidosAtual">—</div><div class="cartao-legenda">Pedidos na quinzena</div></div>
-        <div class="cartao cartao-preto"><div class="cartao-numero" id="relComparativo">—</div><div class="cartao-legenda">Vs. quinzena anterior</div></div>
+        <div class="cartao cartao-escuro"><div class="cartao-numero" id="relValorAtual">—</div><div class="cartao-legenda">Vendas</div></div>
+        <div class="cartao cartao-claro"><div class="cartao-numero" id="relVisitasAtual">—</div><div class="cartao-legenda">Visitas</div></div>
+        <div class="cartao cartao-escuro"><div class="cartao-numero" id="relPedidosAtual">—</div><div class="cartao-legenda">Pedidos</div></div>
+        <div class="cartao cartao-preto"><div class="cartao-numero" id="relFazendasAtual">—</div><div class="cartao-legenda">Fazendas atendidas</div></div>
       </div>
+      <div id="rotuloPeriodoRel" style="font-size:12px;color:#5b6771;margin:-8px 0 16px;"></div>
 
-      <h3 class="subtitulo-secao">Vendas por quinzena</h3>
+      <h3 class="subtitulo-secao">Vendas por quinzena <span style="font-weight:400;color:#5b6771;">— clique numa barra para focar o período</span></h3>
       <div class="card">
         <canvas id="graficoQuinzenas" height="180"></canvas>
       </div>
@@ -524,6 +514,25 @@
         <h3 class="subtitulo-secao">Ranking por promotor <span style="font-weight:400;color:#5b6771;">— clique para detalhar</span></h3>
         <div id="breadcrumbDrill" class="oculto" style="margin-bottom:10px;font-size:13px;"></div>
         <div id="listaRankingPromotores"></div>
+      </div>
+
+      <div id="areaPorFazenda" class="oculto">
+        <h3 class="subtitulo-secao">Por fazenda</h3>
+        <div id="listaPorFazenda"></div>
+      </div>
+
+      <div id="areaPorRevenda" class="oculto">
+        <h3 class="subtitulo-secao">Por revenda</h3>
+        <div id="listaPorRevenda"></div>
+      </div>
+
+      <h3 class="subtitulo-secao">Histórico por fazenda, cliente ou revenda</h3>
+      <div class="card">
+        <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
+        <input type="text" id="buscaHistoricoRel" list="datalistHistorico" placeholder="Selecione ou digite para buscar..." autocomplete="off">
+        <datalist id="datalistHistorico"></datalist>
+        <div id="msgBuscaHistoricoRel"></div>
+        <div id="listaBuscaHistoricoRel"></div>
       </div>
 
       <div id="areaExportar" class="oculto">
@@ -820,9 +829,9 @@ async function carregarDashboard() {
     });
     const dadosRel = await respRel.json();
     if (respRel.ok) {
-      document.getElementById("statVisitas").textContent = dadosRel.resumoAtual.totalVisitas;
-      document.getElementById("statPedidos").textContent = dadosRel.resumoAtual.totalPedidos;
-      document.getElementById("statVendas").textContent = formatarMoeda(dadosRel.resumoAtual.valorPedidos);
+      document.getElementById("statVisitas").textContent = dadosRel.resumoQuinzenaAtual.totalVisitas;
+      document.getElementById("statPedidos").textContent = dadosRel.resumoQuinzenaAtual.totalPedidos;
+      document.getElementById("statVendas").textContent = formatarMoeda(dadosRel.resumoQuinzenaAtual.valorPedidos);
     }
   } catch (err) {
     // mantém "—" se não conseguir carregar
@@ -1041,37 +1050,29 @@ function iniciarRegistro(modo) {
   document.getElementById("buscaFazendaLanc").value = "";
   document.getElementById("fazendaChip").textContent = "";
   document.getElementById("fazendaEscolhidaWrap").classList.add("oculto");
-  document.getElementById("sugestoesFazendaLanc").classList.add("oculto");
   limparMsg("msgEscolherFazenda");
 
-  carregarTodasPropriedades();
+  carregarTodasPropriedades().then(popularDatalistFazendaLanc);
   mostrarPagina("escolherFazendaRegistro");
 }
 
 const buscaFazendaLanc = document.getElementById("buscaFazendaLanc");
-const sugestoesFazendaLanc = document.getElementById("sugestoesFazendaLanc");
+
+// Dropdown nativo (input + datalist): mostra a lista completa ao clicar e também filtra
+// enquanto a pessoa digita, como um <select> comum.
+function popularDatalistFazendaLanc() {
+  document.getElementById("datalistFazendaLanc").innerHTML =
+    todasPropriedades.map(p => `<option value="${p.replace(/"/g, "&quot;")}"></option>`).join("");
+}
 
 buscaFazendaLanc.addEventListener("input", () => {
-  const termo = buscaFazendaLanc.value.toLowerCase().trim();
-  if (!termo) { sugestoesFazendaLanc.classList.add("oculto"); return; }
-  const encontrados = todasPropriedades.filter(p => p.toLowerCase().includes(termo)).slice(0, 30);
-  if (encontrados.length === 0) {
-    sugestoesFazendaLanc.innerHTML = '<div class="sugestao-vazia">Nenhuma fazenda encontrada. Cadastre uma nova abaixo.</div>';
-  } else {
-    sugestoesFazendaLanc.innerHTML = encontrados.map(p => `<div class="sugestao-item" data-nome="${p}">${p}</div>`).join("");
+  const valor = buscaFazendaLanc.value.trim();
+  if (todasPropriedades.includes(valor)) {
+    escolherFazendaLanc(valor);
   }
-  sugestoesFazendaLanc.classList.remove("oculto");
-});
-
-sugestoesFazendaLanc.addEventListener("click", (e) => {
-  const item = e.target.closest(".sugestao-item[data-nome]");
-  if (!item) return;
-  escolherFazendaLanc(item.getAttribute("data-nome"));
 });
 
 function escolherFazendaLanc(nome) {
-  buscaFazendaLanc.value = "";
-  sugestoesFazendaLanc.classList.add("oculto");
   document.getElementById("fazendaChip").textContent = nome;
   document.getElementById("fazendaEscolhidaWrap").classList.remove("oculto");
 }
@@ -1726,16 +1727,13 @@ async function carregarRelatorios() {
   const filtroWrap = document.getElementById("filtroRelatoriosWrap");
   filtroWrap.classList.toggle("oculto", !gestor);
   document.getElementById("areaExportar").classList.toggle("oculto", !gestor);
-  document.getElementById("areaBuscaHistorico").classList.toggle("oculto", !gestor);
   if (gestor && document.getElementById("selectFiltroPromotor").options.length <= 1) {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
       '<option value="">Todos os promotores</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join("");
   }
-  if (gestor) {
-    if (todasPropriedades.length === 0) await carregarTodasPropriedades();
-    popularDatalistHistorico();
-  }
+  if (todasPropriedades.length === 0) await carregarTodasPropriedades();
+  popularDatalistHistorico();
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
   const quinzenaFiltro = document.getElementById("selectFiltroQuinzena").value;
@@ -1754,40 +1752,66 @@ async function carregarRelatorios() {
     if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível carregar os relatórios.");
 
     const selectQuinzena = document.getElementById("selectFiltroQuinzena");
-    if (dados.todasQuinzenas && dados.todasQuinzenas.length > 0) {
-      const valorAtualSelecionado = quinzenaFiltro || dados.quinzenaMostrada || "";
-      selectQuinzena.innerHTML = dados.todasQuinzenas.map(q =>
-        `<option value="${q.chave}">${q.rotulo}</option>`
-      ).join("");
-      if ([...selectQuinzena.options].some(o => o.value === valorAtualSelecionado)) {
-        selectQuinzena.value = valorAtualSelecionado;
-      }
-    }
+    const valorSelecionadoAntes = selectQuinzena.value;
+    selectQuinzena.innerHTML = '<option value="">Todo o período</option>' + (dados.todasQuinzenas || []).map(q =>
+      `<option value="${q.chave}">${q.rotulo}</option>`
+    ).join("");
+    selectQuinzena.value = valorSelecionadoAntes;
 
-    document.getElementById("relValorAtual").textContent = formatarMoeda(dados.resumoAtual.valorPedidos);
-    document.getElementById("relVisitasAtual").textContent = dados.resumoAtual.totalVisitas;
-    document.getElementById("relPedidosAtual").textContent = dados.resumoAtual.totalPedidos;
+    document.getElementById("relValorAtual").textContent = formatarMoeda(dados.resumo.valorPedidos);
+    document.getElementById("relVisitasAtual").textContent = dados.resumo.totalVisitas;
+    document.getElementById("relPedidosAtual").textContent = dados.resumo.totalPedidos;
+    document.getElementById("relFazendasAtual").textContent = dados.resumo.totalFazendas;
 
-    const comparativoEl = document.getElementById("relComparativo");
-    if (dados.resumoAnterior) {
-      const diferenca = dados.resumoAtual.valorPedidos - dados.resumoAnterior.valorPedidos;
-      const sinal = diferenca > 0 ? "+" : "";
-      comparativoEl.textContent = `${sinal}${formatarMoeda(diferenca)}`;
-    } else {
-      comparativoEl.textContent = "—";
-    }
+    const rotuloPeriodo = "Período: " + (dados.periodoSelecionadoRotulo || "Todo o período") + (dados.filtroAplicado ? " · " + dados.filtroAplicado : "");
+    document.getElementById("rotuloPeriodoRel").textContent = rotuloPeriodo;
 
     desenharGraficoQuinzenas(dados.porQuinzena || []);
 
-    quinzenaMostradaAtual = dados.quinzenaMostrada || "";
+    quinzenaMostradaAtual = dados.periodoSelecionado || "";
     ultimoPorPromotor = dados.porPromotor || [];
     drillNivel = 0;
     drillPromotorAtual = "";
     drillPropriedadeAtual = "";
     renderRankingPromotores();
+
+    renderPorFazenda(dados.porFazenda || []);
+    renderPorRevenda(dados.porRevenda || []);
   } catch (err) {
     mostrarMsg("msgRelatorios", err.message, "erro");
   }
+}
+
+function renderPorFazenda(lista) {
+  const area = document.getElementById("areaPorFazenda");
+  const container = document.getElementById("listaPorFazenda");
+  if (!lista || lista.length === 0) {
+    area.classList.add("oculto");
+    return;
+  }
+  area.classList.remove("oculto");
+  container.innerHTML = lista.map(f => `
+    <div class="item-ranking">
+      <span>${f.propriedade}</span>
+      <span class="item-ranking-detalhe">${formatarMoeda(f.valorPedidos)} · ${f.totalPedidos} pedido(s) · ${f.totalVisitas} visita(s)</span>
+    </div>
+  `).join("");
+}
+
+function renderPorRevenda(lista) {
+  const area = document.getElementById("areaPorRevenda");
+  const container = document.getElementById("listaPorRevenda");
+  if (!lista || lista.length === 0) {
+    area.classList.add("oculto");
+    return;
+  }
+  area.classList.remove("oculto");
+  container.innerHTML = lista.map(r => `
+    <div class="item-ranking">
+      <span>${r.revenda}</span>
+      <span class="item-ranking-detalhe">${formatarMoeda(r.valorPedidos)} · ${r.totalPedidos} pedido(s)</span>
+    </div>
+  `).join("");
 }
 
 function desenharGraficoQuinzenas(porQuinzena) {
@@ -1861,19 +1885,19 @@ function renderRankingPromotores() {
     breadcrumb.innerHTML = `${linkVoltar(0, "‹ Promotores")} &nbsp;›&nbsp; <b>${drillPromotorAtual}</b>`;
     const mapa = new Map();
     drillLancamentosPromotor.forEach(r => {
-      const chave = r.Propriedade || "—";
-      if (!mapa.has(chave)) mapa.set(chave, { propriedade: chave, valor: 0, qtd: 0 });
+      const chave = r.propriedade || "—";
+      if (!mapa.has(chave)) mapa.set(chave, { propriedade: chave, valor: 0, qtdPedidos: 0, qtdVisitas: 0 });
       const e = mapa.get(chave);
-      e.valor += Number(r.Valor_Total) || 0;
-      e.qtd += 1;
+      if (r.tipo === "pedido") { e.valor += Number(r.valor) || 0; e.qtdPedidos += 1; }
+      else { e.qtdVisitas += 1; }
     });
     const linhas = [...mapa.values()].sort((a, b) => b.valor - a.valor);
     lista.innerHTML = linhas.length === 0
-      ? '<div class="carregando-lista">Nenhum pedido dessa quinzena para esse promotor.</div>'
+      ? '<div class="carregando-lista">Nada registrado nesse período para esse promotor.</div>'
       : linhas.map(l => `
         <div class="item-ranking" style="cursor:pointer;" data-propriedade-drill="${l.propriedade.replace(/"/g, "&quot;")}">
           <span>${l.propriedade}</span>
-          <span class="item-ranking-detalhe">${formatarMoeda(l.valor)} · ${l.qtd} item(ns)</span>
+          <span class="item-ranking-detalhe">${formatarMoeda(l.valor)} · ${l.qtdPedidos} pedido(s) · ${l.qtdVisitas} visita(s)</span>
         </div>
       `).join("");
     return;
@@ -1882,14 +1906,26 @@ function renderRankingPromotores() {
   if (drillNivel === 2) {
     breadcrumb.innerHTML = `${linkVoltar(0, "‹ Promotores")} &nbsp;›&nbsp; ${linkVoltar(1, drillPromotorAtual)} &nbsp;›&nbsp; <b>${drillPropriedadeAtual}</b>`;
     const itens = drillLancamentosPromotor
-      .filter(r => (r.Propriedade || "—") === drillPropriedadeAtual)
-      .sort((a, b) => (b.Dia_Lancamento || "").localeCompare(a.Dia_Lancamento || ""));
-    lista.innerHTML = itens.map(r => `
-      <div class="item-ranking">
-        <span>${r.Produto}${r.Revenda ? " · " + r.Revenda : ""}</span>
-        <span class="item-ranking-detalhe">${formatarMoeda(r.Valor_Total)} · ${formatarDataBR(r.Dia_Lancamento)}</span>
-      </div>
-    `).join("");
+      .filter(r => (r.propriedade || "—") === drillPropriedadeAtual)
+      .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+    lista.innerHTML = itens.length === 0
+      ? '<div class="carregando-lista">Nada registrado para essa fazenda no período.</div>'
+      : itens.map(r => {
+        if (r.tipo === "pedido") {
+          return `
+            <div class="item-ranking">
+              <span><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.produto}${r.revenda ? " · " + r.revenda : ""}</span>
+              <span class="item-ranking-detalhe">${formatarMoeda(r.valor)} · ${formatarDataBR(r.data)}</span>
+            </div>
+          `;
+        }
+        return `
+          <div class="item-ranking">
+            <span><span class="unidade-tag" style="margin-right:6px;">Visita</span>${r.tipoVisita || "Visita"}</span>
+            <span class="item-ranking-detalhe">${formatarDataBR(r.data)}</span>
+          </div>
+        `;
+      }).join("");
   }
 }
 
@@ -1898,13 +1934,32 @@ async function abrirDrillPromotor(nomePromotor) {
   lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
   try {
     const cabecalhos = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
-    const url = new URL(CONFIG.URL_API, window.location.origin);
-    url.searchParams.set("promotor", nomePromotor);
-    if (quinzenaMostradaAtual) url.searchParams.set("quinzena", quinzenaMostradaAtual);
-    const resp = await fetch(url.toString(), { headers: cabecalhos });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível carregar.");
-    drillLancamentosPromotor = dados.lancamentos || [];
+    const urlPedidos = new URL(CONFIG.URL_API, window.location.origin);
+    urlPedidos.searchParams.set("promotor", nomePromotor);
+    if (quinzenaMostradaAtual) urlPedidos.searchParams.set("quinzena", quinzenaMostradaAtual);
+    const urlVisitas = new URL(CONFIG.URL_VISITAS, window.location.origin);
+    urlVisitas.searchParams.set("promotor", nomePromotor);
+    if (quinzenaMostradaAtual) urlVisitas.searchParams.set("quinzena", quinzenaMostradaAtual);
+
+    const [respPedidos, respVisitas] = await Promise.all([
+      fetch(urlPedidos.toString(), { headers: cabecalhos }),
+      fetch(urlVisitas.toString(), { headers: cabecalhos })
+    ]);
+    const [dadosPedidos, dadosVisitas] = await Promise.all([
+      respPedidos.json().catch(() => ({})),
+      respVisitas.json().catch(() => ({}))
+    ]);
+    if (!respPedidos.ok && !respVisitas.ok) {
+      throw new Error((dadosPedidos && dadosPedidos.erro) || (dadosVisitas && dadosVisitas.erro) || "Não foi possível carregar.");
+    }
+
+    const pedidosTagged = (dadosPedidos.lancamentos || []).map(r => ({
+      tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, valor: r.Valor_Total, data: r.Dia_Lancamento
+    }));
+    const visitasTagged = (dadosVisitas.visitas || []).map(r => ({
+      tipo: "visita", propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, data: r.Dia_Visita
+    }));
+    drillLancamentosPromotor = [...pedidosTagged, ...visitasTagged];
     drillPromotorAtual = nomePromotor;
     drillNivel = 1;
     renderRankingPromotores();
@@ -1942,7 +1997,11 @@ let temporizadorBuscaHistorico = null;
 
 function listaSugestoesHistorico() {
   const fazendas = (todasPropriedades || []).map(nome => ({ nome, tipo: "Fazenda" }));
-  const revendas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].map(nome => ({ nome, tipo: "Revenda" }));
+  // Promotor comum só vê as revendas dos clientes dele; gestor vê todas.
+  const clientesRelevantes = ehGestor()
+    ? PROMOTOR_CLIENTE
+    : PROMOTOR_CLIENTE.filter(p => p.Promotor.toUpperCase() === String(promotorAtual || "").toUpperCase());
+  const revendas = [...new Set(clientesRelevantes.map(p => p.Cliente))].map(nome => ({ nome, tipo: "Revenda" }));
   return [...fazendas, ...revendas];
 }
 
@@ -1975,44 +2034,65 @@ async function buscarHistoricoRel(termo) {
       "x-api-key": CONFIG.API_KEY,
       "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
     };
-    const [respPropriedade, respRevenda] = await Promise.all([
+    const [respPropriedade, respRevenda, respVisitas] = await Promise.all([
       fetch(`${CONFIG.URL_API}?propriedade=${encodeURIComponent(termo)}`, { headers: cabecalhos }),
-      fetch(`${CONFIG.URL_API}?revenda=${encodeURIComponent(termo)}`, { headers: cabecalhos })
+      fetch(`${CONFIG.URL_API}?revenda=${encodeURIComponent(termo)}`, { headers: cabecalhos }),
+      fetch(`${CONFIG.URL_VISITAS}?propriedade=${encodeURIComponent(termo)}`, { headers: cabecalhos })
     ]);
-    const [dadosPropriedade, dadosRevenda] = await Promise.all([
+    const [dadosPropriedade, dadosRevenda, dadosVisitas] = await Promise.all([
       respPropriedade.json().catch(() => ({})),
-      respRevenda.json().catch(() => ({}))
+      respRevenda.json().catch(() => ({})),
+      respVisitas.json().catch(() => ({}))
     ]);
-    if (!respPropriedade.ok && !respRevenda.ok) {
-      throw new Error((dadosPropriedade && dadosPropriedade.erro) || (dadosRevenda && dadosRevenda.erro) || "Não foi possível buscar.");
+    if (!respPropriedade.ok && !respRevenda.ok && !respVisitas.ok) {
+      throw new Error((dadosPropriedade && dadosPropriedade.erro) || (dadosRevenda && dadosRevenda.erro) || (dadosVisitas && dadosVisitas.erro) || "Não foi possível buscar.");
     }
 
     const chave = r => `${r.Nome_Promotor}|${r.Propriedade}|${r.Produto}|${r.Dia_Lancamento}|${r.Valor_Total}`;
-    const mapaResultados = new Map();
+    const mapaPedidos = new Map();
     [...(dadosPropriedade.lancamentos || []), ...(dadosRevenda.lancamentos || [])].forEach(r => {
-      mapaResultados.set(chave(r), r);
+      mapaPedidos.set(chave(r), r);
     });
-    const resultados = [...mapaResultados.values()].sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
+    const pedidos = [...mapaPedidos.values()];
+    const visitas = dadosVisitas.visitas || [];
+    const resultados = [
+      ...pedidos.map(r => ({ tipo: "pedido", ...r })),
+      ...visitas.map(r => ({ tipo: "visita", ...r }))
+    ].sort((a, b) => (b.Dia_Lancamento || b.Dia_Visita || "").localeCompare(a.Dia_Lancamento || a.Dia_Visita || ""));
 
     if (resultados.length === 0) {
-      lista.innerHTML = '<div class="carregando-lista">Nenhum pedido encontrado para essa busca.</div>';
+      lista.innerHTML = '<div class="carregando-lista">Nada encontrado para essa busca.</div>';
       return;
     }
 
-    const totalGeral = resultados.reduce((soma, r) => soma + (Number(r.Valor_Total) || 0), 0);
+    const totalGeral = pedidos.reduce((soma, r) => soma + (Number(r.Valor_Total) || 0), 0);
     lista.innerHTML = `
-      <div class="total-linha">${resultados.length} pedido(s) encontrado(s) · Total: <b>${formatarMoeda(totalGeral)}</b></div>
-    ` + resultados.map(r => `
-      <div class="item-historico">
-        <div class="item-historico-topo">
-          <div>
-            <div class="item-historico-titulo">${r.Propriedade}${r.Revenda ? " · " + r.Revenda : ""}</div>
-            <div class="item-historico-sub">${r.Produto} · ${formatarDataBR(r.Dia_Lancamento)} · ${r.Nome_Promotor}</div>
+      <div class="total-linha">${pedidos.length} pedido(s) · ${visitas.length} visita(s) · Total em vendas: <b>${formatarMoeda(totalGeral)}</b></div>
+    ` + resultados.map(r => {
+      if (r.tipo === "pedido") {
+        return `
+          <div class="item-historico">
+            <div class="item-historico-topo">
+              <div>
+                <div class="item-historico-titulo"><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.Propriedade}${r.Revenda ? " · " + r.Revenda : ""}</div>
+                <div class="item-historico-sub">${r.Produto} · ${formatarDataBR(r.Dia_Lancamento)} · ${r.Nome_Promotor}</div>
+              </div>
+              <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
+            </div>
           </div>
-          <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
+        `;
+      }
+      return `
+        <div class="item-historico">
+          <div class="item-historico-topo">
+            <div>
+              <div class="item-historico-titulo"><span class="unidade-tag" style="margin-right:6px;">Visita</span>${r.Propriedade}</div>
+              <div class="item-historico-sub">${r.Tipo_Visita || "Visita"} · ${formatarDataBR(r.Dia_Visita)} · ${r.Nome_Promotor}</div>
+            </div>
+          </div>
         </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
   } catch (err) {
     lista.innerHTML = "";
     mostrarMsg("msgBuscaHistoricoRel", err.message, "erro");
