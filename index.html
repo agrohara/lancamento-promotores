@@ -2034,10 +2034,15 @@ async function buscarHistoricoRel(termo) {
       "x-api-key": CONFIG.API_KEY,
       "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
     };
+    // Respeita o promotor selecionado no filtro do gestor (se houver algum selecionado).
+    // Para promotor comum, o backend já restringe sempre à própria carteira, mas não custa
+    // mandar também aqui.
+    const promotorParaBusca = ehGestor() ? document.getElementById("selectFiltroPromotor").value : promotorAtual;
+    const paramPromotor = promotorParaBusca ? `&promotor=${encodeURIComponent(promotorParaBusca)}` : "";
     const [respPropriedade, respRevenda, respVisitas] = await Promise.all([
-      fetch(`${CONFIG.URL_API}?propriedade=${encodeURIComponent(termo)}`, { headers: cabecalhos }),
-      fetch(`${CONFIG.URL_API}?revenda=${encodeURIComponent(termo)}`, { headers: cabecalhos }),
-      fetch(`${CONFIG.URL_VISITAS}?propriedade=${encodeURIComponent(termo)}`, { headers: cabecalhos })
+      fetch(`${CONFIG.URL_API}?propriedade=${encodeURIComponent(termo)}${paramPromotor}`, { headers: cabecalhos }),
+      fetch(`${CONFIG.URL_API}?revenda=${encodeURIComponent(termo)}${paramPromotor}`, { headers: cabecalhos }),
+      fetch(`${CONFIG.URL_VISITAS}?propriedade=${encodeURIComponent(termo)}${paramPromotor}`, { headers: cabecalhos })
     ]);
     const [dadosPropriedade, dadosRevenda, dadosVisitas] = await Promise.all([
       respPropriedade.json().catch(() => ({})),
