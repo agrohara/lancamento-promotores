@@ -499,10 +499,10 @@
 
       <div id="areaBuscaHistorico" class="oculto">
         <h3 class="subtitulo-secao">Buscar fazenda, cliente ou revenda</h3>
-        <div class="card" style="position:relative;">
+        <div class="card">
           <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
-          <input type="text" id="buscaHistoricoRel" placeholder="Digite para buscar..." autocomplete="off">
-          <div id="sugestoesBuscaHistorico" class="sugestoes oculto"></div>
+          <input type="text" id="buscaHistoricoRel" list="datalistHistorico" placeholder="Selecione ou digite para buscar..." autocomplete="off">
+          <datalist id="datalistHistorico"></datalist>
           <div id="msgBuscaHistoricoRel"></div>
           <div id="listaBuscaHistoricoRel"></div>
         </div>
@@ -521,7 +521,8 @@
       </div>
 
       <div id="areaRankingPromotores" class="oculto">
-        <h3 class="subtitulo-secao">Ranking por promotor</h3>
+        <h3 class="subtitulo-secao">Ranking por promotor <span style="font-weight:400;color:#5b6771;">— clique para detalhar</span></h3>
+        <div id="breadcrumbDrill" class="oculto" style="margin-bottom:10px;font-size:13px;"></div>
         <div id="listaRankingPromotores"></div>
       </div>
 
@@ -1706,6 +1707,12 @@ document.getElementById("btnSalvarNovoProduto").addEventListener("click", async 
    RELATÓRIOS
    ========================================================================= */
 let graficoQuinzenas = null;
+let ultimoPorPromotor = [];
+let quinzenaMostradaAtual = "";
+let drillNivel = 0; // 0 = ranking de promotores, 1 = fazendas do promotor, 2 = itens da fazenda
+let drillPromotorAtual = "";
+let drillPropriedadeAtual = "";
+let drillLancamentosPromotor = [];
 
 function ehGestor() {
   const cargo = String((sessao && sessao.cargo) || "").toLowerCase();
@@ -1724,6 +1731,10 @@ async function carregarRelatorios() {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
       '<option value="">Todos os promotores</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join("");
+  }
+  if (gestor) {
+    if (todasPropriedades.length === 0) await carregarTodasPropriedades();
+    popularDatalistHistorico();
   }
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
@@ -1768,19 +1779,12 @@ async function carregarRelatorios() {
 
     desenharGraficoQuinzenas(dados.porQuinzena || []);
 
-    const areaRanking = document.getElementById("areaRankingPromotores");
-    const listaRanking = document.getElementById("listaRankingPromotores");
-    if (dados.porPromotor && dados.porPromotor.length > 0) {
-      areaRanking.classList.remove("oculto");
-      listaRanking.innerHTML = dados.porPromotor.map((r, i) => `
-        <div class="item-ranking">
-          <span><span class="item-ranking-pos">${i + 1}º</span>${r.promotor}</span>
-          <span class="item-ranking-detalhe">${formatarMoeda(r.valorPedidos)} · ${r.totalPedidos} pedido(s) · ${r.totalVisitas} visita(s)</span>
-        </div>
-      `).join("");
-    } else {
-      areaRanking.classList.add("oculto");
-    }
+    quinzenaMostradaAtual = dados.quinzenaMostrada || "";
+    ultimoPorPromotor = dados.porPromotor || [];
+    drillNivel = 0;
+    drillPromotorAtual = "";
+    drillPropriedadeAtual = "";
+    renderRankingPromotores();
   } catch (err) {
     mostrarMsg("msgRelatorios", err.message, "erro");
   }
@@ -1808,13 +1812,128 @@ function desenharGraficoQuinzenas(porQuinzena) {
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
+      scales: { y: { beginAtZero: true } },
+      onHover: (evt, elementos) => {
+        evt.native.target.style.cursor = elementos.length ? "pointer" : "default";
+      },
+      onClick: (evt, elementos) => {
+        if (!elementos.length) return;
+        const q = porQuinzena[elementos[0].index];
+        if (!q) return;
+        document.getElementById("selectFiltroQuinzena").value = q.chave;
+        carregarRelatorios();
+      }
     }
   });
 }
 
 document.getElementById("selectFiltroPromotor").addEventListener("change", carregarRelatorios);
 document.getElementById("selectFiltroQuinzena").addEventListener("change", carregarRelatorios);
+
+/* ---------- Drill-down: quinzena (clique no gráfico) -> promotor -> fazenda -> itens ---------- */
+function renderRankingPromotores() {
+  const areaRanking = document.getElementById("areaRankingPromotores");
+  const breadcrumb = document.getElementById("breadcrumbDrill");
+  const lista = document.getElementById("listaRankingPromotores");
+  const linkVoltar = (nivel, rotulo) => `<a href="#" data-voltar-drill="${nivel}" style="color:var(--azul);font-weight:700;text-decoration:none;">${rotulo}</a>`;
+
+  if (drillNivel === 0) {
+    if (!ultimoPorPromotor || ultimoPorPromotor.length === 0) {
+      areaRanking.classList.add("oculto");
+      return;
+    }
+    areaRanking.classList.remove("oculto");
+    breadcrumb.classList.add("oculto");
+    breadcrumb.innerHTML = "";
+    lista.innerHTML = ultimoPorPromotor.map((r, i) => `
+      <div class="item-ranking" style="cursor:pointer;" data-promotor-drill="${r.promotor.replace(/"/g, "&quot;")}">
+        <span><span class="item-ranking-pos">${i + 1}º</span>${r.promotor}</span>
+        <span class="item-ranking-detalhe">${formatarMoeda(r.valorPedidos)} · ${r.totalPedidos} pedido(s) · ${r.totalVisitas} visita(s)</span>
+      </div>
+    `).join("");
+    return;
+  }
+
+  areaRanking.classList.remove("oculto");
+  breadcrumb.classList.remove("oculto");
+
+  if (drillNivel === 1) {
+    breadcrumb.innerHTML = `${linkVoltar(0, "‹ Promotores")} &nbsp;›&nbsp; <b>${drillPromotorAtual}</b>`;
+    const mapa = new Map();
+    drillLancamentosPromotor.forEach(r => {
+      const chave = r.Propriedade || "—";
+      if (!mapa.has(chave)) mapa.set(chave, { propriedade: chave, valor: 0, qtd: 0 });
+      const e = mapa.get(chave);
+      e.valor += Number(r.Valor_Total) || 0;
+      e.qtd += 1;
+    });
+    const linhas = [...mapa.values()].sort((a, b) => b.valor - a.valor);
+    lista.innerHTML = linhas.length === 0
+      ? '<div class="carregando-lista">Nenhum pedido dessa quinzena para esse promotor.</div>'
+      : linhas.map(l => `
+        <div class="item-ranking" style="cursor:pointer;" data-propriedade-drill="${l.propriedade.replace(/"/g, "&quot;")}">
+          <span>${l.propriedade}</span>
+          <span class="item-ranking-detalhe">${formatarMoeda(l.valor)} · ${l.qtd} item(ns)</span>
+        </div>
+      `).join("");
+    return;
+  }
+
+  if (drillNivel === 2) {
+    breadcrumb.innerHTML = `${linkVoltar(0, "‹ Promotores")} &nbsp;›&nbsp; ${linkVoltar(1, drillPromotorAtual)} &nbsp;›&nbsp; <b>${drillPropriedadeAtual}</b>`;
+    const itens = drillLancamentosPromotor
+      .filter(r => (r.Propriedade || "—") === drillPropriedadeAtual)
+      .sort((a, b) => (b.Dia_Lancamento || "").localeCompare(a.Dia_Lancamento || ""));
+    lista.innerHTML = itens.map(r => `
+      <div class="item-ranking">
+        <span>${r.Produto}${r.Revenda ? " · " + r.Revenda : ""}</span>
+        <span class="item-ranking-detalhe">${formatarMoeda(r.Valor_Total)} · ${formatarDataBR(r.Dia_Lancamento)}</span>
+      </div>
+    `).join("");
+  }
+}
+
+async function abrirDrillPromotor(nomePromotor) {
+  const lista = document.getElementById("listaRankingPromotores");
+  lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const cabecalhos = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
+    const url = new URL(CONFIG.URL_API, window.location.origin);
+    url.searchParams.set("promotor", nomePromotor);
+    if (quinzenaMostradaAtual) url.searchParams.set("quinzena", quinzenaMostradaAtual);
+    const resp = await fetch(url.toString(), { headers: cabecalhos });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível carregar.");
+    drillLancamentosPromotor = dados.lancamentos || [];
+    drillPromotorAtual = nomePromotor;
+    drillNivel = 1;
+    renderRankingPromotores();
+  } catch (err) {
+    lista.innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
+  }
+}
+
+document.getElementById("listaRankingPromotores").addEventListener("click", (e) => {
+  const itemPromotor = e.target.closest("[data-promotor-drill]");
+  if (itemPromotor) {
+    abrirDrillPromotor(itemPromotor.getAttribute("data-promotor-drill"));
+    return;
+  }
+  const itemPropriedade = e.target.closest("[data-propriedade-drill]");
+  if (itemPropriedade) {
+    drillPropriedadeAtual = itemPropriedade.getAttribute("data-propriedade-drill");
+    drillNivel = 2;
+    renderRankingPromotores();
+  }
+});
+
+document.getElementById("breadcrumbDrill").addEventListener("click", (e) => {
+  const link = e.target.closest("[data-voltar-drill]");
+  if (!link) return;
+  e.preventDefault();
+  drillNivel = Number(link.getAttribute("data-voltar-drill"));
+  renderRankingPromotores();
+});
 
 /* =========================================================================
    BUSCA DE HISTÓRICO POR FAZENDA/CLIENTE/REVENDA (Gerente/Desenvolvedor)
@@ -1827,22 +1946,13 @@ function listaSugestoesHistorico() {
   return [...fazendas, ...revendas];
 }
 
-function renderizarSugestoesHistorico(termo) {
-  const caixa = document.getElementById("sugestoesBuscaHistorico");
-  const termoBusca = termo.toLowerCase();
-  const opcoes = listaSugestoesHistorico().filter(o => o.nome.toLowerCase().includes(termoBusca)).slice(0, 8);
-  if (opcoes.length === 0) {
-    caixa.classList.add("oculto");
-    caixa.innerHTML = "";
-    return;
-  }
-  caixa.innerHTML = opcoes.map(o => `
-    <div class="sugestao-item" data-nome-sugestao="${o.nome.replace(/"/g, "&quot;")}">
-      <span>${o.nome}</span>
-      <span class="unidade-tag">${o.tipo}</span>
-    </div>
-  `).join("");
-  caixa.classList.remove("oculto");
+// Dropdown nativo do navegador (input + datalist): funciona como um <select> que também
+// aceita digitação livre para filtrar, tipo um filtro do Power BI.
+function popularDatalistHistorico() {
+  const dl = document.getElementById("datalistHistorico");
+  dl.innerHTML = listaSugestoesHistorico()
+    .map(o => `<option value="${o.nome.replace(/"/g, "&quot;")}" label="${o.tipo}"></option>`)
+    .join("");
 }
 
 document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
@@ -1852,32 +1962,9 @@ document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
   limparMsg("msgBuscaHistoricoRel");
   if (termo.length < 2) {
     lista.innerHTML = "";
-    document.getElementById("sugestoesBuscaHistorico").classList.add("oculto");
     return;
   }
-  if (todasPropriedades.length === 0) carregarTodasPropriedades().then(() => renderizarSugestoesHistorico(termo));
-  else renderizarSugestoesHistorico(termo);
   temporizadorBuscaHistorico = setTimeout(() => buscarHistoricoRel(termo), 400);
-});
-
-document.getElementById("buscaHistoricoRel").addEventListener("focus", (e) => {
-  const termo = e.target.value.trim();
-  if (termo.length >= 2) renderizarSugestoesHistorico(termo);
-});
-
-document.getElementById("buscaHistoricoRel").addEventListener("blur", () => {
-  setTimeout(() => document.getElementById("sugestoesBuscaHistorico").classList.add("oculto"), 150);
-});
-
-document.getElementById("sugestoesBuscaHistorico").addEventListener("mousedown", (e) => {
-  const item = e.target.closest("[data-nome-sugestao]");
-  if (!item) return;
-  const nome = item.getAttribute("data-nome-sugestao");
-  const input = document.getElementById("buscaHistoricoRel");
-  input.value = nome;
-  document.getElementById("sugestoesBuscaHistorico").classList.add("oculto");
-  clearTimeout(temporizadorBuscaHistorico);
-  buscarHistoricoRel(nome);
 });
 
 async function buscarHistoricoRel(termo) {
