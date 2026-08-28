@@ -3,14 +3,17 @@
 // um Promotor só recebe os próprios números; Gerente/Desenvolvedor pode ver todo
 // mundo, ou filtrar por um promotor específico.
 //
-// GET /api/relatorios              -> Promotor: seus dados da quinzena atual. Gerente: todos.
-// GET /api/relatorios?promotor=X   -> Gerente/Desenvolvedor: só os dados do promotor X.
-//                                     (Promotor comum ignora esse parâmetro — sempre vê só o próprio.)
-// GET /api/relatorios?quinzena=AAAA-MM-N -> mostra o resumo e o ranking por promotor
-//                                     dessa quinzena específica (chave devolvida em
-//                                     "todasQuinzenas") em vez da atual. "porQuinzena" (gráfico)
-//                                     e "todasQuinzenas" (lista p/ dropdown) sempre trazem TODOS
-//                                     os períodos, independente desse filtro.
+// GET /api/relatorios              -> Promotor: relatório completo (todo o período) da
+//                                     própria carteira. Gerente sem ?promotor=: visão geral
+//                                     de todos + ranking por promotor.
+// GET /api/relatorios?promotor=X   -> Gerente/Desenvolvedor: relatório detalhado do
+//                                     promotor X (fazendas, revendas, totais).
+// GET /api/relatorios?quinzena=AAAA-MM-N -> restringe o relatório a essa quinzena.
+//                                     Sem esse parâmetro, o relatório considera TODO o
+//                                     histórico — não é mais obrigatório escolher uma
+//                                     quinzena para ver resultado.
+//                                     "porQuinzena" (gráfico) e "todasQuinzenas" (dropdown)
+//                                     sempre trazem TODOS os períodos, independente disso.
 //
 // Variáveis de ambiente: as mesmas dos outros endpoints (TENANT_ID, CLIENT_ID,
 // CLIENT_SECRET, API_KEY, AUTH_SECRET). Opcionais: DRIVE_ID, ITEM_ID,
@@ -105,6 +108,8 @@ module.exports = async function handler(req, res) {
     // Lancamentos: Nome_Promotor,Revenda,Propriedade,Produto,Unidade,Preco_Unitario,Volume,Valor_Total,Dia_Lancamento,Quinzena,Observacao_Visita
     let pedidos = linhasLancamentos.map(l => ({
       promotor: String(l[0] || "").trim(),
+      revenda: String(l[1] || "").trim(),
+      propriedade: String(l[2] || "").trim(),
       valor: paraNumero(l[7]),
       data: paraISO(l[8])
     })).filter(p => p.promotor && p.data);
@@ -112,6 +117,7 @@ module.exports = async function handler(req, res) {
     // Visitas: Nome_Promotor,Propriedade,Tipo_Visita,Observacao,Foto_URL,Latitude,Longitude,Dia_Visita,Quinzena
     let visitas = linhasVisitas.map(v => ({
       promotor: String(v[0] || "").trim(),
+      propriedade: String(v[1] || "").trim(),
       data: paraISO(v[7])
     })).filter(v => v.promotor && v.data);
 
@@ -120,7 +126,7 @@ module.exports = async function handler(req, res) {
       visitas = visitas.filter(v => v.promotor.toLowerCase() === filtroPromotor.toLowerCase());
     }
 
-    // Agrega por quinzena — sempre com TODO o histórico (não filtrado por quinzena), para
+    // Agrega por quinzena — sempre com TODO o histórico (do promotor filtrado, se houver), para
     // alimentar o gráfico e a lista de opções do dropdown de quinzenas.
     const mapaQuinzenas = new Map();
     function acessarQuinzena(chave) {
@@ -147,54 +153,97 @@ module.exports = async function handler(req, res) {
     const porQuinzena = todasQuinzenasOrdenadas.slice(-6);
     const todasQuinzenas = [...todasQuinzenasOrdenadas].reverse().map(q => ({ chave: q.chave, rotulo: q.rotulo }));
 
-    // Quinzena a mostrar como "atual": a pedida via ?quinzena=, ou (padrão) a quinzena de hoje.
-    const quinzenaPedida = String((req.query && req.query.quinzena) || "").trim();
-    const chaveAtual = quinzenaPedida || quinzenaChave(new Date().toISOString().slice(0, 10));
-    const idxAtual = todasQuinzenasOrdenadas.findIndex(q => q.chave === chaveAtual);
-    const atual = idxAtual >= 0 ? todasQuinzenasOrdenadas[idxAtual] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
-    const anterior = idxAtual > 0 ? todasQuinzenasOrdenadas[idxAtual - 1] : null;
+    // Resumo da quinzena corrente (independente do filtro de período abaixo) — usado pelos
+    // cartões do painel Início, que sempre mostram "agora", não o período que a pessoa
+    // escolheu na tela de Relatórios.
+    const chaveHoje = quinzenaChave(new Date().toISOString().slice(0, 10));
+    const idxHoje = todasQuinzenasOrdenadas.findIndex(q => q.chave === chaveHoje);
+    const quinzenaAtualDados = idxHoje >= 0 ? todasQuinzenasOrdenadas[idxHoje] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
 
-    // Ranking por promotor — restrito à quinzena mostrada (drill-down: clicar numa quinzena
-    // no gráfico mostra quem vendeu o quê naquele período). Só relevante para o gestor
-    // quando ele não filtrou por um promotor específico.
-    const pedidosDaQuinzena = pedidos.filter(p => quinzenaChave(p.data) === chaveAtual);
-    const visitasDaQuinzena = visitas.filter(v => quinzenaChave(v.data) === chaveAtual);
-    const mapaPromotor = new Map();
-    function acessarPromotor(nome) {
-      if (!mapaPromotor.has(nome)) {
-        mapaPromotor.set(nome, { promotor: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
-      }
-      return mapaPromotor.get(nome);
+    // Período escolhido na tela de Relatórios: se "?quinzena=" não vier, o relatório
+    // considera TODO o histórico (não obriga escolher uma quinzena para ver algo).
+    const quinzenaPedida = String((req.query && req.query.quinzena) || "").trim();
+    const pedidosPeriodo = quinzenaPedida ? pedidos.filter(p => quinzenaChave(p.data) === quinzenaPedida) : pedidos;
+    const visitasPeriodo = quinzenaPedida ? visitas.filter(v => quinzenaChave(v.data) === quinzenaPedida) : visitas;
+
+    const fazendasNoPeriodo = new Set([
+      ...pedidosPeriodo.map(p => p.propriedade),
+      ...visitasPeriodo.map(v => v.propriedade)
+    ].filter(Boolean));
+
+    const resumo = {
+      valorPedidos: pedidosPeriodo.reduce((soma, p) => soma + p.valor, 0),
+      totalPedidos: pedidosPeriodo.length,
+      totalVisitas: visitasPeriodo.length,
+      totalFazendas: fazendasNoPeriodo.size
+    };
+
+    // Por fazenda — combina pedidos (valor) e visitas (contagem) da mesma propriedade,
+    // já dentro do período/promotor filtrados.
+    const mapaFazenda = new Map();
+    function acessarFazenda(nome) {
+      if (!nome) return null;
+      if (!mapaFazenda.has(nome)) mapaFazenda.set(nome, { propriedade: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
+      return mapaFazenda.get(nome);
     }
-    for (const p of pedidosDaQuinzena) {
-      const r = acessarPromotor(p.promotor);
+    pedidosPeriodo.forEach(p => {
+      const f = acessarFazenda(p.propriedade);
+      if (f) { f.valorPedidos += p.valor; f.totalPedidos += 1; }
+    });
+    visitasPeriodo.forEach(v => {
+      const f = acessarFazenda(v.propriedade);
+      if (f) f.totalVisitas += 1;
+    });
+    const porFazenda = [...mapaFazenda.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
+
+    // Por revenda — só faz sentido para pedidos (visita não tem revenda associada).
+    const mapaRevenda = new Map();
+    pedidosPeriodo.forEach(p => {
+      if (!p.revenda) return;
+      if (!mapaRevenda.has(p.revenda)) mapaRevenda.set(p.revenda, { revenda: p.revenda, valorPedidos: 0, totalPedidos: 0 });
+      const r = mapaRevenda.get(p.revenda);
       r.valorPedidos += p.valor;
       r.totalPedidos += 1;
+    });
+    const porRevenda = [...mapaRevenda.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
+
+    // Ranking por promotor — só quando o gestor está vendo "todos os promotores" (sem
+    // filtroPromotor). Escopo = período escolhido (ou todo o histórico, se nenhum).
+    let porPromotor = [];
+    if (ehGestor && !filtroPromotor) {
+      const mapaPromotor = new Map();
+      function acessarPromotor(nome) {
+        if (!mapaPromotor.has(nome)) mapaPromotor.set(nome, { promotor: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
+        return mapaPromotor.get(nome);
+      }
+      pedidosPeriodo.forEach(p => {
+        const r = acessarPromotor(p.promotor);
+        r.valorPedidos += p.valor;
+        r.totalPedidos += 1;
+      });
+      visitasPeriodo.forEach(v => {
+        const r = acessarPromotor(v.promotor);
+        r.totalVisitas += 1;
+      });
+      porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
     }
-    for (const v of visitasDaQuinzena) {
-      const r = acessarPromotor(v.promotor);
-      r.totalVisitas += 1;
-    }
-    const porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
 
     res.status(200).json({
       filtroAplicado: filtroPromotor || null,
-      quinzenaMostrada: chaveAtual,
-      quinzenaMostradaRotulo: quinzenaRotulo(chaveAtual),
       ehGestor,
-      resumoAtual: {
-        valorPedidos: atual.valorPedidos || 0,
-        totalPedidos: atual.totalPedidos || 0,
-        totalVisitas: atual.totalVisitas || 0
+      periodoSelecionado: quinzenaPedida || null,
+      periodoSelecionadoRotulo: quinzenaPedida ? quinzenaRotulo(quinzenaPedida) : "Todo o período",
+      resumo,
+      resumoQuinzenaAtual: {
+        valorPedidos: quinzenaAtualDados.valorPedidos || 0,
+        totalPedidos: quinzenaAtualDados.totalPedidos || 0,
+        totalVisitas: quinzenaAtualDados.totalVisitas || 0
       },
-      resumoAnterior: anterior ? {
-        valorPedidos: anterior.valorPedidos || 0,
-        totalPedidos: anterior.totalPedidos || 0,
-        totalVisitas: anterior.totalVisitas || 0
-      } : null,
       porQuinzena,
       todasQuinzenas,
-      porPromotor: ehGestor && !filtroPromotor ? porPromotor : []
+      porFazenda,
+      porRevenda,
+      porPromotor
     });
   } catch (err) {
     res.status(502).json({ erro: "Falha ao montar relatório.", detalhe: err.detalhe || String(err.message || err) });

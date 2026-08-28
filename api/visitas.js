@@ -6,9 +6,10 @@
 // separadas, feitas em telas separadas no app, mas para a mesma fazenda/dia.
 //
 // POST /api/visitas               -> grava uma visita nova
-// GET  /api/visitas                -> lista visitas do promotor logado
+// GET  /api/visitas               -> lista visitas do promotor logado
 // GET  /api/visitas?promotor=X    -> (Gerente/Desenvolvedor) lista visitas de um promotor
-// GET  /api/visitas?todos=1       -> (Gerente/Desenvolvedor) lista visitas de todo mundo
+// GET  /api/visitas?propriedade=X -> busca parcial pelo nome da fazenda (combinável)
+// GET  /api/visitas?quinzena=AAAA-MM-N -> só visitas dessa quinzena (combinável)
 // Ambos os GET exigem Authorization: Bearer <token do login>
 //
 // Ordem das colunas na tabela "Visitas":
@@ -20,6 +21,7 @@
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
+const { quinzenaChave } = require("./_lib/quinzenas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -108,6 +110,14 @@ module.exports = async function handler(req, res) {
 
       if (promotorFiltro) {
         visitas = visitas.filter(v => v.Nome_Promotor.toLowerCase() === promotorFiltro.toLowerCase());
+      }
+      const propriedadeFiltro = String((req.query && req.query.propriedade) || "").trim().toLowerCase();
+      if (propriedadeFiltro) {
+        visitas = visitas.filter(v => v.Propriedade.toLowerCase().includes(propriedadeFiltro));
+      }
+      const quinzenaFiltro = String((req.query && req.query.quinzena) || "").trim();
+      if (quinzenaFiltro) {
+        visitas = visitas.filter(v => quinzenaChave(v.Dia_Visita) === quinzenaFiltro);
       }
 
       visitas.sort((a, b) => b.Dia_Visita.localeCompare(a.Dia_Visita));
