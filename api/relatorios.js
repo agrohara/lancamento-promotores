@@ -6,8 +6,11 @@
 // GET /api/relatorios              -> Promotor: seus dados da quinzena atual. Gerente: todos.
 // GET /api/relatorios?promotor=X   -> Gerente/Desenvolvedor: só os dados do promotor X.
 //                                     (Promotor comum ignora esse parâmetro — sempre vê só o próprio.)
-// GET /api/relatorios?quinzena=AAAA-MM-N -> mostra o resumo dessa quinzena específica
-//                                     (chave devolvida em "todasQuinzenas") em vez da atual.
+// GET /api/relatorios?quinzena=AAAA-MM-N -> mostra o resumo e o ranking por promotor
+//                                     dessa quinzena específica (chave devolvida em
+//                                     "todasQuinzenas") em vez da atual. "porQuinzena" (gráfico)
+//                                     e "todasQuinzenas" (lista p/ dropdown) sempre trazem TODOS
+//                                     os períodos, independente desse filtro.
 //
 // Variáveis de ambiente: as mesmas dos outros endpoints (TENANT_ID, CLIENT_ID,
 // CLIENT_SECRET, API_KEY, AUTH_SECRET). Opcionais: DRIVE_ID, ITEM_ID,
@@ -16,6 +19,7 @@
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
 const { paraNumero } = require("./_lib/numeros");
+const { quinzenaChave, quinzenaRotulo } = require("./_lib/quinzenas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -23,7 +27,6 @@ const TABLE_LANCAMENTOS_PADRAO = "Lancamentos";
 const TABLE_VISITAS_PADRAO = "Visitas";
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
-const NOMES_MES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 async function obterToken() {
   const url = `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`;
@@ -58,20 +61,6 @@ async function obterLinhas(token, driveId, itemId, tableName) {
     throw erro;
   }
   return (dados.value || []).map(r => r.values && r.values[0]).filter(Boolean);
-}
-
-function quinzenaChave(dataISO) {
-  const partes = String(dataISO || "").split("-");
-  if (partes.length !== 3) return null;
-  const [ano, mes, dia] = partes.map(Number);
-  if (!ano || !mes || !dia) return null;
-  const metade = dia <= 15 ? 1 : 2;
-  return `${ano}-${String(mes).padStart(2, "0")}-${metade}`;
-}
-
-function quinzenaRotulo(chave) {
-  const [ano, mes, metade] = chave.split("-");
-  return `${metade === "1" ? "1ª" : "2ª"} Quinzena - ${NOMES_MES[Number(mes) - 1]}/${ano}`;
 }
 
 module.exports = async function handler(req, res) {
@@ -131,7 +120,8 @@ module.exports = async function handler(req, res) {
       visitas = visitas.filter(v => v.promotor.toLowerCase() === filtroPromotor.toLowerCase());
     }
 
-    // Agrega por quinzena (últimos 6 períodos com dados)
+    // Agrega por quinzena — sempre com TODO o histórico (não filtrado por quinzena), para
+    // alimentar o gráfico e a lista de opções do dropdown de quinzenas.
     const mapaQuinzenas = new Map();
     function acessarQuinzena(chave) {
       if (!mapaQuinzenas.has(chave)) {
@@ -157,25 +147,6 @@ module.exports = async function handler(req, res) {
     const porQuinzena = todasQuinzenasOrdenadas.slice(-6);
     const todasQuinzenas = [...todasQuinzenasOrdenadas].reverse().map(q => ({ chave: q.chave, rotulo: q.rotulo }));
 
-    // Ranking por promotor (só relevante quando o gestor não filtrou por um nome específico)
-    const mapaPromotor = new Map();
-    function acessarPromotor(nome) {
-      if (!mapaPromotor.has(nome)) {
-        mapaPromotor.set(nome, { promotor: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
-      }
-      return mapaPromotor.get(nome);
-    }
-    for (const p of pedidos) {
-      const r = acessarPromotor(p.promotor);
-      r.valorPedidos += p.valor;
-      r.totalPedidos += 1;
-    }
-    for (const v of visitas) {
-      const r = acessarPromotor(v.promotor);
-      r.totalVisitas += 1;
-    }
-    const porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
-
     // Quinzena a mostrar como "atual": a pedida via ?quinzena=, ou (padrão) a quinzena de hoje.
     const quinzenaPedida = String((req.query && req.query.quinzena) || "").trim();
     const chaveAtual = quinzenaPedida || quinzenaChave(new Date().toISOString().slice(0, 10));
@@ -183,9 +154,33 @@ module.exports = async function handler(req, res) {
     const atual = idxAtual >= 0 ? todasQuinzenasOrdenadas[idxAtual] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
     const anterior = idxAtual > 0 ? todasQuinzenasOrdenadas[idxAtual - 1] : null;
 
+    // Ranking por promotor — restrito à quinzena mostrada (drill-down: clicar numa quinzena
+    // no gráfico mostra quem vendeu o quê naquele período). Só relevante para o gestor
+    // quando ele não filtrou por um promotor específico.
+    const pedidosDaQuinzena = pedidos.filter(p => quinzenaChave(p.data) === chaveAtual);
+    const visitasDaQuinzena = visitas.filter(v => quinzenaChave(v.data) === chaveAtual);
+    const mapaPromotor = new Map();
+    function acessarPromotor(nome) {
+      if (!mapaPromotor.has(nome)) {
+        mapaPromotor.set(nome, { promotor: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
+      }
+      return mapaPromotor.get(nome);
+    }
+    for (const p of pedidosDaQuinzena) {
+      const r = acessarPromotor(p.promotor);
+      r.valorPedidos += p.valor;
+      r.totalPedidos += 1;
+    }
+    for (const v of visitasDaQuinzena) {
+      const r = acessarPromotor(v.promotor);
+      r.totalVisitas += 1;
+    }
+    const porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
+
     res.status(200).json({
       filtroAplicado: filtroPromotor || null,
       quinzenaMostrada: chaveAtual,
+      quinzenaMostradaRotulo: quinzenaRotulo(chaveAtual),
       ehGestor,
       resumoAtual: {
         valorPedidos: atual.valorPedidos || 0,

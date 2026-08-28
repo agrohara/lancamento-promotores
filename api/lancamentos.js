@@ -17,12 +17,14 @@
 // Opcionais (só se o arquivo mudar de lugar): DRIVE_ID, ITEM_ID, TABLE_NAME
 //
 // GET também aceita, combináveis: ?propriedade=X (busca parcial no nome da fazenda),
-// ?revenda=X (busca parcial no nome da revenda) — usados na busca de histórico do
-// relatório (Gerente/Desenvolvedor).
+// ?revenda=X (busca parcial no nome da revenda), ?quinzena=AAAA-MM-N (só lançamentos
+// daquela quinzena) — usados na busca de histórico e no drill-down do relatório
+// (Gerente/Desenvolvedor).
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
 const { paraNumero } = require("./_lib/numeros");
+const { quinzenaChave } = require("./_lib/quinzenas");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
@@ -130,6 +132,10 @@ module.exports = async function handler(req, res) {
       const revendaFiltro = String((req.query && req.query.revenda) || "").trim().toLowerCase();
       if (revendaFiltro) {
         lancamentos = lancamentos.filter(r => r.Revenda.toLowerCase().includes(revendaFiltro));
+      }
+      const quinzenaFiltro = String((req.query && req.query.quinzena) || "").trim();
+      if (quinzenaFiltro) {
+        lancamentos = lancamentos.filter(r => quinzenaChave(r.Dia_Lancamento) === quinzenaFiltro);
       }
 
       lancamentos.sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
