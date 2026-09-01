@@ -137,10 +137,15 @@
   .campo-detalhe b{color:#44525c;}
 
   /* ---------- RELATÓRIOS ---------- */
+  @keyframes entradaSuave{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes apareceSuave{from{opacity:0;}to{opacity:1;}}
   .item-ranking{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:10px 14px;
-    margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:14px;}
+    margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:14px;
+    animation:entradaSuave .28s ease both;}
   .item-ranking-pos{font-weight:800;color:var(--azul);margin-right:8px;}
   .item-ranking-detalhe{font-size:12px;color:#5b6771;}
+  #areaDetalheDrill{animation:apareceSuave .2s ease both;}
+  #breadcrumbDrill{animation:apareceSuave .25s ease both;}
 
   /* ---------- PERFIL ---------- */
   .perfil-avatar{width:72px;height:72px;border-radius:50%;background:var(--azul);color:#fff;font-size:28px;font-weight:700;
@@ -372,6 +377,7 @@
         <div id="fazendaEscolhidaWrap" class="oculto">
           <div class="produto-chip" id="fazendaChip"></div>
         </div>
+        <button class="btn btn-secundario" id="btnLimparBuscaFazenda" type="button" style="margin-bottom:14px;">Limpar busca</button>
         <button class="btn btn-secundario" id="btnAbrirCadastroFazendaLanc" type="button">+ Cadastrar fazenda nova</button>
         <button class="btn" id="btnContinuarFazendaLanc" style="margin-top:14px;">Continuar</button>
         <button class="btn btn-secundario" id="btnCancelarEscolherFazenda" type="button" style="margin-top:10px;">Cancelar</button>
@@ -384,6 +390,7 @@
         <span>Fazenda: <b id="resumoFazendaVisita"></b> · Data: <b id="resumoDataVisita"></b> · Quinzena: <b id="resumoQuinzenaVisita"></b></span>
         <div class="resumo-botoes">
           <button class="btn btn-secundario" id="btnTrocarFazendaVisita" type="button">Trocar fazenda</button>
+          <button class="btn btn-secundario" id="btnLimparVisita" type="button">Limpar tudo</button>
           <button class="btn btn-secundario" id="btnCancelarVisita" type="button">Cancelar</button>
         </div>
       </div>
@@ -417,6 +424,7 @@
         <span>Fazenda: <b id="resumoFazendaPedido"></b> · Data: <b id="resumoDataPedido"></b> · Quinzena: <b id="resumoQuinzenaPedido"></b></span>
         <div class="resumo-botoes">
           <button class="btn btn-secundario" id="btnTrocarFazendaPedido" type="button">Trocar fazenda</button>
+          <button class="btn btn-secundario" id="btnLimparPedido" type="button">Limpar tudo</button>
           <button class="btn btn-secundario" id="btnCancelarPedido" type="button">Cancelar</button>
         </div>
       </div>
@@ -1100,6 +1108,15 @@ function escolherFazendaLanc(nome) {
   document.getElementById("fazendaEscolhidaWrap").classList.remove("oculto");
 }
 
+document.getElementById("btnLimparBuscaFazenda").addEventListener("click", () => {
+  buscaFazendaLanc.value = "";
+  sugestoesFazendaLanc.classList.add("oculto");
+  document.getElementById("fazendaChip").textContent = "";
+  document.getElementById("fazendaEscolhidaWrap").classList.add("oculto");
+  limparMsg("msgEscolherFazenda");
+  buscaFazendaLanc.focus();
+});
+
 document.getElementById("btnAbrirCadastroFazendaLanc").addEventListener("click", () => {
   origemCadastroFazenda = "registro";
   abrirCadastroFazenda();
@@ -1143,6 +1160,10 @@ function prepararVisitaCorpo(fazenda) {
 
 document.getElementById("btnTrocarFazendaVisita").addEventListener("click", () => {
   mostrarPagina("escolherFazendaRegistro");
+});
+
+document.getElementById("btnLimparVisita").addEventListener("click", () => {
+  prepararVisitaCorpo(propriedadeAtual);
 });
 
 document.getElementById("btnCancelarVisita").addEventListener("click", () => {
@@ -1219,6 +1240,10 @@ async function prepararPedidoCorpo(fazenda) {
 
 document.getElementById("btnTrocarFazendaPedido").addEventListener("click", () => {
   mostrarPagina("escolherFazendaRegistro");
+});
+
+document.getElementById("btnLimparPedido").addEventListener("click", () => {
+  prepararPedidoCorpo(propriedadeAtual);
 });
 
 document.getElementById("btnCancelarPedido").addEventListener("click", () => {
@@ -1744,7 +1769,19 @@ async function carregarRelatorios() {
     drillRevendaAtual = "";
     renderPainelDrill();
 
-    renderRankingPromotores(dados.porPromotor || []);
+    // No ranking geral (gestor sem promotor filtrado), inclui TODOS os promotores da carteira,
+    // mesmo quem não teve nenhuma visita/pedido no período — assim o gestor enxerga quem não
+    // gerou demanda ou não preencheu nada, não só quem apareceu nos dados.
+    let rankingParaExibir = dados.porPromotor || [];
+    if (gestor && !promotorFiltro) {
+      const nomesTodosPromotores = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))];
+      const mapaRanking = new Map(rankingParaExibir.map(r => [r.promotor, r]));
+      nomesTodosPromotores.forEach(nome => {
+        if (!mapaRanking.has(nome)) mapaRanking.set(nome, { promotor: nome, valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 });
+      });
+      rankingParaExibir = [...mapaRanking.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
+    }
+    renderRankingPromotores(rankingParaExibir);
     renderPorFazenda(dados.porFazenda || []);
     renderPorRevenda(dados.porRevenda || []);
   } catch (err) {
