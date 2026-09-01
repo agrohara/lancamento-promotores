@@ -1804,7 +1804,6 @@ async function carregarRelatorios() {
 
     ultimoDadosRelatorios = dados;
     ultimoRankingPromotor = rankingParaExibir;
-    renderPorFazenda(dados.porFazenda || []);
     aplicarModoRelatorio();
   } catch (err) {
     mostrarMsg("msgRelatorios", err.message, "erro");
@@ -1826,13 +1825,17 @@ function aplicarModoRelatorio() {
     if (dados) {
       desenharGraficoQuinzenas(dados.porQuinzena || []);
       renderPorRevenda(dados.porRevenda || []);
+      renderPorFazenda(dados.porFazenda || [], "pedidos");
     }
     renderRankingPromotores([...ultimoRankingPromotor].sort((a, b) => b.valorPedidos - a.valorPedidos));
   } else {
     document.getElementById("areaGraficoPedidos").classList.add("oculto");
     document.getElementById("areaGraficoVisitas").classList.remove("oculto");
     document.getElementById("areaPorRevenda").classList.add("oculto");
-    if (dados) desenharGraficoTipoVisita(dados.porTipoVisita || []);
+    if (dados) {
+      desenharGraficoTipoVisita(dados.porTipoVisita || []);
+      renderPorFazenda(dados.porFazenda || [], "visitas");
+    }
     renderRankingPromotores([...ultimoRankingPromotor].sort((a, b) => b.totalVisitas - a.totalVisitas));
   }
   if (drillNivel > 0) renderPainelDrill();
@@ -1894,15 +1897,25 @@ function renderRankingPromotores(lista) {
   `).join("");
 }
 
-function renderPorFazenda(lista) {
+function renderPorFazenda(lista, modo) {
   const area = document.getElementById("areaPorFazenda");
   const container = document.getElementById("listaPorFazenda");
   if (!lista || lista.length === 0) {
     area.classList.add("oculto");
     return;
   }
+  // No modo "Visitas", só faz sentido listar fazendas que tiveram visita; no modo
+  // "Pedidos", só as que tiveram pedido — senão a lista mistura fazenda sem nada
+  // daquele tipo, o que confunde.
+  const listaFiltrada = modo === "visitas"
+    ? lista.filter(f => f.totalVisitas > 0)
+    : lista.filter(f => f.totalPedidos > 0);
   area.classList.remove("oculto");
-  container.innerHTML = lista.map(f => `
+  if (listaFiltrada.length === 0) {
+    container.innerHTML = `<div class="carregando-lista">${modo === "visitas" ? "Nenhuma visita registrada nesse período." : "Nenhum pedido registrado nesse período."}</div>`;
+    return;
+  }
+  container.innerHTML = listaFiltrada.map(f => `
     <div class="item-ranking" style="cursor:pointer;" data-fazenda-drill="${f.propriedade.replace(/"/g, "&quot;")}">
       <span>${f.propriedade}</span>
       <span class="item-ranking-detalhe">${formatarMoeda(f.valorPedidos)} · ${f.totalPedidos} pedido(s) · ${f.totalVisitas} visita(s)</span>
@@ -1949,6 +1962,10 @@ function desenharGraficoQuinzenas(porQuinzena) {
     },
     options: {
       responsive: true,
+      // "intersect: false" + modo "index" faz o toque valer para a coluna inteira daquela
+      // quinzena (não só o pixel exato da barra) — no celular, tocar em cima do número ou
+      // um pouco ao lado da barra também conta, em vez de exigir acertar a barra em cheio.
+      interaction: { mode: "index", intersect: false },
       plugins: { legend: { display: false } },
       scales: { y: { beginAtZero: true } },
       onHover: (evt, elementos) => {
@@ -2246,6 +2263,9 @@ let temporizadorBuscaHistorico = null;
 
 function listaSugestoesHistorico() {
   const fazendas = (todasPropriedades || []).map(nome => ({ nome, tipo: "Fazenda" }));
+  // Revenda não tem visita associada — no modo "Visitas" nem faz sentido sugerir, então
+  // só entra na lista quando o modo atual é "Pedidos".
+  if (modoRelatorio === "visitas") return fazendas;
   // Promotor comum só vê as revendas dos clientes dele; gestor vê todas.
   const clientesRelevantes = ehGestor()
     ? PROMOTOR_CLIENTE
@@ -2341,15 +2361,17 @@ async function buscarHistoricoRel(termo) {
     [...(dadosPropriedade.lancamentos || []), ...(dadosRevenda.lancamentos || [])].forEach(r => {
       mapaPedidos.set(chave(r), r);
     });
-    const pedidos = [...mapaPedidos.values()];
-    const visitas = dadosVisitas.visitas || [];
+    // Respeita o alternador Pedidos/Visitas: no modo Visitas só mostra visitas, no modo
+    // Pedidos só mostra pedidos — não mistura os dois tipos no resultado da busca.
+    const pedidos = modoRelatorio === "visitas" ? [] : [...mapaPedidos.values()];
+    const visitas = modoRelatorio === "visitas" ? (dadosVisitas.visitas || []) : [];
     const resultados = [
       ...pedidos.map(r => ({ tipo: "pedido", ...r })),
       ...visitas.map(r => ({ tipo: "visita", ...r }))
     ].sort((a, b) => (b.Dia_Lancamento || b.Dia_Visita || "").localeCompare(a.Dia_Lancamento || a.Dia_Visita || ""));
 
     if (resultados.length === 0) {
-      lista.innerHTML = '<div class="carregando-lista">Nada encontrado para essa busca.</div>';
+      lista.innerHTML = `<div class="carregando-lista">${modoRelatorio === "visitas" ? "Nenhuma visita registrada para essa busca." : "Nada encontrado para essa busca."}</div>`;
       return;
     }
 
