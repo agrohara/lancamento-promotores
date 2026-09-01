@@ -2177,19 +2177,39 @@ async function abrirDetalheRevenda(nomeRevenda) {
   }
 }
 
+// Move o painel de detalhe para logo abaixo da lista que foi clicada (em vez de deixar
+// fixo no fim da página) e rola a tela até ele — assim o drill-down aparece "colado"
+// na linha clicada, não lá embaixo.
+function moverPainelDrillApos(idArea) {
+  const area = document.getElementById(idArea);
+  const painel = document.getElementById("areaDetalheDrill");
+  area.insertAdjacentElement("afterend", painel);
+  painel.classList.remove("oculto");
+  painel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 document.getElementById("listaRankingPromotores").addEventListener("click", (e) => {
   const item = e.target.closest("[data-promotor-drill]");
-  if (item) abrirDetalhePromotor(item.getAttribute("data-promotor-drill"));
+  if (item) {
+    moverPainelDrillApos("areaRankingPromotores");
+    abrirDetalhePromotor(item.getAttribute("data-promotor-drill"));
+  }
 });
 
 document.getElementById("listaPorFazenda").addEventListener("click", (e) => {
   const item = e.target.closest("[data-fazenda-drill]");
-  if (item) abrirDetalheFazenda(item.getAttribute("data-fazenda-drill"));
+  if (item) {
+    moverPainelDrillApos("areaPorFazenda");
+    abrirDetalheFazenda(item.getAttribute("data-fazenda-drill"));
+  }
 });
 
 document.getElementById("listaPorRevenda").addEventListener("click", (e) => {
   const item = e.target.closest("[data-revenda-drill]");
-  if (item) abrirDetalheRevenda(item.getAttribute("data-revenda-drill"));
+  if (item) {
+    moverPainelDrillApos("areaPorRevenda");
+    abrirDetalheRevenda(item.getAttribute("data-revenda-drill"));
+  }
 });
 
 document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
