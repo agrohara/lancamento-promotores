@@ -1832,6 +1832,7 @@ function aplicarModoRelatorio() {
     if (dados) desenharGraficoTipoVisita(dados.porTipoVisita || []);
     renderRankingPromotores([...ultimoRankingPromotor].sort((a, b) => b.totalVisitas - a.totalVisitas));
   }
+  if (drillNivel > 0) renderPainelDrill();
 }
 
 document.querySelectorAll("[data-modo-relatorio]").forEach(chip => {
@@ -2015,8 +2016,9 @@ function renderPainelDrill() {
 
   if (drillNivel === 1) {
     breadcrumb.innerHTML = `${linkFechar} &nbsp;›&nbsp; <b>${drillPromotorAtual}</b>`;
+    const itensNivel1 = drillItens.filter(r => modoRelatorio === "visitas" ? r.tipo === "visita" : r.tipo === "pedido");
     const mapa = new Map();
-    drillItens.forEach(r => {
+    itensNivel1.forEach(r => {
       const chave = r.propriedade || "—";
       if (!mapa.has(chave)) mapa.set(chave, { propriedade: chave, valor: 0, qtdPedidos: 0, qtdVisitas: 0 });
       const e = mapa.get(chave);
@@ -2040,6 +2042,7 @@ function renderPainelDrill() {
     breadcrumb.innerHTML = `${linkFechar} &nbsp;›&nbsp; ${linkVoltar1} &nbsp;›&nbsp; <b>${drillPropriedadeAtual}</b>`;
     const itens = drillItens
       .filter(r => (r.propriedade || "—") === drillPropriedadeAtual)
+      .filter(r => modoRelatorio === "visitas" ? r.tipo === "visita" : r.tipo === "pedido")
       .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
     lista.innerHTML = itens.length === 0
       ? '<div class="carregando-lista">Nada registrado para essa fazenda no período.</div>'
@@ -2049,7 +2052,9 @@ function renderPainelDrill() {
 
   if (drillNivel === 3) {
     breadcrumb.innerHTML = `${linkFechar} &nbsp;›&nbsp; <b>${drillPropriedadeAtual}</b>`;
-    const itens = [...drillItens].sort((a, b) => (b.data || "").localeCompare(a.data || ""));
+    const itens = drillItens
+      .filter(r => modoRelatorio === "visitas" ? r.tipo === "visita" : r.tipo === "pedido")
+      .sort((a, b) => (b.data || "").localeCompare(a.data || ""));
     lista.innerHTML = itens.length === 0
       ? '<div class="carregando-lista">Nada registrado para essa fazenda no período.</div>'
       : itens.map(r => r.tipo === "pedido" ? formatarItemPedido(r, { mostrarRevenda: true, mostrarPromotor: true }) : formatarItemVisita(r, { mostrarPromotor: true })).join("");
