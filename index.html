@@ -28,6 +28,15 @@
     border-radius:8px;margin-bottom:16px;background:#fff;color:var(--texto);font-family:inherit;resize:vertical;
   }
   select:focus, input:focus, textarea:focus{outline:none;border-color:var(--azul-claro);}
+  select{
+    -webkit-appearance:none;appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2344525c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;
+  }
+  .input-combo input[type=text]{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2344525c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;
+  }
   .btn{display:inline-block;width:100%;padding:14px;font-size:15px;font-weight:700;border:2px solid var(--azul);
     border-radius:24px;cursor:pointer;background:var(--azul);color:#fff;transition:background .15s;text-transform:uppercase;letter-spacing:.3px;}
   .btn:hover{background:var(--verde-escuro);border-color:var(--verde-escuro);}
@@ -356,8 +365,10 @@
       <div class="card">
         <div id="msgEscolherFazenda"></div>
         <label for="buscaFazendaLanc">Buscar fazenda já cadastrada</label>
-        <input type="text" id="buscaFazendaLanc" list="datalistFazendaLanc" placeholder="Selecione ou digite para buscar...">
-        <datalist id="datalistFazendaLanc"></datalist>
+        <div class="input-combo">
+          <input type="text" id="buscaFazendaLanc" placeholder="Toque para ver a lista ou digite para buscar..." autocomplete="off">
+          <div id="sugestoesFazendaLanc" class="sugestoes oculto"></div>
+        </div>
         <div id="fazendaEscolhidaWrap" class="oculto">
           <div class="produto-chip" id="fazendaChip"></div>
         </div>
@@ -521,8 +532,10 @@
       <h3 class="subtitulo-secao">Histórico por fazenda, cliente ou revenda</h3>
       <div class="card">
         <label for="buscaHistoricoRel">Nome da fazenda, cliente ou revenda</label>
-        <input type="text" id="buscaHistoricoRel" list="datalistHistorico" placeholder="Selecione ou digite para buscar...">
-        <datalist id="datalistHistorico"></datalist>
+        <div class="input-combo">
+          <input type="text" id="buscaHistoricoRel" placeholder="Toque para ver a lista ou digite para buscar..." autocomplete="off">
+          <div id="sugestoesBuscaHistorico" class="sugestoes oculto"></div>
+        </div>
         <div id="msgBuscaHistoricoRel"></div>
         <div id="listaBuscaHistoricoRel"></div>
       </div>
@@ -1040,35 +1053,49 @@ function iniciarRegistro(modo) {
   document.getElementById("buscaFazendaLanc").value = "";
   document.getElementById("fazendaChip").textContent = "";
   document.getElementById("fazendaEscolhidaWrap").classList.add("oculto");
+  document.getElementById("sugestoesFazendaLanc").classList.add("oculto");
   limparMsg("msgEscolherFazenda");
 
-  carregarTodasPropriedades().then(popularDatalistFazendaLanc);
+  carregarTodasPropriedades();
   mostrarPagina("escolherFazendaRegistro");
 }
 
 const buscaFazendaLanc = document.getElementById("buscaFazendaLanc");
+const sugestoesFazendaLanc = document.getElementById("sugestoesFazendaLanc");
 
-// Dropdown nativo (input + datalist): mostra a lista completa ao clicar e também filtra
-// enquanto a pessoa digita, como um <select> comum.
-function popularDatalistFazendaLanc() {
-  document.getElementById("datalistFazendaLanc").innerHTML =
-    todasPropriedades.map(p => `<option value="${p.replace(/"/g, "&quot;")}"></option>`).join("");
+// Lista suspensa controlada por JS (não usa <datalist>, que em alguns navegadores de
+// celular não filtra os itens de forma confiável): mostra a lista inteira ao tocar no
+// campo (vazio) e filtra conforme a pessoa digita, igual um <select> de verdade.
+function renderizarSugestoesFazendaLanc() {
+  const termo = buscaFazendaLanc.value.trim().toLowerCase();
+  const opcoes = termo
+    ? todasPropriedades.filter(p => p.toLowerCase().includes(termo)).slice(0, 40)
+    : todasPropriedades.slice(0, 40);
+  if (opcoes.length === 0) {
+    sugestoesFazendaLanc.innerHTML = '<div class="sugestao-vazia">Nenhuma fazenda encontrada. Cadastre uma nova abaixo.</div>';
+  } else {
+    sugestoesFazendaLanc.innerHTML = opcoes.map(p => `<div class="sugestao-item" data-nome-fazenda="${p.replace(/"/g, "&quot;")}">${p}</div>`).join("");
+  }
+  sugestoesFazendaLanc.classList.remove("oculto");
 }
 
-function conferirSelecaoFazendaLanc() {
-  const valor = buscaFazendaLanc.value.trim();
-  // Comparação sem diferenciar maiúsculas/minúsculas: teclados de celular às vezes alteram
-  // a capitalização do texto digitado (autocapitalize), o que quebraria uma comparação exata.
-  const encontrada = todasPropriedades.find(p => p.toLowerCase() === valor.toLowerCase());
-  if (encontrada) escolherFazendaLanc(encontrada);
-}
+buscaFazendaLanc.addEventListener("input", renderizarSugestoesFazendaLanc);
+buscaFazendaLanc.addEventListener("focus", renderizarSugestoesFazendaLanc);
+buscaFazendaLanc.addEventListener("blur", () => {
+  setTimeout(() => sugestoesFazendaLanc.classList.add("oculto"), 150);
+});
 
-// "input" cobre quando o navegador dispara o evento ao escolher da lista; "change" é um
-// reforço para celulares em que a seleção só atualiza o valor no blur do campo.
-buscaFazendaLanc.addEventListener("input", conferirSelecaoFazendaLanc);
-buscaFazendaLanc.addEventListener("change", conferirSelecaoFazendaLanc);
+// mousedown (não click) para disparar antes do blur do campo — funciona tanto com
+// toque na tela quanto com clique de mouse.
+sugestoesFazendaLanc.addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-nome-fazenda]");
+  if (!item) return;
+  escolherFazendaLanc(item.getAttribute("data-nome-fazenda"));
+});
 
 function escolherFazendaLanc(nome) {
+  buscaFazendaLanc.value = nome;
+  sugestoesFazendaLanc.classList.add("oculto");
   document.getElementById("fazendaChip").textContent = nome;
   document.getElementById("fazendaEscolhidaWrap").classList.remove("oculto");
 }
@@ -1676,7 +1703,6 @@ async function carregarRelatorios() {
       '<option value="">Todos os promotores</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join("");
   }
   if (todasPropriedades.length === 0) await carregarTodasPropriedades();
-  popularDatalistHistorico();
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
   const quinzenaFiltro = document.getElementById("selectFiltroQuinzena").value;
@@ -2074,13 +2100,25 @@ function listaSugestoesHistorico() {
   return [...fazendas, ...revendas];
 }
 
-// Dropdown nativo do navegador (input + datalist): funciona como um <select> que também
-// aceita digitação livre para filtrar, tipo um filtro do Power BI.
-function popularDatalistHistorico() {
-  const dl = document.getElementById("datalistHistorico");
-  dl.innerHTML = listaSugestoesHistorico()
-    .map(o => `<option value="${o.nome.replace(/"/g, "&quot;")}" label="${o.tipo}"></option>`)
-    .join("");
+// Lista suspensa controlada por JS (mesmo motivo do combo da fazenda: <datalist> não
+// filtra de forma confiável em alguns navegadores de celular). Mostra tudo ao tocar no
+// campo vazio, filtra conforme digita — visual de dropdown, comportamento garantido.
+function renderizarSugestoesHistorico() {
+  const caixa = document.getElementById("sugestoesBuscaHistorico");
+  const termo = document.getElementById("buscaHistoricoRel").value.trim().toLowerCase();
+  const todasOpcoes = listaSugestoesHistorico();
+  const opcoes = termo
+    ? todasOpcoes.filter(o => o.nome.toLowerCase().includes(termo)).slice(0, 40)
+    : todasOpcoes.slice(0, 40);
+  caixa.innerHTML = opcoes.length === 0
+    ? '<div class="sugestao-vazia">Nada encontrado.</div>'
+    : opcoes.map(o => `
+      <div class="sugestao-item" data-nome-sugestao="${o.nome.replace(/"/g, "&quot;")}">
+        <span>${o.nome}</span>
+        <span class="unidade-tag">${o.tipo}</span>
+      </div>
+    `).join("");
+  caixa.classList.remove("oculto");
 }
 
 document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
@@ -2088,11 +2126,30 @@ document.getElementById("buscaHistoricoRel").addEventListener("input", (e) => {
   clearTimeout(temporizadorBuscaHistorico);
   const lista = document.getElementById("listaBuscaHistoricoRel");
   limparMsg("msgBuscaHistoricoRel");
+  renderizarSugestoesHistorico();
   if (termo.length < 2) {
     lista.innerHTML = "";
     return;
   }
   temporizadorBuscaHistorico = setTimeout(() => buscarHistoricoRel(termo), 400);
+});
+
+document.getElementById("buscaHistoricoRel").addEventListener("focus", renderizarSugestoesHistorico);
+
+document.getElementById("buscaHistoricoRel").addEventListener("blur", () => {
+  setTimeout(() => document.getElementById("sugestoesBuscaHistorico").classList.add("oculto"), 150);
+});
+
+document.getElementById("sugestoesBuscaHistorico").addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-nome-sugestao]");
+  if (!item) return;
+  const nome = item.getAttribute("data-nome-sugestao");
+  const input = document.getElementById("buscaHistoricoRel");
+  input.value = nome;
+  document.getElementById("sugestoesBuscaHistorico").classList.add("oculto");
+  clearTimeout(temporizadorBuscaHistorico);
+  limparMsg("msgBuscaHistoricoRel");
+  buscarHistoricoRel(nome);
 });
 
 async function buscarHistoricoRel(termo) {
