@@ -1,60 +1,55 @@
-// Vercel Serverless Function — lê e cria registros na tabela "Propriedades" do Excel,
-// via Microsoft Graph API. O catálogo é GLOBAL (uma propriedade não pertence a uma
-// única revenda — pode ser atendida por revendas diferentes da carteira de cada promotor).
+// Vercel Serverless Function — lê e cria registros na tabela "propriedades" no Supabase
+// (Postgres). Primeira tabela migrada do SharePoint/Excel para o banco de verdade — as
+// demais (Lancamentos, Visitas, Usuarios, Produtos) continuam no SharePoint por enquanto,
+// migração acontece aos poucos. O catálogo de propriedades é GLOBAL (uma fazenda não
+// pertence a uma única revenda — pode ser atendida por revendas diferentes da carteira
+// de cada promotor).
 //
 // GET  /api/propriedades              -> lista os nomes de todas as propriedades cadastradas
 // GET  /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade
 // GET  /api/propriedades?completo=1   -> devolve os dados completos de TODAS (usado na exportação)
 // POST /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
 //
-// Ordem das colunas na tabela "Propriedades":
-//   Propriedade | Municipio | Proprietario | Decisor | Vendedor_Responsavel | Tipo_Propriedade |
-//   Matrizes | Primiparas | Novilhas | Bezerros_Machos | Bezerros_Femeas | Garrotes | Touros |
-//   Equinos | Cadastrada_Por | Data_Cadastro
+// Colunas da tabela "propriedades" no Supabase (todas em minúsculo/snake_case, padrão do
+// Postgres): propriedade, municipio, proprietario, decisor, vendedor_responsavel,
+// tipo_propriedade, matrizes, primiparas, novilhas, bezerros_machos, bezerros_femeas,
+// garrotes, touros, equinos, cadastrada_por, data_cadastro, latitude, longitude.
+// O restante do app (index.html) continua enviando/recebendo os nomes em
+// Maiusculas_Com_Underscore de sempre — a conversão acontece só aqui dentro.
 //
-// Usa as mesmas variáveis de ambiente de lancamentos.js:
-//   TENANT_ID, CLIENT_ID, CLIENT_SECRET, API_KEY
-// Opcionais: DRIVE_ID, ITEM_ID, TABLE_PROPRIEDADES
+// Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (chave
+// secreta — nunca a "anon"/"publishable" — pois esta função grava dados e ignora RLS de
+// propósito), API_KEY (mesma chave compartilhada com o front-end de sempre).
 
-const { paraISO } = require("./_lib/datas");
+const { createClient } = require("@supabase/supabase-js");
 
-const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
-const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
-const TABLE_PROPRIEDADES_PADRAO = "Propriedades";
-
-async function obterToken() {
-  const url = `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`;
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    scope: "https://graph.microsoft.com/.default"
+function obterSupabase() {
+  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false }
   });
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const dados = await resp.json();
-  if (!resp.ok) {
-    throw new Error("Falha ao obter token: " + JSON.stringify(dados));
-  }
-  return dados.access_token;
 }
 
-async function obterLinhas(token, driveId, itemId, tableName) {
-  const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableName}')/rows?$select=values`;
-  const resp = await fetch(urlGraph, {
-    method: "GET",
-    headers: { "Authorization": `Bearer ${token}` }
-  });
-  const dados = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const erro = new Error("Falha ao ler tabela '" + tableName + "'.");
-    erro.detalhe = dados;
-    throw erro;
-  }
-  return (dados.value || []).map(r => r.values && r.values[0]).filter(Boolean);
+function paraObjeto(l) {
+  return {
+    Propriedade: l.propriedade || "",
+    Municipio: l.municipio || "",
+    Proprietario: l.proprietario || "",
+    Decisor: l.decisor || "",
+    Vendedor_Responsavel: l.vendedor_responsavel || "",
+    Tipo_Propriedade: l.tipo_propriedade || "",
+    Matrizes: Number(l.matrizes) || 0,
+    Primiparas: Number(l.primiparas) || 0,
+    Novilhas: Number(l.novilhas) || 0,
+    Bezerros_Machos: Number(l.bezerros_machos) || 0,
+    Bezerros_Femeas: Number(l.bezerros_femeas) || 0,
+    Garrotes: Number(l.garrotes) || 0,
+    Touros: Number(l.touros) || 0,
+    Equinos: Number(l.equinos) || 0,
+    Cadastrada_Por: l.cadastrada_por || "",
+    Data_Cadastro: l.data_cadastro || "",
+    Latitude: l.latitude === undefined || l.latitude === null ? null : Number(l.latitude),
+    Longitude: l.longitude === undefined || l.longitude === null ? null : Number(l.longitude)
+  };
 }
 
 function validarCadastro(p) {
@@ -85,61 +80,50 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
-  const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
-  const tableName = process.env.TABLE_PROPRIEDADES || TABLE_PROPRIEDADES_PADRAO;
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    res.status(500).json({ erro: "Banco de dados não configurado (faltam SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)." });
+    return;
+  }
+
+  const supabase = obterSupabase();
 
   if (req.method === "GET") {
     try {
-      const token = await obterToken();
-      const linhas = await obterLinhas(token, driveId, itemId, tableName);
-
-      const paraObjeto = (l) => ({
-        Propriedade: String(l[0] || ""),
-        Municipio: String(l[1] || ""),
-        Proprietario: String(l[2] || ""),
-        Decisor: String(l[3] || ""),
-        Vendedor_Responsavel: String(l[4] || ""),
-        Tipo_Propriedade: String(l[5] || ""),
-        Matrizes: Number(l[6]) || 0,
-        Primiparas: Number(l[7]) || 0,
-        Novilhas: Number(l[8]) || 0,
-        Bezerros_Machos: Number(l[9]) || 0,
-        Bezerros_Femeas: Number(l[10]) || 0,
-        Garrotes: Number(l[11]) || 0,
-        Touros: Number(l[12]) || 0,
-        Equinos: Number(l[13]) || 0,
-        Cadastrada_Por: String(l[14] || ""),
-        Data_Cadastro: paraISO(l[15])
-      });
-
       const nomeBuscado = String((req.query && req.query.nome) || "").trim();
       if (nomeBuscado) {
-        const linhaAlvo = linhas.find(l => String(l[0] || "").trim().toLowerCase() === nomeBuscado.toLowerCase());
-        if (!linhaAlvo) {
+        const { data, error } = await supabase
+          .from("propriedades")
+          .select("*")
+          .ilike("propriedade", nomeBuscado)
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) {
           res.status(404).json({ erro: "Propriedade não encontrada." });
           return;
         }
-        res.status(200).json({ propriedade: paraObjeto(linhaAlvo) });
+        res.status(200).json({ propriedade: paraObjeto(data) });
         return;
       }
 
       if (req.query && req.query.completo) {
-        const propriedades = linhas.map(paraObjeto).filter(p => p.Propriedade);
-        propriedades.sort((a, b) => a.Propriedade.localeCompare(b.Propriedade, "pt-BR"));
-        res.status(200).json({ propriedades });
+        const { data, error } = await supabase
+          .from("propriedades")
+          .select("*")
+          .order("propriedade", { ascending: true });
+        if (error) throw error;
+        res.status(200).json({ propriedades: (data || []).map(paraObjeto) });
         return;
       }
 
-      const propriedades = [...new Set(
-        linhas
-          .map(l => String(l[0] || "").trim())
-          .filter(Boolean)
-      )].sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-      res.status(200).json({ propriedades });
+      const { data, error } = await supabase
+        .from("propriedades")
+        .select("propriedade")
+        .order("propriedade", { ascending: true });
+      if (error) throw error;
+      res.status(200).json({ propriedades: (data || []).map(l => l.propriedade).filter(Boolean) });
     } catch (err) {
-      res.status(502).json({ erro: "Falha ao ler propriedades via Graph API.", detalhe: err.detalhe || String(err.message || err) });
+      res.status(502).json({ erro: "Falha ao ler propriedades no banco.", detalhe: String(err.message || err) });
     }
     return;
   }
@@ -152,57 +136,47 @@ module.exports = async function handler(req, res) {
     }
 
     try {
-      const token = await obterToken();
-      const linhas = await obterLinhas(token, driveId, itemId, tableName);
       const nomeNovo = String(dadosBody.Propriedade).trim();
 
-      const jaExiste = linhas.some(l => String(l[0] || "").trim().toLowerCase() === nomeNovo.toLowerCase());
-      if (jaExiste) {
+      const { data: existente, error: erroBusca } = await supabase
+        .from("propriedades")
+        .select("propriedade")
+        .ilike("propriedade", nomeNovo)
+        .limit(1)
+        .maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (existente) {
         res.status(409).json({ erro: "Já existe uma propriedade cadastrada com esse nome. Busque por ela na tela anterior." });
         return;
       }
 
-      const agora = new Date();
-      const dataCadastro = agora.toISOString().slice(0, 10);
+      const linhaNova = {
+        propriedade: nomeNovo,
+        municipio: String(dadosBody.Municipio).trim(),
+        proprietario: String(dadosBody.Proprietario).trim(),
+        decisor: String(dadosBody.Decisor || "").trim(),
+        vendedor_responsavel: String(dadosBody.Vendedor_Responsavel).trim(),
+        tipo_propriedade: String(dadosBody.Tipo_Propriedade).trim(),
+        matrizes: Number(dadosBody.Matrizes) || 0,
+        primiparas: Number(dadosBody.Primiparas) || 0,
+        novilhas: Number(dadosBody.Novilhas) || 0,
+        bezerros_machos: Number(dadosBody.Bezerros_Machos) || 0,
+        bezerros_femeas: Number(dadosBody.Bezerros_Femeas) || 0,
+        garrotes: Number(dadosBody.Garrotes) || 0,
+        touros: Number(dadosBody.Touros) || 0,
+        equinos: Number(dadosBody.Equinos) || 0,
+        cadastrada_por: String(dadosBody.Cadastrada_Por || "").trim(),
+        data_cadastro: new Date().toISOString().slice(0, 10),
+        latitude: dadosBody.Latitude === undefined || dadosBody.Latitude === "" || dadosBody.Latitude === null ? null : Number(dadosBody.Latitude),
+        longitude: dadosBody.Longitude === undefined || dadosBody.Longitude === "" || dadosBody.Longitude === null ? null : Number(dadosBody.Longitude)
+      };
 
-      const linhaNova = [[
-        nomeNovo,
-        String(dadosBody.Municipio).trim(),
-        String(dadosBody.Proprietario).trim(),
-        String(dadosBody.Decisor || "").trim(),
-        String(dadosBody.Vendedor_Responsavel).trim(),
-        String(dadosBody.Tipo_Propriedade).trim(),
-        Number(dadosBody.Matrizes) || 0,
-        Number(dadosBody.Primiparas) || 0,
-        Number(dadosBody.Novilhas) || 0,
-        Number(dadosBody.Bezerros_Machos) || 0,
-        Number(dadosBody.Bezerros_Femeas) || 0,
-        Number(dadosBody.Garrotes) || 0,
-        Number(dadosBody.Touros) || 0,
-        Number(dadosBody.Equinos) || 0,
-        String(dadosBody.Cadastrada_Por || "").trim(),
-        dataCadastro
-      ]];
-
-      const urlAdd = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableName}')/rows/add`;
-      const respAdd = await fetch(urlAdd, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ values: linhaNova })
-      });
-      const dadosAdd = await respAdd.json().catch(() => ({}));
-
-      if (!respAdd.ok) {
-        res.status(502).json({ erro: "Falha ao gravar a propriedade via Graph API.", detalhe: dadosAdd });
-        return;
-      }
+      const { error: erroInsert } = await supabase.from("propriedades").insert(linhaNova);
+      if (erroInsert) throw erroInsert;
 
       res.status(201).json({ status: "ok", propriedade: nomeNovo });
     } catch (err) {
-      res.status(502).json({ erro: "Falha ao cadastrar propriedade.", detalhe: err.detalhe || String(err.message || err) });
+      res.status(502).json({ erro: "Falha ao cadastrar propriedade.", detalhe: String(err.message || err) });
     }
     return;
   }
