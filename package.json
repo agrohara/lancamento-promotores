@@ -4,6 +4,6 @@
   "private": true,
   "description": "Site + API de lancamento de promotores. Migrando aos poucos do Excel/SharePoint (Microsoft Graph API) para Postgres (Supabase). Deploy no Vercel (gratuito).",
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "@supabase/supabase-js": "^2.49.4"
   }
 }
