@@ -2,5 +2,8 @@
   "name": "lancamento-promotores",
   "version": "1.0.0",
   "private": true,
-  "description": "Site + API de lancamento de promotores, gravando direto no Excel do SharePoint via Microsoft Graph API. Deploy no Vercel (gratuito)."
+  "description": "Site + API de lancamento de promotores. Migrando aos poucos do Excel/SharePoint (Microsoft Graph API) para Postgres (Supabase). Deploy no Vercel (gratuito).",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
 }
