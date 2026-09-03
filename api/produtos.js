@@ -58,10 +58,13 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
+      // .range() explícito porque o Supabase limita a 1000 linhas por padrão — o catálogo
+      // já passa disso (1003+ produtos), então sem isso a lista vinha cortada.
       const { data, error } = await supabase
         .from("produtos")
         .select("*")
-        .order("produto", { ascending: true });
+        .order("produto", { ascending: true })
+        .range(0, 19999);
       if (error) throw error;
       res.status(200).json({ produtos: (data || []).map(paraObjeto) });
     } catch (err) {

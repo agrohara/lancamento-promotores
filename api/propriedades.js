@@ -106,11 +106,14 @@ module.exports = async function handler(req, res) {
         return;
       }
 
+      // .range() explícito porque o Supabase limita a 1000 linhas por padrão — sem isso a
+      // lista vem cortada quando o catálogo crescer além disso.
       if (req.query && req.query.completo) {
         const { data, error } = await supabase
           .from("propriedades")
           .select("*")
-          .order("propriedade", { ascending: true });
+          .order("propriedade", { ascending: true })
+          .range(0, 19999);
         if (error) throw error;
         res.status(200).json({ propriedades: (data || []).map(paraObjeto) });
         return;
@@ -119,7 +122,8 @@ module.exports = async function handler(req, res) {
       const { data, error } = await supabase
         .from("propriedades")
         .select("propriedade")
-        .order("propriedade", { ascending: true });
+        .order("propriedade", { ascending: true })
+        .range(0, 19999);
       if (error) throw error;
       res.status(200).json({ propriedades: (data || []).map(l => l.propriedade).filter(Boolean) });
     } catch (err) {
