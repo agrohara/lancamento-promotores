@@ -280,6 +280,12 @@
           <input type="text" id="cpDecisor" placeholder="Quem decide as compras na propriedade">
           <label for="cpVendedor">Vendedor responsável</label>
           <select id="cpVendedor"></select>
+          <label>Localização da fazenda (opcional)</label>
+          <button class="btn btn-secundario" id="btnCapturarLocalizacao" type="button" style="display:flex;align-items:center;gap:8px;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Capturar localização atual
+          </button>
+          <div id="statusLocalizacaoFazenda" class="item-ranking-detalhe" style="margin:6px 0 14px;"></div>
           <button class="btn" id="btnCadAvancar1" type="button">Avançar</button>
           <button class="btn btn-secundario" id="btnCadCancelar1" type="button" style="margin-top:10px;">Cancelar</button>
         </div>
@@ -933,6 +939,11 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
       <div class="campo-detalhe"><span>Equinos</span><b>${p.Equinos}</b></div>
       <div class="campo-detalhe"><span>Cadastrada por</span><b>${p.Cadastrada_Por || "—"}</b></div>
       <div class="campo-detalhe"><span>Data do cadastro</span><b>${p.Data_Cadastro ? formatarDataBR(p.Data_Cadastro) : "—"}</b></div>
+      <div class="campo-detalhe"><span>Localização</span><b>${
+        p.Latitude != null && p.Longitude != null
+          ? `<a href="https://www.google.com/maps?q=${p.Latitude},${p.Longitude}" target="_blank" rel="noopener" style="color:var(--azul);">Ver no mapa ↗</a>`
+          : "—"
+      }</b></div>
     `;
   } catch (err) {
     areaDetalhe.innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
@@ -959,6 +970,9 @@ function preencherVendedoresCadastro() {
   if (promotorAtual && nomes.includes(promotorAtual)) select.value = promotorAtual;
 }
 
+let cpLatitude = null;
+let cpLongitude = null;
+
 function abrirCadastroFazenda() {
   document.getElementById("cpNome").value = "";
   document.getElementById("cpMunicipio").value = "";
@@ -968,10 +982,40 @@ function abrirCadastroFazenda() {
   document.getElementById("cpTipoPropriedade").value = "";
   ["cpMatrizes","cpPrimiparas","cpNovilhas","cpBezerrosMachos","cpBezerrosFemeas","cpGarrotes","cpTouros","cpEquinos"]
     .forEach(id => document.getElementById(id).value = "0");
+  cpLatitude = null;
+  cpLongitude = null;
+  document.getElementById("statusLocalizacaoFazenda").textContent = "";
   limparMsg("msgCadastroPropriedade");
   mostrarEtapaCadastro(1);
   mostrarPagina("cadastroFazenda");
 }
+
+// Captura a localização atual do celular (GPS) para gravar junto com a fazenda —
+// opcional, pedido explicitamente pelo usuário para facilitar achar a fazenda no mapa
+// depois. Exige que o promotor esteja fisicamente na fazenda (ou perto) ao cadastrar.
+document.getElementById("btnCapturarLocalizacao").addEventListener("click", () => {
+  const status = document.getElementById("statusLocalizacaoFazenda");
+  if (!navigator.geolocation) {
+    status.textContent = "Este navegador não suporta localização.";
+    return;
+  }
+  status.textContent = "Obtendo localização...";
+  navigator.geolocation.getCurrentPosition(
+    (posicao) => {
+      cpLatitude = posicao.coords.latitude;
+      cpLongitude = posicao.coords.longitude;
+      status.textContent = `Localização capturada ✓ (${cpLatitude.toFixed(5)}, ${cpLongitude.toFixed(5)})`;
+    },
+    (erro) => {
+      cpLatitude = null;
+      cpLongitude = null;
+      status.textContent = erro.code === erro.PERMISSION_DENIED
+        ? "Permissão de localização negada. Você pode continuar sem ela."
+        : "Não foi possível obter a localização agora. Você pode continuar sem ela.";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
 
 function mostrarEtapaCadastro(n) {
   [1,2,3].forEach(i => {
@@ -1037,7 +1081,9 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
     Garrotes: document.getElementById("cpGarrotes").value,
     Touros: document.getElementById("cpTouros").value,
     Equinos: document.getElementById("cpEquinos").value,
-    Cadastrada_Por: promotorAtual || ""
+    Cadastrada_Por: promotorAtual || "",
+    Latitude: cpLatitude === null ? "" : cpLatitude,
+    Longitude: cpLongitude === null ? "" : cpLongitude
   };
 
   const btn = document.getElementById("btnCadConcluir");
@@ -2479,7 +2525,9 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Touros: p.Touros,
       Equinos: p.Equinos,
       Cadastrada_Por: p.Cadastrada_Por,
-      Data_Cadastro: p.Data_Cadastro
+      Data_Cadastro: p.Data_Cadastro,
+      Latitude: p.Latitude,
+      Longitude: p.Longitude
     }));
 
     const wb = XLSX.utils.book_new();
