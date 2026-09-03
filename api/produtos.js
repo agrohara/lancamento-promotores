@@ -14,15 +14,9 @@
 // AUTH_SECRET (para validar o login de quem está editando).
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
-const { createClient } = require("@supabase/supabase-js");
+const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
 
 const CARGOS_QUE_EDITAM = ["gerente", "desenvolvedor"];
-
-function obterSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false }
-  });
-}
 
 function paraObjeto(l) {
   return {
@@ -58,15 +52,8 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "GET") {
     try {
-      // .range() explícito porque o Supabase limita a 1000 linhas por padrão — o catálogo
-      // já passa disso (1003+ produtos), então sem isso a lista vinha cortada.
-      const { data, error } = await supabase
-        .from("produtos")
-        .select("*")
-        .order("produto", { ascending: true })
-        .range(0, 19999);
-      if (error) throw error;
-      res.status(200).json({ produtos: (data || []).map(paraObjeto) });
+      const data = await buscarTodasLinhas(supabase, "produtos", "*", "produto");
+      res.status(200).json({ produtos: data.map(paraObjeto) });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler produtos no banco.", detalhe: String(err.message || err) });
     }

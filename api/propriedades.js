@@ -21,13 +21,7 @@
 // secreta — nunca a "anon"/"publishable" — pois esta função grava dados e ignora RLS de
 // propósito), API_KEY (mesma chave compartilhada com o front-end de sempre).
 
-const { createClient } = require("@supabase/supabase-js");
-
-function obterSupabase() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: { persistSession: false }
-  });
-}
+const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
 
 function paraObjeto(l) {
   return {
@@ -106,26 +100,14 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      // .range() explícito porque o Supabase limita a 1000 linhas por padrão — sem isso a
-      // lista vem cortada quando o catálogo crescer além disso.
       if (req.query && req.query.completo) {
-        const { data, error } = await supabase
-          .from("propriedades")
-          .select("*")
-          .order("propriedade", { ascending: true })
-          .range(0, 19999);
-        if (error) throw error;
-        res.status(200).json({ propriedades: (data || []).map(paraObjeto) });
+        const data = await buscarTodasLinhas(supabase, "propriedades", "*", "propriedade");
+        res.status(200).json({ propriedades: data.map(paraObjeto) });
         return;
       }
 
-      const { data, error } = await supabase
-        .from("propriedades")
-        .select("propriedade")
-        .order("propriedade", { ascending: true })
-        .range(0, 19999);
-      if (error) throw error;
-      res.status(200).json({ propriedades: (data || []).map(l => l.propriedade).filter(Boolean) });
+      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade", "propriedade");
+      res.status(200).json({ propriedades: data.map(l => l.propriedade).filter(Boolean) });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler propriedades no banco.", detalhe: String(err.message || err) });
     }
