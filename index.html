@@ -278,6 +278,22 @@
           <input type="text" id="cpProprietario" placeholder="Nome do proprietário">
           <label for="cpDecisor">Decisor</label>
           <input type="text" id="cpDecisor" placeholder="Quem decide as compras na propriedade">
+          <label for="cpPersonalidade">Personalidade do decisor (opcional)</label>
+          <select id="cpPersonalidade">
+            <option value="">Selecione...</option>
+            <option value="Analítico">Analítico — gosta de lógica, dados, detalhes e evidências</option>
+            <option value="Intuitivo">Intuitivo — percebe padrões e confia na intuição</option>
+            <option value="Criativo">Criativo — busca ideias novas e soluções diferentes</option>
+            <option value="Pragmático">Pragmático — prefere soluções práticas e objetivas</option>
+            <option value="Estratégico">Estratégico — pensa no longo prazo e nas consequências</option>
+            <option value="Sistêmico">Sistêmico — enxerga o conjunto e as relações entre as partes</option>
+            <option value="Sinestésico">Sinestésico — associa estímulos sensoriais, aprende por experiências sensoriais</option>
+            <option value="Visual">Visual — assimila melhor por imagens, gráficos e demonstrações</option>
+            <option value="Auditivo">Auditivo — responde bem a explicações faladas e conversas</option>
+            <option value="Cinestésico">Cinestésico — aprende e se envolve melhor colocando a mão na massa</option>
+          </select>
+          <label for="cpPersonalidadeObs">Observação sobre a personalidade (opcional)</label>
+          <textarea id="cpPersonalidadeObs" rows="2" placeholder="Alguma observação extra sobre como ele decide/se comunica"></textarea>
           <label for="cpVendedor">Vendedor responsável</label>
           <select id="cpVendedor"></select>
           <label>Localização da fazenda (opcional)</label>
@@ -385,6 +401,14 @@
         </div>
         <div id="fazendaEscolhidaWrap" class="oculto">
           <div class="produto-chip" id="fazendaChip"></div>
+        </div>
+        <div id="avisoSemLocalizacaoFazenda" class="oculto" style="background:#fff8e6;border:1px solid #f0deae;border-left:4px solid #c99a1f;border-radius:12px;padding:12px 14px;margin:10px 0;">
+          <div style="font-size:13px;color:#7a5c10;margin-bottom:8px;">Essa fazenda ainda não tem localização salva.</div>
+          <button class="btn btn-secundario" id="btnCapturarLocalizacaoRegistro" type="button" style="display:flex;align-items:center;gap:8px;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Capturar localização agora
+          </button>
+          <div id="statusLocalizacaoRegistro" class="item-ranking-detalhe" style="margin-top:6px;"></div>
         </div>
         <button class="btn btn-secundario" id="btnLimparBuscaFazenda" type="button" style="margin-bottom:14px;">Limpar busca</button>
         <button class="btn btn-secundario" id="btnAbrirCadastroFazendaLanc" type="button">+ Cadastrar fazenda nova</button>
@@ -954,6 +978,8 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
       <div class="campo-detalhe"><span>Município</span><b>${p.Municipio || "—"}</b></div>
       <div class="campo-detalhe"><span>Proprietário</span><b>${p.Proprietario || "—"}</b></div>
       <div class="campo-detalhe"><span>Decisor</span><b>${p.Decisor || "—"}</b></div>
+      <div class="campo-detalhe"><span>Personalidade do decisor</span><b>${p.Personalidade_Decisor || "—"}</b></div>
+      ${p.Personalidade_Observacao ? `<div class="campo-detalhe"><span>Observação (personalidade)</span><b>${p.Personalidade_Observacao}</b></div>` : ""}
       <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
       <div class="campo-detalhe"><span>Tipo</span><b>${p.Tipo_Propriedade || "—"}</b></div>
       <div class="campo-detalhe"><span>Matrizes</span><b>${p.Matrizes}</b></div>
@@ -1005,6 +1031,8 @@ function abrirCadastroFazenda() {
   document.getElementById("cpMunicipio").value = "";
   document.getElementById("cpProprietario").value = "";
   document.getElementById("cpDecisor").value = "";
+  document.getElementById("cpPersonalidade").value = "";
+  document.getElementById("cpPersonalidadeObs").value = "";
   preencherVendedoresCadastro();
   document.getElementById("cpTipoPropriedade").value = "";
   ["cpMatrizes","cpPrimiparas","cpNovilhas","cpBezerrosMachos","cpBezerrosFemeas","cpGarrotes","cpTouros","cpEquinos"]
@@ -1098,6 +1126,8 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
     Municipio: document.getElementById("cpMunicipio").value.trim(),
     Proprietario: document.getElementById("cpProprietario").value.trim(),
     Decisor: document.getElementById("cpDecisor").value.trim(),
+    Personalidade_Decisor: document.getElementById("cpPersonalidade").value,
+    Personalidade_Observacao: document.getElementById("cpPersonalidadeObs").value.trim(),
     Vendedor_Responsavel: document.getElementById("cpVendedor").value,
     Tipo_Propriedade: document.getElementById("cpTipoPropriedade").value,
     Matrizes: document.getElementById("cpMatrizes").value,
@@ -1197,7 +1227,60 @@ function escolherFazendaLanc(nome) {
   sugestoesFazendaLanc.classList.add("oculto");
   document.getElementById("fazendaChip").textContent = nome;
   document.getElementById("fazendaEscolhidaWrap").classList.remove("oculto");
+  verificarLocalizacaoFazendaEscolhida(nome);
 }
+
+// Verifica se a fazenda escolhida (pra Visita ou Pedido) já tem latitude/longitude
+// cadastradas. Se não tiver, mostra um aviso com um botão pra capturar a localização
+// na hora — prático pra quem esqueceu de marcar no cadastro original da fazenda.
+let localizacaoFazendaEscolhida = null;
+async function verificarLocalizacaoFazendaEscolhida(nome) {
+  localizacaoFazendaEscolhida = null;
+  document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
+  document.getElementById("statusLocalizacaoRegistro").textContent = "";
+  try {
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const dados = await resp.json();
+    if (!resp.ok) return;
+    const p = dados.propriedade;
+    if (p && (p.Latitude == null || p.Longitude == null)) {
+      document.getElementById("avisoSemLocalizacaoFazenda").classList.remove("oculto");
+    }
+  } catch (err) {
+    // Falha silenciosa — não é crítico pro fluxo de visita/pedido continuar.
+  }
+}
+
+document.getElementById("btnCapturarLocalizacaoRegistro").addEventListener("click", () => {
+  const nome = document.getElementById("fazendaChip").textContent.trim();
+  const status = document.getElementById("statusLocalizacaoRegistro");
+  if (!nome) return;
+  if (!navigator.geolocation) {
+    status.textContent = "Seu navegador não suporta captura de localização.";
+    return;
+  }
+  status.textContent = "Capturando localização...";
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    status.textContent = "Salvando...";
+    try {
+      const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+        method: "PATCH",
+        headers: { "x-api-key": CONFIG.API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ Propriedade: nome, Latitude: lat, Longitude: lon })
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a localização.");
+      status.textContent = "Localização salva nessa fazenda ✓";
+      document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
+    } catch (err) {
+      status.textContent = err.message;
+    }
+  }, (err) => {
+    status.textContent = "Não foi possível obter a localização (" + err.message + ").";
+  }, { enableHighAccuracy: true, timeout: 10000 });
+});
 
 document.getElementById("btnLimparBuscaFazenda").addEventListener("click", () => {
   buscaFazendaLanc.value = "";
@@ -2569,6 +2652,8 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Municipio: p.Municipio,
       Proprietario: p.Proprietario,
       Decisor: p.Decisor,
+      Personalidade_Decisor: p.Personalidade_Decisor,
+      Personalidade_Observacao: p.Personalidade_Observacao,
       Vendedor_Responsavel: p.Vendedor_Responsavel,
       Tipo: p.Tipo_Propriedade,
       Matrizes: p.Matrizes,
