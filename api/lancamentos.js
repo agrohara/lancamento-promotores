@@ -1,35 +1,41 @@
-// Vercel Serverless Function — grava lançamentos direto na tabela Excel "Lancamentos"
-// do arquivo no SharePoint, via Microsoft Graph API.
+// Vercel Serverless Function — grava lançamentos (pedidos) na tabela "lancamentos" no
+// Supabase (Postgres). Última tabela migrada do SharePoint/Excel para o banco de verdade
+// (depois de "propriedades", "produtos", "usuarios" e "visitas") — migração completa.
 //
 // As propriedades já são cadastradas antes, com dados completos, pelo assistente de
 // cadastro (ver api/propriedades.js). Esta função só grava a transação de venda.
-//
-// Sem Power Automate, sem Power Apps, sem Azure — só Vercel (gratuito, sem cartão)
-// + Microsoft Graph API + App Registration (client credentials) no Entra ID.
-//
-// CONFIGURAÇÃO (ver guia): defina estas variáveis em
-// Vercel Dashboard > (seu projeto) > Settings > Environment Variables
-//   TENANT_ID       - Directory (tenant) ID do App Registration
-//   CLIENT_ID       - Application (client) ID do App Registration
-//   CLIENT_SECRET   - segredo gerado no App Registration
-//   API_KEY         - uma senha simples inventada por você, para proteger este endpoint
-//                     (o HTML envia esse valor no cabeçalho x-api-key)
-// Opcionais (só se o arquivo mudar de lugar): DRIVE_ID, ITEM_ID, TABLE_NAME
 //
 // GET também aceita, combináveis: ?propriedade=X (busca parcial no nome da fazenda),
 // ?revenda=X (busca parcial no nome da revenda), ?quinzena=AAAA-MM-N (só lançamentos
 // daquela quinzena) — usados na busca de histórico e no drill-down do relatório
 // (Gerente/Desenvolvedor).
+//
+// Colunas da tabela "lancamentos" no Supabase: nome_promotor, revenda, propriedade,
+// produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
+// observacao_visita.
+//
+// Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
+// AUTH_SECRET.
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
-const { paraISO } = require("./_lib/datas");
-const { paraNumero } = require("./_lib/numeros");
-const { quinzenaChave } = require("./_lib/quinzenas");
+const { obterSupabase } = require("./_lib/supabase");
 
-const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
-const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
-const TABLE_LANCAMENTOS_PADRAO = "Lancamentos";
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
+
+function paraObjeto(l) {
+  return {
+    Nome_Promotor: l.nome_promotor || "",
+    Revenda: l.revenda || "",
+    Propriedade: l.propriedade || "",
+    Produto: l.produto || "",
+    Unidade: l.unidade || "",
+    Preco_Unitario: l.preco_unitario === undefined || l.preco_unitario === null ? 0 : Number(l.preco_unitario),
+    Volume: l.volume === undefined || l.volume === null ? 0 : Number(l.volume),
+    Valor_Total: l.valor_total === undefined || l.valor_total === null ? 0 : Number(l.valor_total),
+    Dia_Lancamento: l.dia_lancamento || "",
+    Quinzena: l.quinzena || ""
+  };
+}
 
 function validarRegistro(r) {
   if (!r || typeof r !== "object") return false;
@@ -46,41 +52,6 @@ function validarRegistro(r) {
   return true;
 }
 
-async function obterToken() {
-  const url = `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`;
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    scope: "https://graph.microsoft.com/.default"
-  });
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const dados = await resp.json();
-  if (!resp.ok) {
-    throw new Error("Falha ao obter token: " + JSON.stringify(dados));
-  }
-  return dados.access_token;
-}
-
-async function obterLinhas(token, driveId, itemId, tableName) {
-  const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableName}')/rows?$select=values`;
-  const resp = await fetch(urlGraph, {
-    method: "GET",
-    headers: { "Authorization": `Bearer ${token}` }
-  });
-  const dados = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const erro = new Error("Falha ao ler tabela '" + tableName + "'.");
-    erro.detalhe = dados;
-    throw erro;
-  }
-  return (dados.value || []).map(r => r.values && r.values[0]).filter(Boolean);
-}
-
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.status(204).end();
@@ -93,6 +64,13 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    res.status(500).json({ erro: "Banco de dados não configurado (faltam SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)." });
+    return;
+  }
+
+  const supabase = obterSupabase();
+
   if (req.method === "GET") {
     const usuario = usuarioDaRequisicao(req);
     if (!usuario) {
@@ -103,46 +81,38 @@ module.exports = async function handler(req, res) {
     const promotorFiltro = ehGestor ? String((req.query && req.query.promotor) || "").trim() : usuario.nome;
 
     try {
-      const token = await obterToken();
-      const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
-      const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
-      const tableLancamentos = process.env.TABLE_NAME || TABLE_LANCAMENTOS_PADRAO;
-
-      const linhas = await obterLinhas(token, driveId, itemId, tableLancamentos);
-      let lancamentos = linhas.map(l => ({
-        Nome_Promotor: String(l[0] || ""),
-        Revenda: String(l[1] || ""),
-        Propriedade: String(l[2] || ""),
-        Produto: String(l[3] || ""),
-        Unidade: String(l[4] || ""),
-        Preco_Unitario: paraNumero(l[5]),
-        Volume: paraNumero(l[6]),
-        Valor_Total: paraNumero(l[7]),
-        Dia_Lancamento: paraISO(l[8]),
-        Quinzena: String(l[9] || "")
-      }));
-
-      if (promotorFiltro) {
-        lancamentos = lancamentos.filter(r => r.Nome_Promotor.toLowerCase() === promotorFiltro.toLowerCase());
-      }
-      const propriedadeFiltro = String((req.query && req.query.propriedade) || "").trim().toLowerCase();
-      if (propriedadeFiltro) {
-        lancamentos = lancamentos.filter(r => r.Propriedade.toLowerCase().includes(propriedadeFiltro));
-      }
-      const revendaFiltro = String((req.query && req.query.revenda) || "").trim().toLowerCase();
-      if (revendaFiltro) {
-        lancamentos = lancamentos.filter(r => r.Revenda.toLowerCase().includes(revendaFiltro));
-      }
+      const propriedadeFiltro = String((req.query && req.query.propriedade) || "").trim();
+      const revendaFiltro = String((req.query && req.query.revenda) || "").trim();
       const quinzenaFiltro = String((req.query && req.query.quinzena) || "").trim();
-      if (quinzenaFiltro) {
-        lancamentos = lancamentos.filter(r => quinzenaChave(r.Dia_Lancamento) === quinzenaFiltro);
+
+      function montarConsulta() {
+        let c = supabase.from("lancamentos").select("*");
+        if (promotorFiltro) c = c.ilike("nome_promotor", promotorFiltro);
+        if (propriedadeFiltro) c = c.ilike("propriedade", `%${propriedadeFiltro}%`);
+        if (revendaFiltro) c = c.ilike("revenda", `%${revendaFiltro}%`);
+        if (quinzenaFiltro) c = c.eq("quinzena", quinzenaFiltro);
+        return c;
       }
 
-      lancamentos.sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
+      // Busca em blocos de 1000 (limite padrão do Supabase), aplicando os mesmos filtros
+      // em cada bloco.
+      const TAMANHO_BLOCO = 1000;
+      let todasLinhas = [];
+      let inicio = 0;
+      while (true) {
+        const { data, error } = await montarConsulta()
+          .order("dia_lancamento", { ascending: false })
+          .range(inicio, inicio + TAMANHO_BLOCO - 1);
+        if (error) throw error;
+        todasLinhas = todasLinhas.concat(data || []);
+        if (!data || data.length < TAMANHO_BLOCO) break;
+        inicio += TAMANHO_BLOCO;
+      }
 
+      const lancamentos = todasLinhas.map(paraObjeto);
       res.status(200).json({ lancamentos });
     } catch (err) {
-      res.status(502).json({ erro: "Falha ao ler lançamentos via Graph API.", detalhe: err.detalhe || String(err.message || err) });
+      res.status(502).json({ erro: "Falha ao ler lançamentos no banco.", detalhe: String(err.message || err) });
     }
     return;
   }
@@ -176,44 +146,25 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const token = await obterToken();
-    const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
-    const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
-    const tableLancamentos = process.env.TABLE_NAME || TABLE_LANCAMENTOS_PADRAO;
+    const linhasNovas = lancamentos.map(r => ({
+      nome_promotor: String(r.Nome_Promotor).trim(),
+      revenda: String(r.Revenda).trim(),
+      propriedade: String(r.Propriedade).trim(),
+      produto: String(r.Produto).trim(),
+      unidade: String(r.Unidade || "").trim(),
+      preco_unitario: Number(r.Preco_Unitario),
+      volume: Number(r.Volume),
+      valor_total: Number(r.Preco_Unitario) * Number(r.Volume),
+      dia_lancamento: r.Dia_Lancamento,
+      quinzena: r.Quinzena,
+      observacao_visita: String(r.Observacao_Visita || "").trim()
+    }));
 
-    const values = lancamentos.map(r => [
-      r.Nome_Promotor,
-      r.Revenda,
-      r.Propriedade,
-      r.Produto,
-      r.Unidade || "",
-      Number(r.Preco_Unitario),
-      Number(r.Volume),
-      Number(r.Preco_Unitario) * Number(r.Volume),
-      r.Dia_Lancamento,
-      r.Quinzena,
-      r.Observacao_Visita || ""
-    ]);
+    const { error: erroInsert } = await supabase.from("lancamentos").insert(linhasNovas);
+    if (erroInsert) throw erroInsert;
 
-    const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableLancamentos}')/rows/add`;
-    const respGraph = await fetch(urlGraph, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ values })
-    });
-
-    const dadosGraph = await respGraph.json().catch(() => ({}));
-
-    if (!respGraph.ok) {
-      res.status(502).json({ erro: "Falha ao gravar no Excel via Graph API.", detalhe: dadosGraph });
-      return;
-    }
-
-    res.status(200).json({ status: "ok", inseridos: lancamentos.length });
+    res.status(200).json({ status: "ok", inseridos: linhasNovas.length });
   } catch (err) {
-    res.status(500).json({ erro: "Erro interno.", detalhe: String(err.message || err) });
+    res.status(502).json({ erro: "Falha ao gravar os lançamentos no banco.", detalhe: String(err.message || err) });
   }
 };

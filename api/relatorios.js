@@ -1,8 +1,8 @@
-// Vercel Serverless Function — agrega os dados de "Lancamentos" (pedidos, ainda no
-// SharePoint) e "Visitas" (já migrada para o Supabase) para alimentar a tela de
-// Relatórios. Exige usuário logado (token do /api/login): um Promotor só recebe os
-// próprios números; Gerente/Desenvolvedor pode ver todo mundo, ou filtrar por um
-// promotor específico.
+// Vercel Serverless Function — agrega os dados de "Lancamentos" (pedidos) e "Visitas"
+// para alimentar a tela de Relatórios. Migração completa: as duas tabelas já vêm do
+// Supabase, sem mais dependência do SharePoint/Graph API. Exige usuário logado (token do
+// /api/login): um Promotor só recebe os próprios números; Gerente/Desenvolvedor pode ver
+// todo mundo, ou filtrar por um promotor específico.
 //
 // GET /api/relatorios              -> Promotor: relatório completo (todo o período) da
 //                                     própria carteira. Gerente sem ?promotor=: visão geral
@@ -16,56 +16,14 @@
 //                                     "porQuinzena" (gráfico) e "todasQuinzenas" (dropdown)
 //                                     sempre trazem TODOS os períodos, independente disso.
 //
-// Variáveis de ambiente: as dos endpoints do SharePoint (TENANT_ID, CLIENT_ID,
-// CLIENT_SECRET, API_KEY, AUTH_SECRET) + as do Supabase (SUPABASE_URL,
-// SUPABASE_SERVICE_ROLE_KEY). Opcionais: DRIVE_ID, ITEM_ID, TABLE_NAME (Lancamentos)
+// Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
+// AUTH_SECRET.
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
-const { paraISO } = require("./_lib/datas");
-const { paraNumero } = require("./_lib/numeros");
 const { quinzenaChave, quinzenaRotulo } = require("./_lib/quinzenas");
 const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
 
-const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
-const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
-const TABLE_LANCAMENTOS_PADRAO = "Lancamentos";
-
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
-
-async function obterToken() {
-  const url = `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`;
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    scope: "https://graph.microsoft.com/.default"
-  });
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const dados = await resp.json();
-  if (!resp.ok) {
-    throw new Error("Falha ao obter token: " + JSON.stringify(dados));
-  }
-  return dados.access_token;
-}
-
-async function obterLinhas(token, driveId, itemId, tableName) {
-  const urlGraph = `https://graph.microsoft.com/v1.0/drives/${driveId}/items/${itemId}/workbook/tables('${tableName}')/rows?$select=values`;
-  const resp = await fetch(urlGraph, {
-    method: "GET",
-    headers: { "Authorization": `Bearer ${token}` }
-  });
-  const dados = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const erro = new Error("Falha ao ler tabela '" + tableName + "'.");
-    erro.detalhe = dados;
-    throw erro;
-  }
-  return (dados.value || []).map(r => r.values && r.values[0]).filter(Boolean);
-}
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -100,24 +58,20 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const token = await obterToken();
-    const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
-    const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
-    const tableLancamentos = process.env.TABLE_NAME || TABLE_LANCAMENTOS_PADRAO;
     const supabase = obterSupabase();
 
     const [linhasLancamentos, linhasVisitas] = await Promise.all([
-      obterLinhas(token, driveId, itemId, tableLancamentos),
+      buscarTodasLinhas(supabase, "lancamentos", "nome_promotor,revenda,propriedade,valor_total,dia_lancamento", null),
       buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null)
     ]);
 
-    // Lancamentos: Nome_Promotor,Revenda,Propriedade,Produto,Unidade,Preco_Unitario,Volume,Valor_Total,Dia_Lancamento,Quinzena,Observacao_Visita
+    // Lancamentos (Supabase)
     let pedidos = linhasLancamentos.map(l => ({
-      promotor: String(l[0] || "").trim(),
-      revenda: String(l[1] || "").trim(),
-      propriedade: String(l[2] || "").trim(),
-      valor: paraNumero(l[7]),
-      data: paraISO(l[8])
+      promotor: String(l.nome_promotor || "").trim(),
+      revenda: String(l.revenda || "").trim(),
+      propriedade: String(l.propriedade || "").trim(),
+      valor: Number(l.valor_total) || 0,
+      data: String(l.dia_lancamento || "").slice(0, 10)
     })).filter(p => p.promotor && p.data);
 
     // Visitas (Supabase)
