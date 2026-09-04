@@ -278,7 +278,7 @@
           <input type="text" id="cpProprietario" placeholder="Nome do proprietário">
           <label for="cpDecisor">Decisor</label>
           <input type="text" id="cpDecisor" placeholder="Quem decide as compras na propriedade">
-          <label for="cpPersonalidade">Personalidade do decisor (opcional)</label>
+          <label for="cpPersonalidade">Personalidade do decisor</label>
           <select id="cpPersonalidade">
             <option value="">Selecione...</option>
             <option value="Analítico">Analítico — gosta de lógica, dados, detalhes e evidências</option>
@@ -1098,8 +1098,13 @@ document.getElementById("btnCadAvancar1").addEventListener("click", () => {
   const municipio = document.getElementById("cpMunicipio").value.trim();
   const proprietario = document.getElementById("cpProprietario").value.trim();
   const vendedor = document.getElementById("cpVendedor").value;
+  const personalidade = document.getElementById("cpPersonalidade").value;
   if (!nome || !municipio || !proprietario || !vendedor) {
     mostrarMsg("msgCadastroPropriedade", "Preencha nome, município, proprietário e vendedor responsável.", "erro");
+    return;
+  }
+  if (!personalidade) {
+    mostrarMsg("msgCadastroPropriedade", "Selecione a personalidade do decisor.", "erro");
     return;
   }
   mostrarEtapaCadastro(2);
