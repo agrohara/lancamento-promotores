@@ -60,6 +60,7 @@ function validarCadastro(p) {
   if (!p.Proprietario || !String(p.Proprietario).trim()) return false;
   if (!p.Vendedor_Responsavel || !String(p.Vendedor_Responsavel).trim()) return false;
   if (!p.Tipo_Propriedade || !String(p.Tipo_Propriedade).trim()) return false;
+  if (!p.Personalidade_Decisor || !String(p.Personalidade_Decisor).trim()) return false;
 
   const camposNumericos = ["Matrizes", "Primiparas", "Novilhas", "Bezerros_Machos", "Bezerros_Femeas", "Garrotes", "Touros", "Equinos"];
   for (const campo of camposNumericos) {
