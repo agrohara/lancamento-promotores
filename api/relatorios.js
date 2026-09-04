@@ -1,7 +1,8 @@
-// Vercel Serverless Function — agrega os dados de "Lancamentos" (pedidos) e "Visitas"
-// para alimentar a tela de Relatórios. Exige usuário logado (token do /api/login):
-// um Promotor só recebe os próprios números; Gerente/Desenvolvedor pode ver todo
-// mundo, ou filtrar por um promotor específico.
+// Vercel Serverless Function — agrega os dados de "Lancamentos" (pedidos, ainda no
+// SharePoint) e "Visitas" (já migrada para o Supabase) para alimentar a tela de
+// Relatórios. Exige usuário logado (token do /api/login): um Promotor só recebe os
+// próprios números; Gerente/Desenvolvedor pode ver todo mundo, ou filtrar por um
+// promotor específico.
 //
 // GET /api/relatorios              -> Promotor: relatório completo (todo o período) da
 //                                     própria carteira. Gerente sem ?promotor=: visão geral
@@ -15,19 +16,19 @@
 //                                     "porQuinzena" (gráfico) e "todasQuinzenas" (dropdown)
 //                                     sempre trazem TODOS os períodos, independente disso.
 //
-// Variáveis de ambiente: as mesmas dos outros endpoints (TENANT_ID, CLIENT_ID,
-// CLIENT_SECRET, API_KEY, AUTH_SECRET). Opcionais: DRIVE_ID, ITEM_ID,
-// TABLE_NAME (Lancamentos), TABLE_VISITAS (Visitas)
+// Variáveis de ambiente: as dos endpoints do SharePoint (TENANT_ID, CLIENT_ID,
+// CLIENT_SECRET, API_KEY, AUTH_SECRET) + as do Supabase (SUPABASE_URL,
+// SUPABASE_SERVICE_ROLE_KEY). Opcionais: DRIVE_ID, ITEM_ID, TABLE_NAME (Lancamentos)
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { paraISO } = require("./_lib/datas");
 const { paraNumero } = require("./_lib/numeros");
 const { quinzenaChave, quinzenaRotulo } = require("./_lib/quinzenas");
+const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
 
 const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
 const ITEM_ID_PADRAO = "01EEWFJSXC3HLY3IR45NBJ7GFSWWONG7BK";
 const TABLE_LANCAMENTOS_PADRAO = "Lancamentos";
-const TABLE_VISITAS_PADRAO = "Visitas";
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
@@ -93,16 +94,21 @@ module.exports = async function handler(req, res) {
   const promotorSolicitado = (req.query && req.query.promotor) || "";
   const filtroPromotor = ehGestor ? String(promotorSolicitado || "").trim() : usuario.nome;
 
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    res.status(500).json({ erro: "Banco de dados não configurado (faltam SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)." });
+    return;
+  }
+
   try {
     const token = await obterToken();
     const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
     const itemId = process.env.ITEM_ID || ITEM_ID_PADRAO;
     const tableLancamentos = process.env.TABLE_NAME || TABLE_LANCAMENTOS_PADRAO;
-    const tableVisitas = process.env.TABLE_VISITAS || TABLE_VISITAS_PADRAO;
+    const supabase = obterSupabase();
 
     const [linhasLancamentos, linhasVisitas] = await Promise.all([
       obterLinhas(token, driveId, itemId, tableLancamentos),
-      obterLinhas(token, driveId, itemId, tableVisitas)
+      buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null)
     ]);
 
     // Lancamentos: Nome_Promotor,Revenda,Propriedade,Produto,Unidade,Preco_Unitario,Volume,Valor_Total,Dia_Lancamento,Quinzena,Observacao_Visita
@@ -114,12 +120,12 @@ module.exports = async function handler(req, res) {
       data: paraISO(l[8])
     })).filter(p => p.promotor && p.data);
 
-    // Visitas: Nome_Promotor,Propriedade,Tipo_Visita,Observacao,Foto_URL,Latitude,Longitude,Dia_Visita,Quinzena
+    // Visitas (Supabase)
     let visitas = linhasVisitas.map(v => ({
-      promotor: String(v[0] || "").trim(),
-      propriedade: String(v[1] || "").trim(),
-      tipo: String(v[2] || "").trim(),
-      data: paraISO(v[7])
+      promotor: String(v.nome_promotor || "").trim(),
+      propriedade: String(v.propriedade || "").trim(),
+      tipo: String(v.tipo_visita || "").trim(),
+      data: String(v.dia_visita || "").slice(0, 10)
     })).filter(v => v.promotor && v.data);
 
     if (filtroPromotor) {
