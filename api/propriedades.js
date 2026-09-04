@@ -5,15 +5,20 @@
 // pertence a uma única revenda — pode ser atendida por revendas diferentes da carteira
 // de cada promotor).
 //
-// GET  /api/propriedades              -> lista os nomes de todas as propriedades cadastradas
-// GET  /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade
-// GET  /api/propriedades?completo=1   -> devolve os dados completos de TODAS (usado na exportação)
-// POST /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
+// GET   /api/propriedades              -> lista os nomes de todas as propriedades cadastradas
+// GET   /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade
+// GET   /api/propriedades?completo=1   -> devolve os dados completos de TODAS (usado na exportação)
+// POST  /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
+// PATCH /api/propriedades              -> atualiza só a latitude/longitude de uma propriedade
+//                                         já cadastrada, pelo nome (Propriedade). Usado quando o
+//                                         promotor não marcou a localização no cadastro original
+//                                         e captura na hora de lançar uma visita/pedido.
 //
 // Colunas da tabela "propriedades" no Supabase (todas em minúsculo/snake_case, padrão do
 // Postgres): propriedade, municipio, proprietario, decisor, vendedor_responsavel,
 // tipo_propriedade, matrizes, primiparas, novilhas, bezerros_machos, bezerros_femeas,
-// garrotes, touros, equinos, cadastrada_por, data_cadastro, latitude, longitude.
+// garrotes, touros, equinos, cadastrada_por, data_cadastro, latitude, longitude,
+// personalidade_decisor, personalidade_observacao.
 // O restante do app (index.html) continua enviando/recebendo os nomes em
 // Maiusculas_Com_Underscore de sempre — a conversão acontece só aqui dentro.
 //
@@ -42,7 +47,9 @@ function paraObjeto(l) {
     Cadastrada_Por: l.cadastrada_por || "",
     Data_Cadastro: l.data_cadastro || "",
     Latitude: l.latitude === undefined || l.latitude === null ? null : Number(l.latitude),
-    Longitude: l.longitude === undefined || l.longitude === null ? null : Number(l.longitude)
+    Longitude: l.longitude === undefined || l.longitude === null ? null : Number(l.longitude),
+    Personalidade_Decisor: l.personalidade_decisor || "",
+    Personalidade_Observacao: l.personalidade_observacao || ""
   };
 }
 
@@ -154,7 +161,9 @@ module.exports = async function handler(req, res) {
         cadastrada_por: String(dadosBody.Cadastrada_Por || "").trim(),
         data_cadastro: new Date().toISOString().slice(0, 10),
         latitude: dadosBody.Latitude === undefined || dadosBody.Latitude === "" || dadosBody.Latitude === null ? null : Number(dadosBody.Latitude),
-        longitude: dadosBody.Longitude === undefined || dadosBody.Longitude === "" || dadosBody.Longitude === null ? null : Number(dadosBody.Longitude)
+        longitude: dadosBody.Longitude === undefined || dadosBody.Longitude === "" || dadosBody.Longitude === null ? null : Number(dadosBody.Longitude),
+        personalidade_decisor: String(dadosBody.Personalidade_Decisor || "").trim(),
+        personalidade_observacao: String(dadosBody.Personalidade_Observacao || "").trim()
       };
 
       const { error: erroInsert } = await supabase.from("propriedades").insert(linhaNova);
@@ -167,5 +176,46 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  res.status(405).json({ erro: "Use GET ou POST." });
+  if (req.method === "PATCH") {
+    const corpo = req.body || {};
+    const nome = String(corpo.Propriedade || "").trim();
+    const lat = Number(corpo.Latitude);
+    const lon = Number(corpo.Longitude);
+
+    if (!nome) {
+      res.status(400).json({ erro: "Informe a propriedade." });
+      return;
+    }
+    if (Number.isNaN(lat) || Number.isNaN(lon)) {
+      res.status(400).json({ erro: "Latitude/longitude inválidas." });
+      return;
+    }
+
+    try {
+      const { data: existente, error: erroBusca } = await supabase
+        .from("propriedades")
+        .select("propriedade")
+        .ilike("propriedade", nome)
+        .limit(1)
+        .maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (!existente) {
+        res.status(404).json({ erro: "Propriedade não encontrada." });
+        return;
+      }
+
+      const { error: erroUpdate } = await supabase
+        .from("propriedades")
+        .update({ latitude: lat, longitude: lon })
+        .ilike("propriedade", nome);
+      if (erroUpdate) throw erroUpdate;
+
+      res.status(200).json({ status: "ok" });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao salvar a localização.", detalhe: String(err.message || err) });
+    }
+    return;
+  }
+
+  res.status(405).json({ erro: "Use GET, POST ou PATCH." });
 };
