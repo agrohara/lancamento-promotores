@@ -111,7 +111,9 @@ module.exports = async function handler(req, res) {
     }
 
     const todasQuinzenasOrdenadas = [...mapaQuinzenas.values()].sort((a, b) => a.chave.localeCompare(b.chave));
-    const porQuinzena = todasQuinzenasOrdenadas.slice(-6);
+    // Semana é um período mais curto que quinzena, então mostra mais barras no gráfico
+    // (8 semanas ≈ 2 meses) pra dar uma visão de tendência decente.
+    const porQuinzena = todasQuinzenasOrdenadas.slice(-8);
     const todasQuinzenas = [...todasQuinzenasOrdenadas].reverse().map(q => ({ chave: q.chave, rotulo: q.rotulo }));
 
     // Resumo da quinzena corrente (independente do filtro de período abaixo) — usado pelos
@@ -198,6 +200,31 @@ module.exports = async function handler(req, res) {
       porPromotor = [...mapaPromotor.values()].sort((a, b) => b.valorPedidos - a.valorPedidos);
     }
 
+    // Quem ainda não lançou nada (pedido nem visita) no período — semana selecionada, ou a
+    // semana atual se nenhuma foi escolhida. Só faz sentido pro Gerente vendo todo mundo.
+    let semAtividade = [];
+    if (ehGestor && !filtroPromotor) {
+      const chaveAtividade = quinzenaPedida || chaveHoje;
+      const pedidosAtividade = pedidos.filter(p => quinzenaChave(p.data) === chaveAtividade);
+      const visitasAtividade = visitas.filter(v => quinzenaChave(v.data) === chaveAtividade);
+      const promotoresComAtividade = new Set([
+        ...pedidosAtividade.map(p => p.promotor.toLowerCase()),
+        ...visitasAtividade.map(v => v.promotor.toLowerCase())
+      ]);
+
+      const { data: linhasUsuarios, error: erroUsuarios } = await supabase
+        .from("usuarios")
+        .select("nome, cargo")
+        .ilike("cargo", "promotor");
+      if (erroUsuarios) throw erroUsuarios;
+
+      semAtividade = (linhasUsuarios || [])
+        .map(u => String(u.nome || "").trim())
+        .filter(Boolean)
+        .filter(nome => !promotoresComAtividade.has(nome.toLowerCase()))
+        .sort((a, b) => a.localeCompare(b));
+    }
+
     res.status(200).json({
       filtroAplicado: filtroPromotor || null,
       ehGestor,
@@ -214,7 +241,9 @@ module.exports = async function handler(req, res) {
       porFazenda,
       porRevenda,
       porTipoVisita,
-      porPromotor
+      porPromotor,
+      semAtividade,
+      semAtividadeRotulo: quinzenaRotulo(quinzenaPedida || chaveHoje)
     });
   } catch (err) {
     res.status(502).json({ erro: "Falha ao montar relatório.", detalhe: err.detalhe || String(err.message || err) });
