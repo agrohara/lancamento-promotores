@@ -2187,10 +2187,11 @@ function formatarItemPedido(r, opcoes) {
   if (opcoes.mostrarRevenda && r.revenda) extras.push(r.revenda);
   if (opcoes.mostrarPropriedade && r.propriedade) extras.push(r.propriedade);
   const tituloExtra = extras.length ? " · " + extras.join(" · ") : "";
+  const volumeExtra = r.volume ? ` — ${r.volume}${r.unidade ? " " + r.unidade : ""}` : "";
   const detalheExtra = opcoes.mostrarPromotor && r.promotor ? " · " + r.promotor : "";
   return `
     <div class="item-ranking">
-      <span><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.produto}${tituloExtra}</span>
+      <span><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.produto}${volumeExtra}${tituloExtra}</span>
       <span class="item-ranking-detalhe">${formatarMoeda(r.valor)} · ${formatarDataBR(r.data)}${detalheExtra}</span>
     </div>
   `;
@@ -2308,7 +2309,7 @@ async function abrirDetalhePromotor(nomePromotor) {
     }
 
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, valor: r.Valor_Total, data: r.Dia_Lancamento })),
+      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento })),
       ...(dadosVisitas.visitas || []).map(r => ({ tipo: "visita", propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPromotorAtual = nomePromotor;
@@ -2349,7 +2350,7 @@ async function abrirDetalheFazenda(nomeFazenda) {
     // A API faz busca parcial pelo nome — filtra exatamente para não misturar fazendas de
     // nome parecido (ex.: "Fazenda Ferri" e "Propriedade Ferri").
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, revenda: r.Revenda, produto: r.Produto, valor: r.Valor_Total, data: r.Dia_Lancamento })),
+      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento })),
       ...(dadosVisitas.visitas || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "visita", promotor: r.Nome_Promotor, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPropriedadeAtual = nomeFazenda;
@@ -2377,7 +2378,7 @@ async function abrirDetalheRevenda(nomeRevenda) {
 
     drillItens = (dados.lancamentos || [])
       .filter(r => r.Revenda === nomeRevenda)
-      .map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, propriedade: r.Propriedade, produto: r.Produto, valor: r.Valor_Total, data: r.Dia_Lancamento }));
+      .map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, propriedade: r.Propriedade, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento }));
     drillRevendaAtual = nomeRevenda;
     drillNivel = 4;
     renderPainelDrill();
@@ -2574,7 +2575,7 @@ async function buscarHistoricoRel(termo) {
             <div class="item-historico-topo">
               <div>
                 <div class="item-historico-titulo"><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.Propriedade}${r.Revenda ? " · " + r.Revenda : ""}</div>
-                <div class="item-historico-sub">${r.Produto} · ${formatarDataBR(r.Dia_Lancamento)} · ${r.Nome_Promotor}</div>
+                <div class="item-historico-sub">${r.Produto}${r.Volume ? " — " + r.Volume + (r.Unidade ? " " + r.Unidade : "") : ""} · ${formatarDataBR(r.Dia_Lancamento)} · ${r.Nome_Promotor}</div>
               </div>
               <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
             </div>
