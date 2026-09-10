@@ -5,6 +5,12 @@
 // As propriedades já são cadastradas antes, com dados completos, pelo assistente de
 // cadastro (ver api/propriedades.js). Esta função só grava a transação de venda.
 //
+// Cada pedido agora exige que o promotor descreva o que foi tratado na visita
+// (Observacao_Visita, obrigatório) e permite deixar uma nota opcional do que tratar na
+// próxima visita (Proxima_Visita). Essa nota, quando preenchida, também é salva na
+// própria fazenda (coluna "proximo_assunto" em "propriedades") para aparecer como
+// lembrete da próxima vez que alguém abrir essa fazenda pra lançar um pedido/visita.
+//
 // GET também aceita, combináveis: ?propriedade=X (busca parcial no nome da fazenda),
 // ?revenda=X (busca parcial no nome da revenda), ?quinzena=AAAA-MM-N (só lançamentos
 // daquela quinzena) — usados na busca de histórico e no drill-down do relatório
@@ -12,7 +18,7 @@
 //
 // Colunas da tabela "lancamentos" no Supabase: nome_promotor, revenda, propriedade,
 // produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
-// observacao_visita.
+// observacao_visita, proxima_visita.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -33,16 +39,18 @@ function paraObjeto(l) {
     Volume: l.volume === undefined || l.volume === null ? 0 : Number(l.volume),
     Valor_Total: l.valor_total === undefined || l.valor_total === null ? 0 : Number(l.valor_total),
     Dia_Lancamento: l.dia_lancamento || "",
-    Quinzena: l.quinzena || ""
+    Quinzena: l.quinzena || "",
+    Observacao_Visita: l.observacao_visita || "",
+    Proxima_Visita: l.proxima_visita || ""
   };
 }
 
 function validarRegistro(r) {
   if (!r || typeof r !== "object") return false;
-  // A observação da visita agora é registrada separadamente (ver api/visitas.js),
-  // então aqui ela é opcional — o pedido pode ser lançado sozinho.
   if (!r.Nome_Promotor || !r.Revenda || !r.Propriedade || !r.Produto || !r.Dia_Lancamento || !r.Quinzena) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(r.Dia_Lancamento))) return false;
+  // O promotor precisa sempre descrever o que foi tratado na visita, mesmo lançando pedido.
+  if (!r.Observacao_Visita || !String(r.Observacao_Visita).trim()) return false;
 
   const preco = Number(r.Preco_Unitario);
   const volume = Number(r.Volume);
@@ -139,7 +147,7 @@ module.exports = async function handler(req, res) {
   const invalidos = lancamentos.filter(r => !validarRegistro(r));
   if (invalidos.length > 0) {
     res.status(400).json({
-      erro: "Um ou mais registros estão incompletos, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
+      erro: "Um ou mais registros estão incompletos, sem a descrição do que foi tratado na visita, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
       invalidos
     });
     return;
@@ -157,11 +165,20 @@ module.exports = async function handler(req, res) {
       valor_total: Number(r.Preco_Unitario) * Number(r.Volume),
       dia_lancamento: r.Dia_Lancamento,
       quinzena: r.Quinzena,
-      observacao_visita: String(r.Observacao_Visita || "").trim()
+      observacao_visita: String(r.Observacao_Visita || "").trim(),
+      proxima_visita: String(r.Proxima_Visita || "").trim()
     }));
 
     const { error: erroInsert } = await supabase.from("lancamentos").insert(linhasNovas);
     if (erroInsert) throw erroInsert;
+
+    // Se alguma nota de "próxima visita" foi preenchida, salva na própria fazenda como
+    // lembrete — aparece pro promotor da próxima vez que abrir essa fazenda pra lançar.
+    const notaProximaVisita = String(lancamentos[0].Proxima_Visita || "").trim();
+    if (notaProximaVisita) {
+      const nomeFazenda = String(lancamentos[0].Propriedade || "").trim();
+      await supabase.from("propriedades").update({ proximo_assunto: notaProximaVisita }).ilike("propriedade", nomeFazenda);
+    }
 
     res.status(200).json({ status: "ok", inseridos: linhasNovas.length });
   } catch (err) {

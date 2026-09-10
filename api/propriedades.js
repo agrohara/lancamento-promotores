@@ -18,7 +18,8 @@
 // Postgres): propriedade, municipio, proprietario, decisor, vendedor_responsavel,
 // tipo_propriedade, matrizes, primiparas, novilhas, bezerros_machos, bezerros_femeas,
 // garrotes, touros, equinos, cadastrada_por, data_cadastro, latitude, longitude,
-// personalidade_decisor, personalidade_observacao.
+// personalidade_decisor, personalidade_observacao, proximo_assunto (o que o promotor
+// combinou tratar na próxima visita — preenchido no Novo Pedido, ver api/lancamentos.js).
 // O restante do app (index.html) continua enviando/recebendo os nomes em
 // Maiusculas_Com_Underscore de sempre — a conversão acontece só aqui dentro.
 //
@@ -49,7 +50,8 @@ function paraObjeto(l) {
     Latitude: l.latitude === undefined || l.latitude === null ? null : Number(l.latitude),
     Longitude: l.longitude === undefined || l.longitude === null ? null : Number(l.longitude),
     Personalidade_Decisor: l.personalidade_decisor || "",
-    Personalidade_Observacao: l.personalidade_observacao || ""
+    Personalidade_Observacao: l.personalidade_observacao || "",
+    Proximo_Assunto: l.proximo_assunto || ""
   };
 }
 
