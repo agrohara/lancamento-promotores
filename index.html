@@ -410,6 +410,9 @@
           </button>
           <div id="statusLocalizacaoRegistro" class="item-ranking-detalhe" style="margin-top:6px;"></div>
         </div>
+        <div id="avisoProximoAssunto" class="oculto" style="background:#eaf3ff;border:1px solid #b9d7f7;border-left:4px solid #2f6fb0;border-radius:12px;padding:12px 14px;margin:10px 0;">
+          <div style="font-size:13px;color:#1f4c78;"><b>Combinado na última visita:</b> <span id="textoProximoAssunto"></span></div>
+        </div>
         <button class="btn btn-secundario" id="btnLimparBuscaFazenda" type="button" style="margin-bottom:14px;">Limpar busca</button>
         <button class="btn btn-secundario" id="btnAbrirCadastroFazendaLanc" type="button">+ Cadastrar fazenda nova</button>
         <button class="btn" id="btnContinuarFazendaLanc" style="margin-top:14px;">Continuar</button>
@@ -493,6 +496,14 @@
         <div class="contador"><span id="contadorItens">0</span> item(ns) no pedido</div>
         <div id="listaCarrinho"></div>
         <div class="total-linha" id="totalGeralWrap" style="margin-top:4px;">Total geral do pedido: <b id="totalGeral">R$ 0,00</b></div>
+      </div>
+
+      <div class="card">
+        <p class="subtitulo">O que foi tratado nesta visita</p>
+        <label for="inputObservacaoPedido">Descreva o que foi tratado (obrigatório)</label>
+        <textarea id="inputObservacaoPedido" rows="3" placeholder="Ex: cliente satisfeito, negociação em andamento, pontos de atenção..."></textarea>
+        <label for="inputProximaVisitaPedido">O que tratar na próxima visita (opcional)</label>
+        <textarea id="inputProximaVisitaPedido" rows="2" placeholder="Ex: levar tabela de preços, acompanhar resultado do tratamento..."></textarea>
         <button class="btn" id="btnEnviar" style="margin-top:14px;">Enviar pedido</button>
       </div>
     </section>
@@ -1243,6 +1254,7 @@ async function verificarLocalizacaoFazendaEscolhida(nome) {
   localizacaoFazendaEscolhida = null;
   document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
   document.getElementById("statusLocalizacaoRegistro").textContent = "";
+  document.getElementById("avisoProximoAssunto").classList.add("oculto");
   try {
     const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, { headers: { "x-api-key": CONFIG.API_KEY } });
     const dados = await resp.json();
@@ -1250,6 +1262,10 @@ async function verificarLocalizacaoFazendaEscolhida(nome) {
     const p = dados.propriedade;
     if (p && (p.Latitude == null || p.Longitude == null)) {
       document.getElementById("avisoSemLocalizacaoFazenda").classList.remove("oculto");
+    }
+    if (p && p.Proximo_Assunto) {
+      document.getElementById("textoProximoAssunto").textContent = p.Proximo_Assunto;
+      document.getElementById("avisoProximoAssunto").classList.remove("oculto");
     }
   } catch (err) {
     // Falha silenciosa — não é crítico pro fluxo de visita/pedido continuar.
@@ -1414,6 +1430,8 @@ async function prepararPedidoCorpo(fazenda) {
   if (todosProdutos.length === 0) await carregarTodosProdutos();
   limparSelecaoProduto();
   atualizarCarrinho();
+  document.getElementById("inputObservacaoPedido").value = "";
+  document.getElementById("inputProximaVisitaPedido").value = "";
   limparMsg("msgPedido");
 }
 
@@ -1558,6 +1576,10 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 
   if (carrinho.length === 0) { mostrarMsg("msgPedido", "Adicione ao menos um item à lista antes de enviar.", "erro"); return; }
 
+  const observacaoPedido = document.getElementById("inputObservacaoPedido").value.trim();
+  const proximaVisitaPedido = document.getElementById("inputProximaVisitaPedido").value.trim();
+  if (!observacaoPedido) { mostrarMsg("msgPedido", "Descreva o que foi tratado nesta visita.", "erro"); return; }
+
   const lancamentos = carrinho.map(item => ({
     Nome_Promotor: promotorAtual,
     Revenda: item.Revenda,
@@ -1568,7 +1590,8 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     Volume: item.Volume,
     Dia_Lancamento: dataAtual,
     Quinzena: quinzenaAtual,
-    Observacao_Visita: ""
+    Observacao_Visita: observacaoPedido,
+    Proxima_Visita: proximaVisitaPedido
   }));
 
   const btn = document.getElementById("btnEnviar");
@@ -1589,6 +1612,9 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 
     carrinho = [];
     atualizarCarrinho();
+    document.getElementById("inputObservacaoPedido").value = "";
+    document.getElementById("inputProximaVisitaPedido").value = "";
+    document.getElementById("avisoProximoAssunto").classList.add("oculto");
     mostrarMsg("msgPedido", "Pedido enviado com sucesso!", "sucesso");
   } catch (err) {
     mostrarMsg("msgPedido", err.message, "erro");
@@ -2189,10 +2215,14 @@ function formatarItemPedido(r, opcoes) {
   const tituloExtra = extras.length ? " · " + extras.join(" · ") : "";
   const volumeExtra = r.volume ? ` — ${r.volume}${r.unidade ? " " + r.unidade : ""}` : "";
   const detalheExtra = opcoes.mostrarPromotor && r.promotor ? " · " + r.promotor : "";
+  const observacao = r.observacao ? `<div class="item-historico-detalhe" style="margin-top:6px;padding-top:6px;">${r.observacao}</div>` : "";
   return `
-    <div class="item-ranking">
-      <span><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.produto}${volumeExtra}${tituloExtra}</span>
-      <span class="item-ranking-detalhe">${formatarMoeda(r.valor)} · ${formatarDataBR(r.data)}${detalheExtra}</span>
+    <div class="item-ranking" style="flex-direction:column;align-items:stretch;gap:2px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span><span class="unidade-tag" style="margin-right:6px;">Pedido</span>${r.produto}${volumeExtra}${tituloExtra}</span>
+        <span class="item-ranking-detalhe">${formatarMoeda(r.valor)} · ${formatarDataBR(r.data)}${detalheExtra}</span>
+      </div>
+      ${observacao}
     </div>
   `;
 }
@@ -2309,7 +2339,7 @@ async function abrirDetalhePromotor(nomePromotor) {
     }
 
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento })),
+      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita })),
       ...(dadosVisitas.visitas || []).map(r => ({ tipo: "visita", propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPromotorAtual = nomePromotor;
@@ -2350,7 +2380,7 @@ async function abrirDetalheFazenda(nomeFazenda) {
     // A API faz busca parcial pelo nome — filtra exatamente para não misturar fazendas de
     // nome parecido (ex.: "Fazenda Ferri" e "Propriedade Ferri").
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento })),
+      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita })),
       ...(dadosVisitas.visitas || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "visita", promotor: r.Nome_Promotor, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPropriedadeAtual = nomeFazenda;
@@ -2378,7 +2408,7 @@ async function abrirDetalheRevenda(nomeRevenda) {
 
     drillItens = (dados.lancamentos || [])
       .filter(r => r.Revenda === nomeRevenda)
-      .map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, propriedade: r.Propriedade, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento }));
+      .map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, propriedade: r.Propriedade, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita }));
     drillRevendaAtual = nomeRevenda;
     drillNivel = 4;
     renderPainelDrill();
@@ -2579,6 +2609,7 @@ async function buscarHistoricoRel(termo) {
               </div>
               <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
             </div>
+            ${r.Observacao_Visita ? `<div class="item-historico-detalhe">${r.Observacao_Visita}</div>` : ""}
           </div>
         `;
       }
