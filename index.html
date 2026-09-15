@@ -2162,7 +2162,7 @@ document.getElementById("listaPaginaMetas").addEventListener("click", async (e) 
       body: JSON.stringify({ Revenda: revenda, Meta_Semanal: meta })
     });
     const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a meta.");
+    if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar a meta.") + (dados.detalhe ? " — " + dados.detalhe : ""));
     cacheMetasRevenda.set(revenda, meta);
     linha.querySelector(".texto-meta-atual").textContent = meta > 0 ? "Meta atual: " + formatarMoeda(meta) + " por semana" : "Sem meta definida ainda";
     linha.style.borderColor = "var(--azul-claro)";
