@@ -555,6 +555,11 @@
         <div id="listaSemAtividade" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;"></div>
       </div>
 
+      <div id="areaMetasSemana" class="oculto" style="margin:14px 0;">
+        <h3 class="subtitulo-secao">Metas da semana <span style="font-weight:400;color:#5b6771;">— por revenda</span></h3>
+        <div id="listaMetasSemana" class="card"></div>
+      </div>
+
       <div class="filtro-historico" style="margin-top:4px;">
         <button class="chip-filtro ativo" data-modo-relatorio="pedidos" type="button">Pedidos</button>
         <button class="chip-filtro" data-modo-relatorio="visitas" type="button">Visitas</button>
@@ -615,6 +620,12 @@
         <div id="listaBuscaHistoricoRel"></div>
       </div>
 
+      <div id="areaGerenciarMetas" class="oculto">
+        <h3 class="subtitulo-secao">Metas semanais por revenda <span style="font-weight:400;color:#5b6771;">— aparece pro promotor da carteira dela</span></h3>
+        <div id="msgMetas"></div>
+        <div id="listaGerenciarMetas" class="card"></div>
+      </div>
+
       <div id="areaExportar" class="oculto">
         <h3 class="subtitulo-secao">Exportar dados</h3>
         <div id="msgExportar"></div>
@@ -661,6 +672,7 @@ const CONFIG = {
   URL_VISITAS: "/api/visitas",
   URL_UPLOAD_FOTO: "/api/upload-foto",
   URL_RELATORIOS: "/api/relatorios",
+  URL_METAS: "/api/metas",
   API_KEY: "Marcelo9955@"
 };
 
@@ -1935,11 +1947,13 @@ async function carregarRelatorios() {
   const filtroWrap = document.getElementById("filtroRelatoriosWrap");
   filtroWrap.classList.toggle("oculto", !gestor);
   document.getElementById("areaExportar").classList.toggle("oculto", !gestor);
+  document.getElementById("areaGerenciarMetas").classList.toggle("oculto", !gestor);
   if (gestor && document.getElementById("selectFiltroPromotor").options.length <= 1) {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
       '<option value="">Todos os promotores</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join("");
   }
+  if (gestor) carregarGerenciarMetas();
   if (todasPropriedades.length === 0) await carregarTodasPropriedades();
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
@@ -1994,6 +2008,7 @@ async function carregarRelatorios() {
     }
 
     renderSemAtividade(dados, gestor && !promotorFiltro);
+    renderMetasSemana(dados.porRevendaSemanaAtual || []);
 
     ultimoDadosRelatorios = dados;
     ultimoRankingPromotor = rankingParaExibir;
@@ -2023,6 +2038,96 @@ function renderSemAtividade(dados, deveMostrar) {
   `).join("");
   area.classList.remove("oculto");
 }
+
+// Progresso da meta semanal por revenda (dados.porRevendaSemanaAtual, já vem pronto do
+// backend — só entram revendas com meta cadastrada). Aparece pra promotor (só as revendas
+// da própria carteira) e pra gestor (todas as que têm meta). Fica escondido quando ninguém
+// cadastrou nenhuma meta ainda, pra não poluir a tela à toa.
+function renderMetasSemana(lista) {
+  const area = document.getElementById("areaMetasSemana");
+  const alvo = document.getElementById("listaMetasSemana");
+  if (!lista || lista.length === 0) {
+    area.classList.add("oculto");
+    alvo.innerHTML = "";
+    return;
+  }
+  alvo.innerHTML = lista.map(r => {
+    const pct = Math.max(0, Math.min(100, r.percentual));
+    const cor = r.percentual >= 100 ? "#2f8f4e" : r.percentual >= 60 ? "#c99a1f" : "#c0392b";
+    return `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+          <b>${r.revenda}</b>
+          <span style="color:#5b6771;">${formatarMoeda(r.valorSemana)} / ${formatarMoeda(r.meta)} · ${r.percentual}%</span>
+        </div>
+        <div style="background:#eef1f3;border-radius:999px;height:8px;overflow:hidden;">
+          <div style="width:${pct}%;background:${cor};height:100%;"></div>
+        </div>
+      </div>
+    `;
+  }).join("");
+  area.classList.remove("oculto");
+}
+
+/* =========================================================================
+   METAS SEMANAIS POR REVENDA (só Gerente/Desenvolvedor cadastra)
+   ========================================================================= */
+let cacheMetasRevenda = null;
+
+async function carregarGerenciarMetas() {
+  const alvo = document.getElementById("listaGerenciarMetas");
+  try {
+    const resp = await fetch(CONFIG.URL_METAS, {
+      headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
+    });
+    const dados = await resp.json().catch(() => ({}));
+    cacheMetasRevenda = new Map((dados.metas || []).map(m => [m.Revenda, m.Meta_Semanal]));
+  } catch (err) {
+    cacheMetasRevenda = new Map();
+  }
+
+  const todasRevendas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  alvo.innerHTML = todasRevendas.map(revenda => {
+    const metaAtual = cacheMetasRevenda.get(revenda) || "";
+    return `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <span style="flex:1;font-size:13px;">${revenda}</span>
+        <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual}" data-revenda-meta="${revenda.replace(/"/g, "&quot;")}" style="width:110px;">
+        <button class="btn btn-secundario" type="button" data-salvar-meta="${revenda.replace(/"/g, "&quot;")}" style="padding:8px 12px;">Salvar</button>
+      </div>
+    `;
+  }).join("");
+}
+
+document.getElementById("listaGerenciarMetas").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-salvar-meta]");
+  if (!btn) return;
+  limparMsg("msgMetas");
+  const revenda = btn.getAttribute("data-salvar-meta");
+  const input = document.querySelector(`[data-revenda-meta="${CSS.escape(revenda)}"]`);
+  const meta = Number(input.value);
+  if (Number.isNaN(meta) || meta < 0) {
+    mostrarMsg("msgMetas", "Informe uma meta válida para " + revenda + ".", "erro");
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Salvando...";
+  try {
+    const resp = await fetch(CONFIG.URL_METAS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" },
+      body: JSON.stringify({ Revenda: revenda, Meta_Semanal: meta })
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a meta.");
+    mostrarMsg("msgMetas", "Meta de " + revenda + " salva ✓", "sucesso");
+  } catch (err) {
+    mostrarMsg("msgMetas", err.message, "erro");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Salvar";
+  }
+});
 
 // Alterna entre a visão "Pedidos" (o que foi vendido: gráfico de barras por quinzena +
 // por revenda) e "Visitas" (o que foi tratado: gráfico de rosca por tipo de visita).
@@ -2634,6 +2739,67 @@ async function buscarHistoricoRel(termo) {
 /* =========================================================================
    EXPORTAR PARA EXCEL (só Gerente/Desenvolvedor)
    ========================================================================= */
+// Monta uma aba "tipo tabela dinâmica" pronta: linhas = revenda, colunas = semana,
+// valores = soma do valor vendido, com total por revenda e uma linha de total geral.
+// (A biblioteca de exportação usada aqui — SheetJS, gratuita — não sabe gerar uma
+// Tabela Dinâmica nativa do Excel de verdade, do tipo que dá pra arrastar campo; então
+// em vez disso a gente já entrega o cruzamento pronto, calculado, que é o que costuma
+// ser usado na prática.)
+function chaveSemanaISO(dataISO) {
+  const [ano, mes, dia] = String(dataISO).split("-").map(Number);
+  const data = new Date(Date.UTC(ano, mes - 1, dia));
+  const diaSemana = data.getUTCDay();
+  const deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana;
+  const inicio = new Date(data);
+  inicio.setUTCDate(inicio.getUTCDate() + deslocamento);
+  return inicio.toISOString().slice(0, 10);
+}
+
+function montarPivotRevendaSemana(pedidos) {
+  const mapaSemana = new Map();   // chave ISO -> rótulo pra exibir
+  const mapaRevenda = new Map();  // revenda -> Map(chave ISO -> soma)
+  pedidos.forEach(p => {
+    if (!p.Data || !p.Revenda) return;
+    const chave = chaveSemanaISO(p.Data);
+    if (!mapaSemana.has(chave)) mapaSemana.set(chave, p.Quinzena || chave);
+    if (!mapaRevenda.has(p.Revenda)) mapaRevenda.set(p.Revenda, new Map());
+    const linha = mapaRevenda.get(p.Revenda);
+    linha.set(chave, (linha.get(chave) || 0) + (Number(p.Valor_Total) || 0));
+  });
+
+  const semanasOrdenadas = [...mapaSemana.keys()].sort();
+  const revendasOrdenadas = [...mapaRevenda.keys()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  const linhas = revendasOrdenadas.map(revenda => {
+    const linha = mapaRevenda.get(revenda);
+    const obj = { Revenda: revenda };
+    let totalRevenda = 0;
+    semanasOrdenadas.forEach(chave => {
+      const valor = linha.get(chave) || 0;
+      obj[mapaSemana.get(chave)] = valor;
+      totalRevenda += valor;
+    });
+    obj["Total"] = totalRevenda;
+    return obj;
+  });
+
+  if (linhas.length > 0) {
+    const totalGeral = { Revenda: "TOTAL GERAL" };
+    let somaTudo = 0;
+    semanasOrdenadas.forEach(chave => {
+      const rotulo = mapaSemana.get(chave);
+      const soma = revendasOrdenadas.reduce((s, revenda) => s + (mapaRevenda.get(revenda).get(chave) || 0), 0);
+      totalGeral[rotulo] = soma;
+      somaTudo += soma;
+    });
+    totalGeral["Total"] = somaTudo;
+    linhas.push(totalGeral);
+  }
+
+  return linhas;
+}
+
+
 document.getElementById("btnExportarExcel").addEventListener("click", async () => {
   limparMsg("msgExportar");
   if (typeof XLSX === "undefined") {
@@ -2707,7 +2873,12 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Longitude: p.Longitude
     }));
 
+    const resumoPivot = montarPivotRevendaSemana(pedidos);
+
     const wb = XLSX.utils.book_new();
+    if (resumoPivot.length > 0) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resumoPivot), "Resumo (Revenda x Semana)");
+    }
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pedidos), "Pedidos");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(visitas), "Visitas");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fazendas), "Fazendas");
