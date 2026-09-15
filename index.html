@@ -247,6 +247,7 @@
         <button class="acao-rapida" data-acao="novaFazenda" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-9h5v5c0 5-4 9-9 9z"/><path d="M9 15c3-3 6-6 9-9"/></svg></span>Nova Fazenda</button>
         <button class="acao-rapida" data-acao="catalogo" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Catálogo</button>
         <button class="acao-rapida" data-acao="relatorios" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Relatórios</button>
+        <button class="acao-rapida oculto" id="acaoMetas" data-acao="metas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>Metas</button>
       </div>
     </section>
 
@@ -620,17 +621,20 @@
         <div id="listaBuscaHistoricoRel"></div>
       </div>
 
-      <div id="areaGerenciarMetas" class="oculto">
-        <h3 class="subtitulo-secao">Metas semanais por revenda <span style="font-weight:400;color:#5b6771;">— aparece pro promotor da carteira dela</span></h3>
-        <div id="msgMetas"></div>
-        <div id="listaGerenciarMetas" class="card"></div>
-      </div>
-
       <div id="areaExportar" class="oculto">
         <h3 class="subtitulo-secao">Exportar dados</h3>
         <div id="msgExportar"></div>
         <button class="btn btn-secundario" id="btnExportarExcel" type="button">Baixar Excel (Pedidos, Visitas, Fazendas)</button>
       </div>
+    </section>
+
+    <!-- METAS SEMANAIS (só Gerente/Desenvolvedor) -->
+    <section id="pagMetas" class="pagina oculto">
+      <h2 class="titulo-pagina">Metas semanais</h2>
+      <p style="font-size:13px;color:#5b6771;margin:-10px 0 18px;">Defina quanto cada revenda deve vender por semana. O promotor da carteira vê o progresso em Relatórios.</p>
+      <input type="text" id="buscaMetas" placeholder="Buscar revenda...">
+      <div id="msgMetas"></div>
+      <div id="listaPaginaMetas"></div>
     </section>
 
     <!-- PERFIL -->
@@ -847,6 +851,7 @@ function iniciarApp() {
   document.getElementById("perfilAvisoAcesso").textContent = ehGestor()
     ? "Como Gerente/Desenvolvedor, você edita o catálogo de produtos e vê relatórios de todos os promotores."
     : "Como Promotor, você vê e lança dados só da sua própria carteira. O catálogo de produtos é somente leitura.";
+  document.getElementById("acaoMetas").classList.toggle("oculto", !ehGestor());
   mostrarPagina("inicio");
   carregarDashboard();
 }
@@ -912,6 +917,9 @@ document.querySelectorAll(".acao-rapida").forEach(btn => {
     } else if (acao === "relatorios") {
       mostrarPagina("relatorios");
       carregarRelatorios();
+    } else if (acao === "metas") {
+      mostrarPagina("metas");
+      carregarPaginaMetas();
     }
   });
 });
@@ -1947,13 +1955,11 @@ async function carregarRelatorios() {
   const filtroWrap = document.getElementById("filtroRelatoriosWrap");
   filtroWrap.classList.toggle("oculto", !gestor);
   document.getElementById("areaExportar").classList.toggle("oculto", !gestor);
-  document.getElementById("areaGerenciarMetas").classList.toggle("oculto", !gestor);
   if (gestor && document.getElementById("selectFiltroPromotor").options.length <= 1) {
     const nomes = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     document.getElementById("selectFiltroPromotor").innerHTML =
       '<option value="">Todos os promotores</option>' + nomes.map(n => `<option value="${n}">${n}</option>`).join("");
   }
-  if (gestor) carregarGerenciarMetas();
   if (todasPropriedades.length === 0) await carregarTodasPropriedades();
 
   const promotorFiltro = gestor ? document.getElementById("selectFiltroPromotor").value : "";
@@ -2053,15 +2059,19 @@ function renderMetasSemana(lista) {
   }
   alvo.innerHTML = lista.map(r => {
     const pct = Math.max(0, Math.min(100, r.percentual));
-    const cor = r.percentual >= 100 ? "#2f8f4e" : r.percentual >= 60 ? "#c99a1f" : "#c0392b";
+    const cor = r.percentual >= 100 ? "linear-gradient(90deg,#2f8f4e,#3d8b28)" : r.percentual >= 60 ? "linear-gradient(90deg,#d4a13a,#c99a1f)" : "linear-gradient(90deg,#d9564a,#c0392b)";
+    // Só escreve o % dentro da barra se ela já tiver espaço suficiente (senão o texto
+    // fica espremido/ilegível numa barra muito curta).
+    const rotuloDentro = pct >= 22;
     return `
-      <div style="margin-bottom:12px;">
-        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;">
           <b>${r.revenda}</b>
-          <span style="color:#5b6771;">${formatarMoeda(r.valorSemana)} / ${formatarMoeda(r.meta)} · ${r.percentual}%</span>
+          <span style="color:#5b6771;font-size:12px;">${formatarMoeda(r.valorSemana)} de ${formatarMoeda(r.meta)}</span>
         </div>
-        <div style="background:#eef1f3;border-radius:999px;height:8px;overflow:hidden;">
-          <div style="width:${pct}%;background:${cor};height:100%;"></div>
+        <div style="position:relative;background:#eef1f3;border-radius:999px;height:22px;overflow:hidden;">
+          <div style="position:absolute;inset:0;width:${pct}%;background:${cor};border-radius:999px;transition:width .4s ease;"></div>
+          <div style="position:relative;height:100%;display:flex;align-items:center;${rotuloDentro ? "justify-content:flex-end;padding-right:10px;" : "justify-content:flex-start;padding-left:" + (pct + 2) + "%;"} font-size:12px;font-weight:700;color:${rotuloDentro ? "#fff" : "#44525c"};">${r.percentual}%</div>
         </div>
       </div>
     `;
@@ -2070,48 +2080,81 @@ function renderMetasSemana(lista) {
 }
 
 /* =========================================================================
-   METAS SEMANAIS POR REVENDA (só Gerente/Desenvolvedor cadastra)
+   METAS SEMANAIS POR REVENDA (só Gerente/Desenvolvedor cadastra) — tela própria,
+   aberta pela ação "Metas" no Início.
    ========================================================================= */
 let cacheMetasRevenda = null;
+let todasRevendasMetas = null;
 
-async function carregarGerenciarMetas() {
-  const alvo = document.getElementById("listaGerenciarMetas");
-  try {
-    const resp = await fetch(CONFIG.URL_METAS, {
-      headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
-    });
-    const dados = await resp.json().catch(() => ({}));
-    cacheMetasRevenda = new Map((dados.metas || []).map(m => [m.Revenda, m.Meta_Semanal]));
-  } catch (err) {
-    cacheMetasRevenda = new Map();
+function renderizarListaPaginaMetas(termo) {
+  const alvo = document.getElementById("listaPaginaMetas");
+  const filtro = (termo || "").trim().toLowerCase();
+  const revendas = filtro
+    ? todasRevendasMetas.filter(r => r.toLowerCase().includes(filtro))
+    : todasRevendasMetas;
+
+  if (revendas.length === 0) {
+    alvo.innerHTML = '<div class="carregando-lista">Nenhuma revenda encontrada.</div>';
+    return;
   }
 
-  const todasRevendas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  alvo.innerHTML = todasRevendas.map(revenda => {
-    const metaAtual = cacheMetasRevenda.get(revenda) || "";
+  alvo.innerHTML = revendas.map(revenda => {
+    const metaAtual = cacheMetasRevenda.get(revenda) || 0;
+    const idSeguro = "meta-" + revenda.replace(/[^a-zA-Z0-9]/g, "");
     return `
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-        <span style="flex:1;font-size:13px;">${revenda}</span>
-        <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual}" data-revenda-meta="${revenda.replace(/"/g, "&quot;")}" style="width:110px;">
-        <button class="btn btn-secundario" type="button" data-salvar-meta="${revenda.replace(/"/g, "&quot;")}" style="padding:8px 12px;">Salvar</button>
+      <div class="card-meta" data-linha-meta="${revenda.replace(/"/g, "&quot;")}" style="background:#fff;border:1px solid var(--cinza-borda);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${revenda}</div>
+        <div class="texto-meta-atual" style="font-size:12px;color:#5b6771;margin-bottom:10px;">${metaAtual > 0 ? "Meta atual: " + formatarMoeda(metaAtual) + " por semana" : "Sem meta definida ainda"}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:14px;color:#5b6771;">R$</span>
+          <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual || ""}" id="${idSeguro}" style="margin:0;flex:1;">
+          <button type="button" data-salvar-meta="${revenda.replace(/"/g, "&quot;")}" data-input-meta="${idSeguro}"
+            style="flex:0 0 auto;width:40px;height:40px;border-radius:10px;border:none;background:var(--azul);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
       </div>
     `;
   }).join("");
 }
 
-document.getElementById("listaGerenciarMetas").addEventListener("click", async (e) => {
+async function carregarPaginaMetas() {
+  limparMsg("msgMetas");
+  document.getElementById("buscaMetas").value = "";
+  document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const resp = await fetch(CONFIG.URL_METAS, {
+      headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar as metas.");
+    cacheMetasRevenda = new Map((dados.metas || []).map(m => [m.Revenda, m.Meta_Semanal]));
+  } catch (err) {
+    cacheMetasRevenda = new Map();
+    mostrarMsg("msgMetas", err.message, "erro");
+  }
+
+  todasRevendasMetas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  renderizarListaPaginaMetas("");
+}
+
+document.getElementById("buscaMetas").addEventListener("input", (e) => {
+  renderizarListaPaginaMetas(e.target.value);
+});
+
+document.getElementById("listaPaginaMetas").addEventListener("click", async (e) => {
   const btn = e.target.closest("[data-salvar-meta]");
   if (!btn) return;
   limparMsg("msgMetas");
   const revenda = btn.getAttribute("data-salvar-meta");
-  const input = document.querySelector(`[data-revenda-meta="${CSS.escape(revenda)}"]`);
+  const input = document.getElementById(btn.getAttribute("data-input-meta"));
   const meta = Number(input.value);
   if (Number.isNaN(meta) || meta < 0) {
     mostrarMsg("msgMetas", "Informe uma meta válida para " + revenda + ".", "erro");
     return;
   }
+  const linha = btn.closest("[data-linha-meta]");
   btn.disabled = true;
-  btn.textContent = "Salvando...";
   try {
     const resp = await fetch(CONFIG.URL_METAS, {
       method: "POST",
@@ -2120,12 +2163,14 @@ document.getElementById("listaGerenciarMetas").addEventListener("click", async (
     });
     const dados = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a meta.");
-    mostrarMsg("msgMetas", "Meta de " + revenda + " salva ✓", "sucesso");
+    cacheMetasRevenda.set(revenda, meta);
+    linha.querySelector(".texto-meta-atual").textContent = meta > 0 ? "Meta atual: " + formatarMoeda(meta) + " por semana" : "Sem meta definida ainda";
+    linha.style.borderColor = "var(--azul-claro)";
+    setTimeout(() => { linha.style.borderColor = ""; }, 1200);
   } catch (err) {
     mostrarMsg("msgMetas", err.message, "erro");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Salvar";
   }
 });
 
