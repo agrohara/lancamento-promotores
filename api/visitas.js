@@ -1,7 +1,5 @@
 // Vercel Serverless Function — grava registros de VISITA (separados do PEDIDO) na tabela
-// "visitas" no Supabase (Postgres). Quarta tabela migrada do SharePoint/Excel para o banco
-// de verdade (depois de "propriedades", "produtos" e "usuarios"). "Lancamentos" (pedidos)
-// continua no SharePoint por enquanto.
+// "visitas" no Supabase (Postgres).
 //
 // A Visita guarda o "como foi" (tipo, observação, foto). O Pedido (ver api/lancamentos.js)
 // guarda o "o que foi vendido". São duas gravações separadas, feitas em telas separadas no
@@ -11,7 +9,11 @@
 // GET  /api/visitas               -> lista visitas do promotor logado
 // GET  /api/visitas?promotor=X    -> (Gerente/Desenvolvedor) lista visitas de um promotor
 // GET  /api/visitas?propriedade=X -> busca parcial pelo nome da fazenda (combinável)
-// GET  /api/visitas?quinzena=AAAA-MM-N -> só visitas dessa quinzena (combinável)
+// GET  /api/visitas?quinzena=AAAA-MM-DD -> só visitas dessa semana (chave = segunda-feira
+//                                    daquela semana, combinável) — o filtro é feito em JS
+//                                    recalculando a chave a partir de dia_visita, porque a
+//                                    coluna "quinzena" guarda o texto já formatado pra
+//                                    exibição ("Semana 07–13/Set/2026"), não a chave.
 // Ambos os GET exigem Authorization: Bearer <token do login>
 //
 // Colunas da tabela "visitas" no Supabase: nome_promotor, propriedade, tipo_visita,
@@ -22,6 +24,7 @@
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase } = require("./_lib/supabase");
+const { quinzenaChave } = require("./_lib/quinzenas");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
@@ -80,7 +83,6 @@ module.exports = async function handler(req, res) {
         let c = supabase.from("visitas").select("*");
         if (promotorFiltro) c = c.ilike("nome_promotor", promotorFiltro);
         if (propriedadeFiltro) c = c.ilike("propriedade", `%${propriedadeFiltro}%`);
-        if (quinzenaFiltro) c = c.eq("quinzena", quinzenaFiltro);
         return c;
       }
 
@@ -100,7 +102,10 @@ module.exports = async function handler(req, res) {
         inicio += TAMANHO_BLOCO;
       }
 
-      const visitas = todasLinhas.map(paraObjeto);
+      let visitas = todasLinhas.map(paraObjeto);
+      if (quinzenaFiltro) {
+        visitas = visitas.filter(v => quinzenaChave(v.Dia_Visita) === quinzenaFiltro);
+      }
       res.status(200).json({ visitas });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler visitas no banco.", detalhe: String(err.message || err) });

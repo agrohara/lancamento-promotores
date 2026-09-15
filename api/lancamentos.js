@@ -25,6 +25,7 @@
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase } = require("./_lib/supabase");
+const { quinzenaChave } = require("./_lib/quinzenas");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
@@ -98,7 +99,10 @@ module.exports = async function handler(req, res) {
         if (promotorFiltro) c = c.ilike("nome_promotor", promotorFiltro);
         if (propriedadeFiltro) c = c.ilike("propriedade", `%${propriedadeFiltro}%`);
         if (revendaFiltro) c = c.ilike("revenda", `%${revendaFiltro}%`);
-        if (quinzenaFiltro) c = c.eq("quinzena", quinzenaFiltro);
+        // O filtro de semana NÃO é feito aqui no banco: a coluna "quinzena" guarda o texto
+        // já formatado ("Semana 07–13/Set/2026"), enquanto o front manda a CHAVE (a data
+        // da segunda-feira, "2026-09-07") — nunca dariam match num .eq() direto. Em vez
+        // disso, filtra em JS recalculando a chave a partir de dia_lancamento (ver abaixo).
         return c;
       }
 
@@ -117,7 +121,10 @@ module.exports = async function handler(req, res) {
         inicio += TAMANHO_BLOCO;
       }
 
-      const lancamentos = todasLinhas.map(paraObjeto);
+      let lancamentos = todasLinhas.map(paraObjeto);
+      if (quinzenaFiltro) {
+        lancamentos = lancamentos.filter(l => quinzenaChave(l.Dia_Lancamento) === quinzenaFiltro);
+      }
       res.status(200).json({ lancamentos });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler lançamentos no banco.", detalhe: String(err.message || err) });

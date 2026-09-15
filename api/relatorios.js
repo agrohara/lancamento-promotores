@@ -19,6 +19,8 @@
 // Também devolve "porRevendaSemanaAtual": progresso da SEMANA ATUAL (não do período
 // escolhido no filtro) em relação à meta semanal cadastrada em api/metas.js, por revenda
 // — só entram revendas com meta cadastrada.
+// E "porCestaSemanaAtual": progresso da SEMANA ATUAL de cada cesta de produtos (ver
+// api/cestas.js) por promotor, comparado com a meta cadastrada em api/metas-cesta.js.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -64,10 +66,12 @@ module.exports = async function handler(req, res) {
   try {
     const supabase = obterSupabase();
 
-    const [linhasLancamentos, linhasVisitas, linhasMetas] = await Promise.all([
-      buscarTodasLinhas(supabase, "lancamentos", "nome_promotor,revenda,propriedade,valor_total,dia_lancamento", null),
+    const [linhasLancamentos, linhasVisitas, linhasMetas, linhasCestas, linhasMetasCesta] = await Promise.all([
+      buscarTodasLinhas(supabase, "lancamentos", "nome_promotor,revenda,propriedade,produto,valor_total,dia_lancamento", null),
       buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null),
-      supabase.from("metas_revenda").select("revenda, meta_semanal").then(r => r.data || []).catch(() => [])
+      supabase.from("metas_revenda").select("revenda, meta_semanal").then(r => r.data || []).catch(() => []),
+      supabase.from("cestas").select("nome, produtos").then(r => r.data || []).catch(() => []),
+      supabase.from("metas_cesta").select("cesta, promotor, meta_semanal").then(r => r.data || []).catch(() => [])
     ]);
     const mapaMetas = new Map(linhasMetas.map(m => [String(m.revenda || "").trim().toLowerCase(), Number(m.meta_semanal) || 0]));
 
@@ -76,6 +80,7 @@ module.exports = async function handler(req, res) {
       promotor: String(l.nome_promotor || "").trim(),
       revenda: String(l.revenda || "").trim(),
       propriedade: String(l.propriedade || "").trim(),
+      produto: String(l.produto || "").trim(),
       valor: Number(l.valor_total) || 0,
       data: String(l.dia_lancamento || "").slice(0, 10)
     })).filter(p => p.promotor && p.data);
@@ -150,6 +155,45 @@ module.exports = async function handler(req, res) {
         const valorSemana = mapaRevendaSemana.get(nomeOriginal) || 0;
         return {
           revenda: nomeOriginal,
+          meta,
+          valorSemana,
+          percentual: meta > 0 ? Math.round((valorSemana / meta) * 100) : 0
+        };
+      })
+      .sort((a, b) => a.percentual - b.percentual);
+
+    // Metas semanais por CESTA DE PRODUTOS, por promotor — mesma lógica (sempre semana
+    // atual, dentro do escopo já filtrado). Um lançamento entra na conta da cesta quando o
+    // produto dele está na lista de produtos daquela cesta.
+    const mapaProdutoParaCestas = new Map(); // produto (minúsculo) -> [nomes de cesta]
+    linhasCestas.forEach(c => {
+      const nomeCesta = String(c.nome || "").trim();
+      (c.produtos || []).forEach(produto => {
+        const chaveProduto = String(produto || "").trim().toLowerCase();
+        if (!chaveProduto) return;
+        if (!mapaProdutoParaCestas.has(chaveProduto)) mapaProdutoParaCestas.set(chaveProduto, []);
+        mapaProdutoParaCestas.get(chaveProduto).push(nomeCesta);
+      });
+    });
+    const mapaCestaPromotorSemana = new Map(); // "cesta|promotor" -> valor somado
+    pedidosSemanaAtual.forEach(p => {
+      const cestasDoProduto = mapaProdutoParaCestas.get(p.produto.toLowerCase()) || [];
+      cestasDoProduto.forEach(cesta => {
+        const chave = cesta + "|" + p.promotor;
+        mapaCestaPromotorSemana.set(chave, (mapaCestaPromotorSemana.get(chave) || 0) + p.valor);
+      });
+    });
+    const porCestaSemanaAtual = linhasMetasCesta
+      .filter(m => Number(m.meta_semanal) > 0)
+      .filter(m => !filtroPromotor || String(m.promotor || "").toLowerCase() === filtroPromotor.toLowerCase())
+      .map(m => {
+        const cesta = String(m.cesta || "").trim();
+        const promotor = String(m.promotor || "").trim();
+        const meta = Number(m.meta_semanal) || 0;
+        const valorSemana = mapaCestaPromotorSemana.get(cesta + "|" + promotor) || 0;
+        return {
+          cesta,
+          promotor,
           meta,
           valorSemana,
           percentual: meta > 0 ? Math.round((valorSemana / meta) * 100) : 0
@@ -277,6 +321,7 @@ module.exports = async function handler(req, res) {
       porTipoVisita,
       porPromotor,
       porRevendaSemanaAtual,
+      porCestaSemanaAtual,
       semAtividade,
       semAtividadeRotulo: quinzenaRotulo(quinzenaPedida || chaveHoje)
     });
