@@ -631,10 +631,41 @@
     <!-- METAS SEMANAIS (só Gerente/Desenvolvedor) -->
     <section id="pagMetas" class="pagina oculto">
       <h2 class="titulo-pagina">Metas semanais</h2>
-      <p style="font-size:13px;color:#5b6771;margin:-10px 0 18px;">Defina quanto cada revenda deve vender por semana. O promotor da carteira vê o progresso em Relatórios.</p>
-      <input type="text" id="buscaMetas" placeholder="Buscar revenda...">
-      <div id="msgMetas"></div>
-      <div id="listaPaginaMetas"></div>
+      <p style="font-size:13px;color:#5b6771;margin:-10px 0 18px;">O promotor da carteira vê o progresso em Relatórios.</p>
+
+      <div class="filtro-historico" style="margin-bottom:16px;">
+        <button class="chip-filtro ativo" data-aba-metas="revenda" type="button">Por revenda</button>
+        <button class="chip-filtro" data-aba-metas="cesta" type="button">Cestas de produto</button>
+      </div>
+
+      <div id="abaMetasRevenda">
+        <input type="text" id="buscaMetas" placeholder="Buscar revenda...">
+        <div id="msgMetas"></div>
+        <div id="listaPaginaMetas"></div>
+      </div>
+
+      <div id="abaMetasCesta" class="oculto">
+        <div id="msgCestas"></div>
+
+        <div class="card">
+          <p class="subtitulo" id="tituloFormCesta">Nova cesta de produtos</p>
+          <label for="novaCestaNome">Nome da cesta</label>
+          <input type="text" id="novaCestaNome" placeholder="Ex: Cesta Reprodução">
+          <label for="buscaProdutoCesta">Adicionar produto à cesta</label>
+          <div class="input-combo">
+            <input type="text" id="buscaProdutoCesta" placeholder="Digite para buscar o produto..." autocomplete="off">
+            <div id="sugestoesProdutoCesta" class="sugestoes oculto"></div>
+          </div>
+          <div id="produtosSelecionadosCesta" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;"></div>
+          <div class="btn-linha">
+            <button class="btn btn-secundario oculto" id="btnCancelarEdicaoCesta" type="button">Cancelar</button>
+            <button class="btn" id="btnSalvarCesta" type="button">Salvar cesta</button>
+          </div>
+        </div>
+
+        <h3 class="subtitulo-secao">Cestas cadastradas</h3>
+        <div id="listaCestas"></div>
+      </div>
     </section>
 
     <!-- PERFIL -->
@@ -677,6 +708,8 @@ const CONFIG = {
   URL_UPLOAD_FOTO: "/api/upload-foto",
   URL_RELATORIOS: "/api/relatorios",
   URL_METAS: "/api/metas",
+  URL_CESTAS: "/api/cestas",
+  URL_METAS_CESTA: "/api/metas-cesta",
   API_KEY: "Marcelo9955@"
 };
 
@@ -2014,7 +2047,11 @@ async function carregarRelatorios() {
     }
 
     renderSemAtividade(dados, gestor && !promotorFiltro);
-    renderMetasSemana(dados.porRevendaSemanaAtual || []);
+    const metasCombinadas = [
+      ...(dados.porRevendaSemanaAtual || []).map(r => ({ label: r.revenda, meta: r.meta, valorSemana: r.valorSemana, percentual: r.percentual })),
+      ...(dados.porCestaSemanaAtual || []).map(r => ({ label: "Cesta: " + r.cesta + ((gestor && !promotorFiltro) ? " · " + r.promotor : ""), meta: r.meta, valorSemana: r.valorSemana, percentual: r.percentual }))
+    ];
+    renderMetasSemana(metasCombinadas);
 
     ultimoDadosRelatorios = dados;
     ultimoRankingPromotor = rankingParaExibir;
@@ -2066,7 +2103,7 @@ function renderMetasSemana(lista) {
     return `
       <div style="margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;">
-          <b>${r.revenda}</b>
+          <b>${r.label}</b>
           <span style="color:#5b6771;font-size:12px;">${formatarMoeda(r.valorSemana)} de ${formatarMoeda(r.meta)}</span>
         </div>
         <div style="position:relative;background:#eef1f3;border-radius:999px;height:22px;overflow:hidden;">
@@ -2121,6 +2158,9 @@ function renderizarListaPaginaMetas(termo) {
 }
 
 async function carregarPaginaMetas() {
+  document.querySelectorAll("[data-aba-metas]").forEach(c => c.classList.toggle("ativo", c.getAttribute("data-aba-metas") === "revenda"));
+  document.getElementById("abaMetasRevenda").classList.remove("oculto");
+  document.getElementById("abaMetasCesta").classList.add("oculto");
   limparMsg("msgMetas");
   document.getElementById("buscaMetas").value = "";
   document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
@@ -2209,6 +2249,251 @@ document.getElementById("listaPaginaMetas").addEventListener("click", async (e) 
     mostrarMsg("msgMetas", err.message, "erro");
   } finally {
     btn.disabled = false;
+  }
+});
+
+/* =========================================================================
+   CESTAS DE PRODUTOS (só Gerente/Desenvolvedor cadastra) — dentro da mesma tela de
+   Metas, na aba "Cestas de produto".
+   ========================================================================= */
+document.querySelectorAll("[data-aba-metas]").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.querySelectorAll("[data-aba-metas]").forEach(c => c.classList.toggle("ativo", c === chip));
+    const aba = chip.getAttribute("data-aba-metas");
+    document.getElementById("abaMetasRevenda").classList.toggle("oculto", aba !== "revenda");
+    document.getElementById("abaMetasCesta").classList.toggle("oculto", aba !== "cesta");
+    if (aba === "cesta") carregarAbaCestas();
+  });
+});
+
+let cestaProdutosSelecionados = [];
+let cestaEditandoNome = null; // null = cadastrando nova; string = editando essa cesta
+let cacheCestas = null;
+let cacheMetasCesta = null;
+let cestasCarregadas = false;
+
+async function carregarAbaCestas() {
+  if (todosProdutos.length === 0) await carregarTodosProdutos();
+  if (cestasCarregadas) return;
+  cestasCarregadas = true;
+  await recarregarCestasEMetas();
+}
+
+async function recarregarCestasEMetas() {
+  limparMsg("msgCestas");
+  document.getElementById("listaCestas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const [respCestas, respMetas] = await Promise.all([
+      fetch(CONFIG.URL_CESTAS, { headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" } }),
+      fetch(CONFIG.URL_METAS_CESTA, { headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" } })
+    ]);
+    const dadosCestas = await respCestas.json().catch(() => ({}));
+    const dadosMetas = await respMetas.json().catch(() => ({}));
+    if (!respCestas.ok) throw new Error(dadosCestas.erro || "Não foi possível carregar as cestas.");
+    cacheCestas = dadosCestas.cestas || [];
+    cacheMetasCesta = new Map((dadosMetas.metas || []).map(m => [m.Cesta + "|" + m.Promotor, m.Meta_Semanal]));
+    renderizarListaCestas();
+  } catch (err) {
+    cacheCestas = [];
+    document.getElementById("listaCestas").innerHTML = "";
+    mostrarMsg("msgCestas", err.message, "erro");
+  }
+}
+
+function renderizarListaCestas() {
+  const alvo = document.getElementById("listaCestas");
+  if (!cacheCestas || cacheCestas.length === 0) {
+    alvo.innerHTML = '<div class="carregando-lista">Nenhuma cesta cadastrada ainda.</div>';
+    return;
+  }
+  alvo.innerHTML = cacheCestas.map(c => `
+    <div class="card" data-cesta-cartao="${c.Nome.replace(/"/g, "&quot;")}" style="padding:14px 16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="font-weight:700;font-size:14px;">${c.Nome}</div>
+        <div style="display:flex;gap:6px;flex:0 0 auto;">
+          <button type="button" data-editar-cesta="${c.Nome.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--azul);font-size:12px;font-weight:600;cursor:pointer;">Editar</button>
+          <button type="button" data-excluir-cesta="${c.Nome.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--vermelho);font-size:12px;font-weight:600;cursor:pointer;">Excluir</button>
+        </div>
+      </div>
+      <div style="margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;">
+        ${c.Produtos.map(p => `<span class="unidade-tag">${p}</span>`).join("")}
+      </div>
+      <button type="button" data-ver-metas-cesta="${c.Nome.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--azul);font-size:12px;font-weight:600;padding:6px 0 0;cursor:pointer;">Definir metas por promotor</button>
+      <div class="metas-por-promotor oculto" data-metas-de="${c.Nome.replace(/"/g, "&quot;")}" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cinza-borda);"></div>
+    </div>
+  `).join("");
+}
+
+function renderizarChipsProdutosCesta() {
+  const alvo = document.getElementById("produtosSelecionadosCesta");
+  alvo.innerHTML = cestaProdutosSelecionados.map(p => `
+    <span class="produto-chip" style="margin-bottom:0;display:flex;align-items:center;gap:6px;">
+      ${p}
+      <button type="button" data-remover-produto-cesta="${p.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--verde-escuro);font-weight:700;cursor:pointer;padding:0;">×</button>
+    </span>
+  `).join("");
+}
+
+const buscaProdutoCesta = document.getElementById("buscaProdutoCesta");
+const sugestoesProdutoCesta = document.getElementById("sugestoesProdutoCesta");
+buscaProdutoCesta.addEventListener("input", () => {
+  const termo = buscaProdutoCesta.value.toLowerCase().trim();
+  if (!termo) { sugestoesProdutoCesta.classList.add("oculto"); return; }
+  const encontrados = todosProdutos.filter(p => p.Produto.toLowerCase().includes(termo) && !cestaProdutosSelecionados.includes(p.Produto)).slice(0, 30);
+  sugestoesProdutoCesta.innerHTML = encontrados.length === 0
+    ? '<div class="sugestao-vazia">Nenhum produto encontrado.</div>'
+    : encontrados.map(p => `<div class="sugestao-item" data-produto-cesta="${p.Produto.replace(/"/g, "&quot;")}"><span>${p.Produto}</span></div>`).join("");
+  sugestoesProdutoCesta.classList.remove("oculto");
+});
+sugestoesProdutoCesta.addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-produto-cesta]");
+  if (!item) return;
+  const produto = item.getAttribute("data-produto-cesta");
+  cestaProdutosSelecionados.push(produto);
+  buscaProdutoCesta.value = "";
+  sugestoesProdutoCesta.classList.add("oculto");
+  renderizarChipsProdutosCesta();
+});
+document.getElementById("produtosSelecionadosCesta").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-remover-produto-cesta]");
+  if (!btn) return;
+  const produto = btn.getAttribute("data-remover-produto-cesta");
+  cestaProdutosSelecionados = cestaProdutosSelecionados.filter(p => p !== produto);
+  renderizarChipsProdutosCesta();
+});
+
+function resetarFormularioCesta() {
+  cestaEditandoNome = null;
+  cestaProdutosSelecionados = [];
+  document.getElementById("novaCestaNome").value = "";
+  document.getElementById("tituloFormCesta").textContent = "Nova cesta de produtos";
+  document.getElementById("btnCancelarEdicaoCesta").classList.add("oculto");
+  renderizarChipsProdutosCesta();
+}
+
+document.getElementById("btnCancelarEdicaoCesta").addEventListener("click", resetarFormularioCesta);
+
+document.getElementById("btnSalvarCesta").addEventListener("click", async () => {
+  limparMsg("msgCestas");
+  const nome = document.getElementById("novaCestaNome").value.trim();
+  if (!nome) { mostrarMsg("msgCestas", "Dê um nome pra cesta.", "erro"); return; }
+  if (cestaProdutosSelecionados.length === 0) { mostrarMsg("msgCestas", "Adicione ao menos um produto à cesta.", "erro"); return; }
+
+  const btn = document.getElementById("btnSalvarCesta");
+  btn.disabled = true;
+  btn.textContent = "Salvando...";
+  try {
+    const resp = await fetch(CONFIG.URL_CESTAS, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" },
+      body: JSON.stringify({ Nome: nome, Produtos: cestaProdutosSelecionados })
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar a cesta.") + (dados.detalhe ? " — " + dados.detalhe : ""));
+    mostrarMsg("msgCestas", "Cesta \"" + nome + "\" salva ✓", "sucesso");
+    resetarFormularioCesta();
+    await recarregarCestasEMetas();
+  } catch (err) {
+    mostrarMsg("msgCestas", err.message, "erro");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Salvar cesta";
+  }
+});
+
+document.getElementById("listaCestas").addEventListener("click", async (e) => {
+  const btnEditar = e.target.closest("[data-editar-cesta]");
+  if (btnEditar) {
+    const nome = btnEditar.getAttribute("data-editar-cesta");
+    const cesta = cacheCestas.find(c => c.Nome === nome);
+    if (!cesta) return;
+    cestaEditandoNome = nome;
+    cestaProdutosSelecionados = [...cesta.Produtos];
+    document.getElementById("novaCestaNome").value = nome;
+    document.getElementById("tituloFormCesta").textContent = "Editando \"" + nome + "\"";
+    document.getElementById("btnCancelarEdicaoCesta").classList.remove("oculto");
+    renderizarChipsProdutosCesta();
+    document.getElementById("novaCestaNome").scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  const btnExcluir = e.target.closest("[data-excluir-cesta]");
+  if (btnExcluir) {
+    const nome = btnExcluir.getAttribute("data-excluir-cesta");
+    if (!confirm("Excluir a cesta \"" + nome + "\"? As metas cadastradas pra ela também são apagadas.")) return;
+    try {
+      const resp = await fetch(`${CONFIG.URL_CESTAS}?nome=${encodeURIComponent(nome)}`, {
+        method: "DELETE",
+        headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(dados.erro || "Não foi possível excluir a cesta.");
+      if (cestaEditandoNome === nome) resetarFormularioCesta();
+      await recarregarCestasEMetas();
+    } catch (err) {
+      mostrarMsg("msgCestas", err.message, "erro");
+    }
+    return;
+  }
+
+  const btnVerMetas = e.target.closest("[data-ver-metas-cesta]");
+  if (btnVerMetas) {
+    const cesta = btnVerMetas.getAttribute("data-ver-metas-cesta");
+    const alvo = document.querySelector(`[data-metas-de="${CSS.escape(cesta)}"]`);
+    const abrindo = alvo.classList.contains("oculto");
+    if (!abrindo) {
+      alvo.classList.add("oculto");
+      btnVerMetas.textContent = "Definir metas por promotor";
+      return;
+    }
+    const nomesPromotores = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    alvo.innerHTML = nomesPromotores.map(promotor => {
+      const metaAtual = cacheMetasCesta.get(cesta + "|" + promotor) || "";
+      const idSeguro = "metacesta-" + (cesta + promotor).replace(/[^a-zA-Z0-9]/g, "");
+      return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="flex:1;font-size:13px;">${promotor}</span>
+          <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual}" id="${idSeguro}" style="margin:0;width:110px;">
+          <button type="button" data-salvar-meta-cesta="${cesta.replace(/"/g, "&quot;")}" data-promotor-meta-cesta="${promotor.replace(/"/g, "&quot;")}" data-input-meta-cesta="${idSeguro}"
+            style="flex:0 0 auto;width:36px;height:36px;border-radius:8px;border:none;background:var(--azul);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
+      `;
+    }).join("");
+    alvo.classList.remove("oculto");
+    btnVerMetas.textContent = "Esconder metas por promotor";
+    return;
+  }
+
+  const btnSalvarMetaCesta = e.target.closest("[data-salvar-meta-cesta]");
+  if (btnSalvarMetaCesta) {
+    const cesta = btnSalvarMetaCesta.getAttribute("data-salvar-meta-cesta");
+    const promotor = btnSalvarMetaCesta.getAttribute("data-promotor-meta-cesta");
+    const input = document.getElementById(btnSalvarMetaCesta.getAttribute("data-input-meta-cesta"));
+    const meta = Number(input.value);
+    if (Number.isNaN(meta) || meta < 0) {
+      mostrarMsg("msgCestas", "Informe uma meta válida para " + promotor + ".", "erro");
+      return;
+    }
+    btnSalvarMetaCesta.disabled = true;
+    try {
+      const resp = await fetch(CONFIG.URL_METAS_CESTA, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" },
+        body: JSON.stringify({ Cesta: cesta, Promotor: promotor, Meta_Semanal: meta })
+      });
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar a meta.") + (dados.detalhe ? " — " + dados.detalhe : ""));
+      cacheMetasCesta.set(cesta + "|" + promotor, meta);
+      const linha = btnSalvarMetaCesta.closest("div");
+      linha.style.background = "#eaf6ec";
+      setTimeout(() => { linha.style.background = ""; }, 900);
+    } catch (err) {
+      mostrarMsg("msgCestas", err.message, "erro");
+    } finally {
+      btnSalvarMetaCesta.disabled = false;
+    }
   }
 });
 
