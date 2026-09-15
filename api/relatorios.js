@@ -16,6 +16,10 @@
 //                                     "porQuinzena" (gráfico) e "todasQuinzenas" (dropdown)
 //                                     sempre trazem TODOS os períodos, independente disso.
 //
+// Também devolve "porRevendaSemanaAtual": progresso da SEMANA ATUAL (não do período
+// escolhido no filtro) em relação à meta semanal cadastrada em api/metas.js, por revenda
+// — só entram revendas com meta cadastrada.
+//
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
 
@@ -60,10 +64,12 @@ module.exports = async function handler(req, res) {
   try {
     const supabase = obterSupabase();
 
-    const [linhasLancamentos, linhasVisitas] = await Promise.all([
+    const [linhasLancamentos, linhasVisitas, linhasMetas] = await Promise.all([
       buscarTodasLinhas(supabase, "lancamentos", "nome_promotor,revenda,propriedade,valor_total,dia_lancamento", null),
-      buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null)
+      buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null),
+      supabase.from("metas_revenda").select("revenda, meta_semanal").then(r => r.data || []).catch(() => [])
     ]);
+    const mapaMetas = new Map(linhasMetas.map(m => [String(m.revenda || "").trim().toLowerCase(), Number(m.meta_semanal) || 0]));
 
     // Lancamentos (Supabase)
     let pedidos = linhasLancamentos.map(l => ({
@@ -122,6 +128,34 @@ module.exports = async function handler(req, res) {
     const chaveHoje = quinzenaChave(new Date().toISOString().slice(0, 10));
     const idxHoje = todasQuinzenasOrdenadas.findIndex(q => q.chave === chaveHoje);
     const quinzenaAtualDados = idxHoje >= 0 ? todasQuinzenasOrdenadas[idxHoje] : { valorPedidos: 0, totalPedidos: 0, totalVisitas: 0 };
+
+    // Metas semanais por revenda — sempre olha pra semana ATUAL (independente do filtro de
+    // período escolhido em Relatórios), dentro do escopo já filtrado (promotor, se houver).
+    // Só entra na lista revenda que tenha meta cadastrada (> 0); sem meta, não tem o que
+    // mostrar de progresso.
+    const pedidosSemanaAtual = pedidos.filter(p => quinzenaChave(p.data) === chaveHoje);
+    const mapaRevendaSemana = new Map();
+    pedidosSemanaAtual.forEach(p => {
+      if (!p.revenda) return;
+      mapaRevendaSemana.set(p.revenda, (mapaRevendaSemana.get(p.revenda) || 0) + p.valor);
+    });
+    const porRevendaSemanaAtual = [...mapaMetas.entries()]
+      .filter(([revendaMin, meta]) => meta > 0)
+      .map(([revendaMin, meta]) => {
+        // Recupera o nome "bonito" da revenda (com acentuação/maiúsculas originais) a partir
+        // dos próprios lançamentos, já que a meta guarda em minúsculo pra comparar.
+        const nomeOriginal = [...mapaRevendaSemana.keys()].find(r => r.toLowerCase() === revendaMin)
+          || [...new Set(pedidos.map(p => p.revenda))].find(r => r.toLowerCase() === revendaMin)
+          || revendaMin;
+        const valorSemana = mapaRevendaSemana.get(nomeOriginal) || 0;
+        return {
+          revenda: nomeOriginal,
+          meta,
+          valorSemana,
+          percentual: meta > 0 ? Math.round((valorSemana / meta) * 100) : 0
+        };
+      })
+      .sort((a, b) => a.percentual - b.percentual);
 
     // Período escolhido na tela de Relatórios: se "?quinzena=" não vier, o relatório
     // considera TODO o histórico (não obriga escolher uma quinzena para ver algo).
@@ -242,6 +276,7 @@ module.exports = async function handler(req, res) {
       porRevenda,
       porTipoVisita,
       porPromotor,
+      porRevendaSemanaAtual,
       semAtividade,
       semAtividadeRotulo: quinzenaRotulo(quinzenaPedida || chaveHoje)
     });
