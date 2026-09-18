@@ -200,6 +200,12 @@
   .grid-numeros .campo-numero{margin-bottom:2px;}
   .campo-numero input[type=number]{margin-bottom:14px;}
 </style>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#3d8b28">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/icone-192.png">
 </head>
 <body>
 
@@ -3260,6 +3266,18 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
   }
 });
+
+/* =========================================================================
+   OFFLINE (service worker) — registro. Não altera nenhum comportamento do app;
+   só permite que ele abra sem internet. Ver sw.js.
+   ========================================================================= */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("Service worker não registrado:", err);
+    });
+  });
+}
 
 </script>
 </body>
