@@ -18,7 +18,13 @@
 //
 // Colunas da tabela "lancamentos" no Supabase: nome_promotor, revenda, propriedade,
 // produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
-// observacao_visita, proxima_visita.
+// observacao_visita, proxima_visita, id_envio.
+//
+// id_envio: identificador único gerado pelo CELULAR (um por linha), usado só pela fila
+// offline. Se a resposta se perder no caminho e o app reenviar, o índice único do banco
+// recusa o lote inteiro e esta função devolve 200 com duplicado:true — o registro não é
+// gravado duas vezes e o app pode tirar o item da fila com segurança. Registros antigos
+// e envios feitos com internet ficam com id_envio nulo, que o índice ignora.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -42,7 +48,8 @@ function paraObjeto(l) {
     Dia_Lancamento: l.dia_lancamento || "",
     Quinzena: l.quinzena || "",
     Observacao_Visita: l.observacao_visita || "",
-    Proxima_Visita: l.proxima_visita || ""
+    Proxima_Visita: l.proxima_visita || "",
+    Id_Envio: l.id_envio || ""
   };
 }
 
@@ -173,10 +180,18 @@ module.exports = async function handler(req, res) {
       dia_lancamento: r.Dia_Lancamento,
       quinzena: r.Quinzena,
       observacao_visita: String(r.Observacao_Visita || "").trim(),
-      proxima_visita: String(r.Proxima_Visita || "").trim()
+      proxima_visita: String(r.Proxima_Visita || "").trim(),
+      id_envio: r.Id_Envio ? String(r.Id_Envio).trim() : null
     }));
 
     const { error: erroInsert } = await supabase.from("lancamentos").insert(linhasNovas);
+    // 23505 = violação de índice único. Com id_envio preenchido, isso só acontece quando
+    // este mesmo lote já foi gravado antes — ou seja, o reenvio de algo que deu certo.
+    // Responder "ok" é o correto: o dado está no banco e o app pode limpar a fila.
+    if (erroInsert && erroInsert.code === "23505") {
+      res.status(200).json({ status: "ok", duplicado: true, inseridos: 0 });
+      return;
+    }
     if (erroInsert) throw erroInsert;
 
     // Se alguma nota de "próxima visita" foi preenchida, salva na própria fazenda como

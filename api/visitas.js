@@ -17,7 +17,11 @@
 // Ambos os GET exigem Authorization: Bearer <token do login>
 //
 // Colunas da tabela "visitas" no Supabase: nome_promotor, propriedade, tipo_visita,
-// observacao, foto_url, latitude, longitude, dia_visita, quinzena.
+// observacao, foto_url, latitude, longitude, dia_visita, quinzena, id_envio.
+//
+// id_envio: identificador único gerado pelo CELULAR, usado só pela fila offline. Num
+// reenvio de algo que já foi gravado, o índice único recusa e esta função devolve 200
+// com duplicado:true, para o app limpar a fila sem duplicar a visita.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -36,7 +40,8 @@ function paraObjeto(l) {
     Observacao: l.observacao || "",
     Foto_URL: l.foto_url || "",
     Dia_Visita: l.dia_visita || "",
-    Quinzena: l.quinzena || ""
+    Quinzena: l.quinzena || "",
+    Id_Envio: l.id_envio || ""
   };
 }
 
@@ -144,10 +149,15 @@ module.exports = async function handler(req, res) {
       latitude: visita.Latitude === undefined || visita.Latitude === null || visita.Latitude === "" ? null : Number(visita.Latitude),
       longitude: visita.Longitude === undefined || visita.Longitude === null || visita.Longitude === "" ? null : Number(visita.Longitude),
       dia_visita: visita.Dia_Visita,
-      quinzena: visita.Quinzena
+      quinzena: visita.Quinzena,
+      id_envio: visita.Id_Envio ? String(visita.Id_Envio).trim() : null
     };
 
     const { error: erroInsert } = await supabase.from("visitas").insert(linhaNova);
+    if (erroInsert && erroInsert.code === "23505") {
+      res.status(200).json({ status: "ok", duplicado: true });
+      return;
+    }
     if (erroInsert) throw erroInsert;
 
     res.status(200).json({ status: "ok" });
