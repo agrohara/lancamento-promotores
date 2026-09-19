@@ -24,7 +24,7 @@
  * apaga os caches anteriores e assume no próximo carregamento.
  */
 
-const VERSAO_CACHE = "agrohara-v1";
+const VERSAO_CACHE = "agrohara-v2";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 
@@ -126,7 +126,17 @@ self.addEventListener("fetch", (evento) => {
   if (req.mode === "navigate") {
     evento.respondWith((async () => {
       try {
-        return await fetch(req);
+        const resp = await fetch(req);
+        // Toda abertura com internet REGRAVA a cópia offline. Sem isto, a cópia
+        // guardada congela na versão do dia da instalação: online o promotor veria
+        // o app novo e offline o antigo, silenciosamente. Foi o que aconteceu entre
+        // a fase 1 e a fase 2.
+        if (resp && resp.ok) {
+          const cache = await caches.open(CACHE_APP);
+          cache.put("/index.html", resp.clone());
+          cache.put("/", resp.clone());
+        }
+        return resp;
       } catch (err) {
         const cache = await caches.open(CACHE_APP);
         return (await cache.match("/index.html")) || (await cache.match("/")) || Response.error();
