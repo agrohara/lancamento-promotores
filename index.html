@@ -893,6 +893,9 @@ function iniciarApp() {
   document.getElementById("acaoMetas").classList.toggle("oculto", !ehGestor());
   mostrarPagina("inicio");
   carregarDashboard();
+  aquecerDadosOffline();
+  atualizarSeloFila();
+  sincronizarFila(false);
 }
 
 (function iniciarSeJaLogado() {
@@ -1222,16 +1225,21 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY },
-      body: JSON.stringify(corpo)
+    const envio = await enviarOuEnfileirar({
+      rotulo: "Cadastro da fazenda " + corpo.Propriedade,
+      url: CONFIG.URL_PROPRIEDADES,
+      metodo: "POST",
+      corpo,
+      erroPadrao: "Não foi possível cadastrar a fazenda."
     });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível cadastrar a fazenda.");
+    if (!envio.ok) throw new Error(envio.erro);
+    if (envio.enfileirado) {
+      registrarFazendaLocal(corpo);
+      mostrarMsg("msgCadastroPropriedade", "Sem conexão: fazenda salva neste aparelho e será enviada quando houver internet.", "info");
+    }
 
     if (origemCadastroFazenda === "registro") {
-      await carregarTodasPropriedades();
+      if (!envio.enfileirado) await carregarTodasPropriedades();
       irParaCorpoRegistro(corpo.Propriedade);
     } else {
       mostrarPagina("fazendas");
@@ -1345,14 +1353,17 @@ document.getElementById("btnCapturarLocalizacaoRegistro").addEventListener("clic
     const lon = pos.coords.longitude;
     status.textContent = "Salvando...";
     try {
-      const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
-        method: "PATCH",
-        headers: { "x-api-key": CONFIG.API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ Propriedade: nome, Latitude: lat, Longitude: lon })
+      const envio = await enviarOuEnfileirar({
+        rotulo: "Localização da fazenda " + nome,
+        url: CONFIG.URL_PROPRIEDADES,
+        metodo: "PATCH",
+        corpo: { Propriedade: nome, Latitude: lat, Longitude: lon },
+        erroPadrao: "Não foi possível salvar a localização."
       });
-      const dados = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a localização.");
-      status.textContent = "Localização salva nessa fazenda ✓";
+      if (!envio.ok) throw new Error(envio.erro);
+      status.textContent = envio.enfileirado
+        ? "Sem conexão: localização guardada e será enviada quando houver internet ✓"
+        : "Localização salva nessa fazenda ✓";
       document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
     } catch (err) {
       status.textContent = err.message;
@@ -1446,19 +1457,19 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
       Quinzena: quinzenaAtual
     };
 
-    const resp = await fetch(CONFIG.URL_VISITAS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": CONFIG.API_KEY,
-        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
-      },
-      body: JSON.stringify(corpo)
+    corpo.Id_Envio = novoIdEnvio();
+    const envio = await enviarOuEnfileirar({
+      rotulo: "Visita em " + propriedadeAtual,
+      url: CONFIG.URL_VISITAS,
+      metodo: "POST",
+      corpo,
+      erroPadrao: "Não foi possível enviar a visita."
     });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar a visita.");
+    if (!envio.ok) throw new Error(envio.erro);
 
-    mostrarMsg("msgVisita", "Visita registrada com sucesso!", "sucesso");
+    mostrarMsg("msgVisita", envio.enfileirado
+      ? "Sem conexão: visita salva neste aparelho e será enviada quando houver internet."
+      : "Visita registrada com sucesso!", envio.enfileirado ? "info" : "sucesso");
     document.getElementById("inputObservacaoVisita").value = "";
     document.getElementById("selectTipoVisita").value = "";
   } catch (err) {
@@ -1657,24 +1668,28 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    const resp = await fetch(CONFIG.URL_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": CONFIG.API_KEY,
-        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
-      },
-      body: JSON.stringify({ lancamentos })
+    // Um Id_Envio POR LINHA: o índice único no banco é por linha, então o pedido
+    // inteiro não pode compartilhar o mesmo identificador. Gerados aqui e guardados
+    // junto na fila — num reenvio são exatamente os mesmos, e o banco recusa o
+    // lote todo, o que é tratado como "já recebido".
+    const lancamentosComId = lancamentos.map(l => ({ ...l, Id_Envio: novoIdEnvio() }));
+    const envio = await enviarOuEnfileirar({
+      rotulo: "Pedido em " + propriedadeAtual,
+      url: CONFIG.URL_API,
+      metodo: "POST",
+      corpo: { lancamentos: lancamentosComId },
+      erroPadrao: "Não foi possível enviar o pedido."
     });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar o pedido.");
+    if (!envio.ok) throw new Error(envio.erro);
 
     carrinho = [];
     atualizarCarrinho();
     document.getElementById("inputObservacaoPedido").value = "";
     document.getElementById("inputProximaVisitaPedido").value = "";
     document.getElementById("avisoProximoAssunto").classList.add("oculto");
-    mostrarMsg("msgPedido", "Pedido enviado com sucesso!", "sucesso");
+    mostrarMsg("msgPedido", envio.enfileirado
+      ? "Sem conexão: pedido salvo neste aparelho e será enviado quando houver internet."
+      : "Pedido enviado com sucesso!", envio.enfileirado ? "info" : "sucesso");
   } catch (err) {
     mostrarMsg("msgPedido", err.message, "erro");
   } finally {
@@ -3266,6 +3281,219 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
   }
 });
+
+/* =========================================================================
+   FILA DE ENVIO OFFLINE
+   -------------------------------------------------------------------------
+   Quando o promotor está sem sinal, pedido, visita, cadastro de fazenda e
+   localização não são perdidos: ficam guardados no próprio aparelho
+   (IndexedDB) e sobem sozinhos assim que a conexão volta.
+
+   COM INTERNET NADA MUDA: enviarOuEnfileirar() tenta a rede primeiro e, se der
+   certo, o comportamento é exatamente o de antes. A fila só entra em cena
+   quando o envio falha por falta de rede.
+
+   Falha de REDE (sem sinal) => enfileira.
+   Falha de REGRA (400, 403, 409...) => erro na tela, como sempre foi. Não
+   adianta reenviar um pedido que o servidor recusou por dado inválido.
+
+   Contra duplicata: cada pedido/visita leva um "Id_Envio" (UUID gerado aqui).
+   Se a resposta se perder no caminho e a fila reenviar, o banco recusa o
+   segundo pelo índice único de id_envio, e o app trata isso como sucesso.
+   ========================================================================= */
+
+const FILA_BANCO = "agrohara-offline";
+const FILA_STORE = "fila";
+
+function abrirBancoFila() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FILA_BANCO, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(FILA_STORE)) {
+        db.createObjectStore(FILA_STORE, { keyPath: "id", autoIncrement: true });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function operacaoFila(modo, executar) {
+  return abrirBancoFila().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(FILA_STORE, modo);
+    const pedido = executar(tx.objectStore(FILA_STORE));
+    tx.oncomplete = () => resolve(pedido && pedido.result);
+    tx.onerror = () => reject(tx.error);
+  }));
+}
+
+const filaGuardar = (item) => operacaoFila("readwrite", s => s.add(item));
+const filaListar  = ()     => operacaoFila("readonly",  s => s.getAll());
+const filaRemover = (id)   => operacaoFila("readwrite", s => s.delete(id));
+
+/* ---------- Selo "X aguardando envio" ---------- */
+function seloFila() {
+  let el = document.getElementById("seloFilaOffline");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "seloFilaOffline";
+    el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:45;" +
+      "background:#7a5c10;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;" +
+      "box-shadow:0 2px 8px rgba(0,0,0,.25);display:none;cursor:pointer;";
+    el.addEventListener("click", () => sincronizarFila(true));
+    document.body.appendChild(el);
+  }
+  return el;
+}
+
+async function atualizarSeloFila() {
+  try {
+    const itens = await filaListar();
+    const el = seloFila();
+    if (!itens || itens.length === 0) {
+      el.style.display = "none";
+      return 0;
+    }
+    el.textContent = itens.length === 1
+      ? "1 registro aguardando envio"
+      : itens.length + " registros aguardando envio";
+    el.style.display = "block";
+    return itens.length;
+  } catch (err) {
+    return 0;
+  }
+}
+
+/* ---------- Envio ---------- */
+function novoIdEnvio() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  // Reserva para navegador antigo sem crypto.randomUUID.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+  });
+}
+
+function cabecalhosEnvio() {
+  return {
+    "Content-Type": "application/json",
+    "x-api-key": CONFIG.API_KEY,
+    "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+  };
+}
+
+// Devolve { ok, enfileirado, dados, erro }.
+async function enviarOuEnfileirar({ rotulo, url, metodo, corpo, erroPadrao }) {
+  const metodoFinal = metodo || "POST";
+  try {
+    const resp = await fetch(url, {
+      method: metodoFinal,
+      headers: cabecalhosEnvio(),
+      body: JSON.stringify(corpo)
+    });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      return { ok: false, erro: (dados && dados.erro) || erroPadrao || "Não foi possível enviar." };
+    }
+    return { ok: true, enfileirado: false, dados };
+  } catch (err) {
+    // fetch() só lança quando a requisição não chegou ao servidor: sem sinal,
+    // DNS, timeout. Erro de regra vem como resposta e é tratado acima.
+    await filaGuardar({ rotulo, url, metodo: metodoFinal, corpo, criadoEm: new Date().toISOString() });
+    await atualizarSeloFila();
+    return { ok: true, enfileirado: true, dados: {} };
+  }
+}
+
+/* ---------- Sincronização ---------- */
+let sincronizando = false;
+
+async function sincronizarFila(avisar) {
+  if (sincronizando) return;
+  if (!navigator.onLine) {
+    if (avisar) alert("Ainda sem conexão. Os registros continuam guardados neste aparelho.");
+    return;
+  }
+  sincronizando = true;
+  let enviados = 0;
+  let recusados = 0;
+  try {
+    const itens = await filaListar();
+    for (const item of itens) {
+      let resp;
+      try {
+        resp = await fetch(item.url, {
+          method: item.metodo,
+          headers: cabecalhosEnvio(),
+          body: JSON.stringify(item.corpo)
+        });
+      } catch (err) {
+        break; // Caiu a rede de novo: para aqui e tenta tudo mais tarde.
+      }
+
+      if (resp.ok) {
+        await filaRemover(item.id);
+        enviados++;
+        continue;
+      }
+
+      const dados = await resp.json().catch(() => ({}));
+
+      // 409 no cadastro de fazenda = alguém já cadastrou esse nome enquanto o
+      // promotor estava sem sinal. O registro é descartado e os lançamentos
+      // ficam vinculados à fazenda que já existe, com o mesmo nome.
+      if (resp.status === 409) {
+        await filaRemover(item.id);
+        enviados++;
+        continue;
+      }
+
+      // Regra recusou o registro (dado inválido). Reenviar não resolveria.
+      if (resp.status >= 400 && resp.status < 500) {
+        await filaRemover(item.id);
+        recusados++;
+        console.warn("[fila] registro recusado pelo servidor:", item.rotulo, dados);
+        continue;
+      }
+
+      break; // 5xx: problema no servidor, tenta de novo depois.
+    }
+  } finally {
+    sincronizando = false;
+    const restantes = await atualizarSeloFila();
+    if (enviados > 0 || recusados > 0) {
+      let msg = enviados > 0 ? enviados + " registro(s) enviado(s) com sucesso." : "";
+      if (recusados > 0) msg += (msg ? " " : "") + recusados + " registro(s) foram recusados pelo servidor e descartados.";
+      if (restantes > 0) msg += " " + restantes + " ainda na fila.";
+      alert(msg);
+      if (typeof carregarDashboard === "function") carregarDashboard();
+    } else if (avisar) {
+      alert(restantes > 0 ? "Não foi possível enviar agora. Vamos tentar de novo." : "Nada pendente para enviar.");
+    }
+  }
+}
+
+window.addEventListener("online", () => sincronizarFila(false));
+
+// Fazenda cadastrada sem sinal: passa a existir para este aparelho, para o
+// promotor conseguir lançar nela agora mesmo.
+function registrarFazendaLocal(corpo) {
+  const nome = String(corpo.Propriedade || "").trim();
+  if (nome && !todasPropriedades.includes(nome)) {
+    todasPropriedades.push(nome);
+    todasPropriedades.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }
+}
+
+// Aquecimento: assim que o app abre com internet, já traz catálogo e fazendas
+// para o cache, sem esperar o promotor abrir essas telas. Sem isso, quem perde
+// o sinal antes de entrar no Catálogo o encontraria vazio.
+async function aquecerDadosOffline() {
+  if (!navigator.onLine) return;
+  try { await carregarTodasPropriedades(); } catch (err) {}
+  try { await carregarTodosProdutos(); } catch (err) {}
+}
 
 /* =========================================================================
    OFFLINE (service worker) — registro. Não altera nenhum comportamento do app;
