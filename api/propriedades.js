@@ -1,13 +1,18 @@
 // Vercel Serverless Function — lê e cria registros na tabela "propriedades" no Supabase
 // (Postgres). Primeira tabela migrada do SharePoint/Excel para o banco de verdade — as
 // demais (Lancamentos, Visitas, Usuarios, Produtos) continuam no SharePoint por enquanto,
-// migração acontece aos poucos. O catálogo de propriedades é GLOBAL (uma fazenda não
-// pertence a uma única revenda — pode ser atendida por revendas diferentes da carteira
-// de cada promotor).
+// migração acontece aos poucos.
 //
-// GET   /api/propriedades              -> lista os nomes de todas as propriedades cadastradas
-// GET   /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade
-// GET   /api/propriedades?completo=1   -> devolve os dados completos de TODAS (usado na exportação)
+// VISIBILIDADE (alterado em 21/09/2026): o catálogo de propriedades NÃO é mais global.
+// Cada Promotor só vê (lista, detalhe e exportação completa) as fazendas que ele mesmo
+// cadastrou (campo "cadastrada_por"). Gerente/Desenvolvedor continua vendo todas. Antes
+// disso o GET não exigia identidade nenhuma — só a x-api-key — e por isso um promotor via
+// fazendas cadastradas por outro. Agora o GET passa a exigir também
+// Authorization: Bearer <token>, igual aos outros endpoints protegidos.
+//
+// GET   /api/propriedades              -> lista os nomes das propriedades visíveis pro usuário logado
+// GET   /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade (só se visível pro usuário)
+// GET   /api/propriedades?completo=1   -> devolve os dados completos de TODAS as visíveis (usado na exportação)
 // POST  /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
 // PATCH /api/propriedades              -> atualiza só a latitude/longitude de uma propriedade
 //                                         já cadastrada, pelo nome (Propriedade). Usado quando o
@@ -25,9 +30,13 @@
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (chave
 // secreta — nunca a "anon"/"publishable" — pois esta função grava dados e ignora RLS de
-// propósito), API_KEY (mesma chave compartilhada com o front-end de sempre).
+// propósito), API_KEY (mesma chave compartilhada com o front-end de sempre), AUTH_SECRET
+// (necessária agora pro GET verificar o token do usuário).
 
+const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
+
+const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
 function paraObjeto(l) {
   return {
@@ -92,6 +101,13 @@ module.exports = async function handler(req, res) {
   const supabase = obterSupabase();
 
   if (req.method === "GET") {
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+
     try {
       const nomeBuscado = String((req.query && req.query.nome) || "").trim();
       if (nomeBuscado) {
@@ -102,7 +118,7 @@ module.exports = async function handler(req, res) {
           .limit(1)
           .maybeSingle();
         if (error) throw error;
-        if (!data) {
+        if (!data || (!ehGestor && String(data.cadastrada_por || "").toLowerCase() !== usuario.nome.toLowerCase())) {
           res.status(404).json({ erro: "Propriedade não encontrada." });
           return;
         }
@@ -112,12 +128,18 @@ module.exports = async function handler(req, res) {
 
       if (req.query && req.query.completo) {
         const data = await buscarTodasLinhas(supabase, "propriedades", "*", "propriedade");
-        res.status(200).json({ propriedades: data.map(paraObjeto) });
+        const visiveis = ehGestor
+          ? data
+          : data.filter(l => String(l.cadastrada_por || "").toLowerCase() === usuario.nome.toLowerCase());
+        res.status(200).json({ propriedades: visiveis.map(paraObjeto) });
         return;
       }
 
-      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade", "propriedade");
-      res.status(200).json({ propriedades: data.map(l => l.propriedade).filter(Boolean) });
+      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade, cadastrada_por", "propriedade");
+      const visiveis = ehGestor
+        ? data
+        : data.filter(l => String(l.cadastrada_por || "").toLowerCase() === usuario.nome.toLowerCase());
+      res.status(200).json({ propriedades: visiveis.map(l => l.propriedade).filter(Boolean) });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler propriedades no banco.", detalhe: String(err.message || err) });
     }

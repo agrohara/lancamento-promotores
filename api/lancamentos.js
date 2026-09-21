@@ -5,11 +5,22 @@
 // As propriedades já são cadastradas antes, com dados completos, pelo assistente de
 // cadastro (ver api/propriedades.js). Esta função só grava a transação de venda.
 //
+// PEDIDO BALCÃO (alterado em 21/09/2026): Propriedade deixou de ser obrigatória. Um
+// pedido pode ser vinculado só à revenda, sem fazenda — usado quando a venda acontece no
+// balcão, não numa visita a campo. Nesse caso o front-end manda Propriedade = "" e a
+// exigência de Observacao_Visita também é dispensada (não existe "o que foi tratado na
+// visita" quando não houve visita). Pedido vinculado a uma fazenda continua exigindo a
+// observação, como sempre. Não foi preciso mudar nada no schema: propriedade vazia já é
+// tratada corretamente pelos agregados de api/relatorios.js (entradas sem propriedade são
+// ignoradas em porFazenda/totalFazendas, mas continuam contando em totalPedidos/valorPedidos
+// e em porRevenda).
+//
 // Cada pedido agora exige que o promotor descreva o que foi tratado na visita
-// (Observacao_Visita, obrigatório) e permite deixar uma nota opcional do que tratar na
-// próxima visita (Proxima_Visita). Essa nota, quando preenchida, também é salva na
-// própria fazenda (coluna "proximo_assunto" em "propriedades") para aparecer como
-// lembrete da próxima vez que alguém abrir essa fazenda pra lançar um pedido/visita.
+// (Observacao_Visita, obrigatório quando há fazenda) e permite deixar uma nota opcional do
+// que tratar na próxima visita (Proxima_Visita). Essa nota, quando preenchida, também é
+// salva na própria fazenda (coluna "proximo_assunto" em "propriedades") para aparecer como
+// lembrete da próxima vez que alguém abrir essa fazenda pra lançar um pedido/visita — só se
+// aplica a pedido vinculado a fazenda, é ignorada no pedido balcão.
 //
 // GET também aceita, combináveis: ?propriedade=X (busca parcial no nome da fazenda),
 // ?revenda=X (busca parcial no nome da revenda), ?quinzena=AAAA-MM-N (só lançamentos
@@ -18,13 +29,7 @@
 //
 // Colunas da tabela "lancamentos" no Supabase: nome_promotor, revenda, propriedade,
 // produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
-// observacao_visita, proxima_visita, id_envio.
-//
-// id_envio: identificador único gerado pelo CELULAR (um por linha), usado só pela fila
-// offline. Se a resposta se perder no caminho e o app reenviar, o índice único do banco
-// recusa o lote inteiro e esta função devolve 200 com duplicado:true — o registro não é
-// gravado duas vezes e o app pode tirar o item da fila com segurança. Registros antigos
-// e envios feitos com internet ficam com id_envio nulo, que o índice ignora.
+// observacao_visita, proxima_visita.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -48,17 +53,20 @@ function paraObjeto(l) {
     Dia_Lancamento: l.dia_lancamento || "",
     Quinzena: l.quinzena || "",
     Observacao_Visita: l.observacao_visita || "",
-    Proxima_Visita: l.proxima_visita || "",
-    Id_Envio: l.id_envio || ""
+    Proxima_Visita: l.proxima_visita || ""
   };
 }
 
 function validarRegistro(r) {
   if (!r || typeof r !== "object") return false;
-  if (!r.Nome_Promotor || !r.Revenda || !r.Propriedade || !r.Produto || !r.Dia_Lancamento || !r.Quinzena) return false;
+  if (!r.Nome_Promotor || !r.Revenda || !r.Produto || !r.Dia_Lancamento || !r.Quinzena) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(r.Dia_Lancamento))) return false;
-  // O promotor precisa sempre descrever o que foi tratado na visita, mesmo lançando pedido.
-  if (!r.Observacao_Visita || !String(r.Observacao_Visita).trim()) return false;
+
+  // O promotor precisa descrever o que foi tratado na visita SE o pedido estiver
+  // vinculado a uma fazenda. Pedido balcão (sem Propriedade) não passa por essa exigência,
+  // porque não houve visita nenhuma associada.
+  const temFazenda = !!(r.Propriedade && String(r.Propriedade).trim());
+  if (temFazenda && (!r.Observacao_Visita || !String(r.Observacao_Visita).trim())) return false;
 
   const preco = Number(r.Preco_Unitario);
   const volume = Number(r.Volume);
@@ -161,7 +169,7 @@ module.exports = async function handler(req, res) {
   const invalidos = lancamentos.filter(r => !validarRegistro(r));
   if (invalidos.length > 0) {
     res.status(400).json({
-      erro: "Um ou mais registros estão incompletos, sem a descrição do que foi tratado na visita, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
+      erro: "Um ou mais registros estão incompletos (falta revenda/produto/data), sem a descrição do que foi tratado na visita quando vinculados a uma fazenda, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
       invalidos
     });
     return;
@@ -171,7 +179,7 @@ module.exports = async function handler(req, res) {
     const linhasNovas = lancamentos.map(r => ({
       nome_promotor: String(r.Nome_Promotor).trim(),
       revenda: String(r.Revenda).trim(),
-      propriedade: String(r.Propriedade).trim(),
+      propriedade: String(r.Propriedade || "").trim(),
       produto: String(r.Produto).trim(),
       unidade: String(r.Unidade || "").trim(),
       preco_unitario: Number(r.Preco_Unitario),
@@ -180,25 +188,19 @@ module.exports = async function handler(req, res) {
       dia_lancamento: r.Dia_Lancamento,
       quinzena: r.Quinzena,
       observacao_visita: String(r.Observacao_Visita || "").trim(),
-      proxima_visita: String(r.Proxima_Visita || "").trim(),
-      id_envio: r.Id_Envio ? String(r.Id_Envio).trim() : null
+      proxima_visita: String(r.Proxima_Visita || "").trim()
     }));
 
     const { error: erroInsert } = await supabase.from("lancamentos").insert(linhasNovas);
-    // 23505 = violação de índice único. Com id_envio preenchido, isso só acontece quando
-    // este mesmo lote já foi gravado antes — ou seja, o reenvio de algo que deu certo.
-    // Responder "ok" é o correto: o dado está no banco e o app pode limpar a fila.
-    if (erroInsert && erroInsert.code === "23505") {
-      res.status(200).json({ status: "ok", duplicado: true, inseridos: 0 });
-      return;
-    }
     if (erroInsert) throw erroInsert;
 
     // Se alguma nota de "próxima visita" foi preenchida, salva na própria fazenda como
     // lembrete — aparece pro promotor da próxima vez que abrir essa fazenda pra lançar.
+    // Só se aplica quando o pedido está vinculado a uma fazenda (pedido balcão não tem
+    // propriedade pra gravar o lembrete).
     const notaProximaVisita = String(lancamentos[0].Proxima_Visita || "").trim();
-    if (notaProximaVisita) {
-      const nomeFazenda = String(lancamentos[0].Propriedade || "").trim();
+    const nomeFazenda = String(lancamentos[0].Propriedade || "").trim();
+    if (notaProximaVisita && nomeFazenda) {
       await supabase.from("propriedades").update({ proximo_assunto: notaProximaVisita }).ilike("propriedade", nomeFazenda);
     }
 
