@@ -200,12 +200,6 @@
   .grid-numeros .campo-numero{margin-bottom:2px;}
   .campo-numero input[type=number]{margin-bottom:14px;}
 </style>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#3d8b28">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="/icone-192.png">
 </head>
 <body>
 
@@ -250,6 +244,7 @@
       <div class="grid-acoes">
         <button class="acao-rapida" data-acao="novaVisita" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/></svg></span>Nova Visita</button>
         <button class="acao-rapida" data-acao="novoPedido" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h2l2.4 12.2a2 2 0 0 0 2 1.8h8.2a2 2 0 0 0 2-1.6L21 8H6"/></svg></span>Novo Pedido</button>
+        <button class="acao-rapida" data-acao="pedidoBalcao" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18M3 9l1.5 10.5A2 2 0 0 0 6.48 21h11.04a2 2 0 0 0 1.98-1.5L21 9M3 9l2-5h14l2 5"/><path d="M9 13h6"/></svg></span>Pedido Balcão</button>
         <button class="acao-rapida" data-acao="novaFazenda" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-9h5v5c0 5-4 9-9 9z"/><path d="M9 15c3-3 6-6 9-9"/></svg></span>Nova Fazenda</button>
         <button class="acao-rapida" data-acao="catalogo" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Catálogo</button>
         <button class="acao-rapida" data-acao="relatorios" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Relatórios</button>
@@ -387,6 +382,7 @@
       <div class="grid-acoes" style="grid-template-columns:1fr 1fr;margin-bottom:20px;">
         <button class="acao-rapida" data-acao="novaVisita" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/></svg></span>Nova Visita</button>
         <button class="acao-rapida" data-acao="novoPedido" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/><path d="M2 3h2l2.4 12.2a2 2 0 0 0 2 1.8h8.2a2 2 0 0 0 2-1.6L21 8H6"/></svg></span>Novo Pedido</button>
+        <button class="acao-rapida" data-acao="pedidoBalcao" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9h18M3 9l1.5 10.5A2 2 0 0 0 6.48 21h11.04a2 2 0 0 0 1.98-1.5L21 9M3 9l2-5h14l2 5"/><path d="M9 13h6"/></svg></span>Pedido Balcão</button>
       </div>
       <h3 class="subtitulo-secao">Histórico</h3>
       <div class="filtro-historico">
@@ -464,7 +460,7 @@
     <!-- NOVO PEDIDO -->
     <section id="pagPedidoCorpo" class="pagina oculto">
       <div class="resumo">
-        <span>Fazenda: <b id="resumoFazendaPedido"></b> · Data: <b id="resumoDataPedido"></b> · Semana: <b id="resumoQuinzenaPedido"></b></span>
+        <span><span id="rotuloFazendaPedido">Fazenda</span>: <b id="resumoFazendaPedido"></b> · Data: <b id="resumoDataPedido"></b> · Semana: <b id="resumoQuinzenaPedido"></b></span>
         <div class="resumo-botoes">
           <button class="btn btn-secundario" id="btnTrocarFazendaPedido" type="button">Trocar fazenda</button>
           <button class="btn btn-secundario" id="btnLimparPedido" type="button">Limpar tudo</button>
@@ -893,9 +889,6 @@ function iniciarApp() {
   document.getElementById("acaoMetas").classList.toggle("oculto", !ehGestor());
   mostrarPagina("inicio");
   carregarDashboard();
-  aquecerDadosOffline();
-  atualizarSeloFila();
-  sincronizarFila(false);
 }
 
 (function iniciarSeJaLogado() {
@@ -950,6 +943,8 @@ document.querySelectorAll(".acao-rapida").forEach(btn => {
       iniciarRegistro("visita");
     } else if (acao === "novoPedido") {
       iniciarRegistro("pedido");
+    } else if (acao === "pedidoBalcao") {
+      iniciarRegistroBalcao();
     } else if (acao === "novaFazenda") {
       origemCadastroFazenda = "fazendas";
       abrirCadastroFazenda();
@@ -971,7 +966,12 @@ document.querySelectorAll(".acao-rapida").forEach(btn => {
    ========================================================================= */
 async function carregarDashboard() {
   try {
-    const resp = await fetch(CONFIG.URL_PROPRIEDADES, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+      headers: {
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      }
+    });
     const dados = await resp.json();
     const props = (dados && dados.propriedades) || [];
     document.getElementById("statFazendas").textContent = props.length;
@@ -1002,7 +1002,12 @@ async function carregarDashboard() {
    ========================================================================= */
 async function carregarTodasPropriedades() {
   try {
-    const resp = await fetch(CONFIG.URL_PROPRIEDADES, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+      headers: {
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      }
+    });
     const dados = await resp.json();
     todasPropriedades = (dados && dados.propriedades) || [];
   } catch (err) {
@@ -1043,7 +1048,12 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
   areaDetalhe.classList.remove("oculto");
   areaDetalhe.innerHTML = '<div class="carregando-lista">Carregando...</div>';
   try {
-    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
+      headers: {
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      }
+    });
     const dados = await resp.json();
     if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar os dados.");
     const p = dados.propriedade;
@@ -1225,21 +1235,16 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    const envio = await enviarOuEnfileirar({
-      rotulo: "Cadastro da fazenda " + corpo.Propriedade,
-      url: CONFIG.URL_PROPRIEDADES,
-      metodo: "POST",
-      corpo,
-      erroPadrao: "Não foi possível cadastrar a fazenda."
+    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY },
+      body: JSON.stringify(corpo)
     });
-    if (!envio.ok) throw new Error(envio.erro);
-    if (envio.enfileirado) {
-      registrarFazendaLocal(corpo);
-      mostrarMsg("msgCadastroPropriedade", "Sem conexão: fazenda salva neste aparelho e será enviada quando houver internet.", "info");
-    }
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível cadastrar a fazenda.");
 
     if (origemCadastroFazenda === "registro") {
-      if (!envio.enfileirado) await carregarTodasPropriedades();
+      await carregarTodasPropriedades();
       irParaCorpoRegistro(corpo.Propriedade);
     } else {
       mostrarPagina("fazendas");
@@ -1323,7 +1328,12 @@ async function verificarLocalizacaoFazendaEscolhida(nome) {
   document.getElementById("statusLocalizacaoRegistro").textContent = "";
   document.getElementById("avisoProximoAssunto").classList.add("oculto");
   try {
-    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, { headers: { "x-api-key": CONFIG.API_KEY } });
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
+      headers: {
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      }
+    });
     const dados = await resp.json();
     if (!resp.ok) return;
     const p = dados.propriedade;
@@ -1353,17 +1363,14 @@ document.getElementById("btnCapturarLocalizacaoRegistro").addEventListener("clic
     const lon = pos.coords.longitude;
     status.textContent = "Salvando...";
     try {
-      const envio = await enviarOuEnfileirar({
-        rotulo: "Localização da fazenda " + nome,
-        url: CONFIG.URL_PROPRIEDADES,
-        metodo: "PATCH",
-        corpo: { Propriedade: nome, Latitude: lat, Longitude: lon },
-        erroPadrao: "Não foi possível salvar a localização."
+      const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
+        method: "PATCH",
+        headers: { "x-api-key": CONFIG.API_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ Propriedade: nome, Latitude: lat, Longitude: lon })
       });
-      if (!envio.ok) throw new Error(envio.erro);
-      status.textContent = envio.enfileirado
-        ? "Sem conexão: localização guardada e será enviada quando houver internet ✓"
-        : "Localização salva nessa fazenda ✓";
+      const dados = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a localização.");
+      status.textContent = "Localização salva nessa fazenda ✓";
       document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
     } catch (err) {
       status.textContent = err.message;
@@ -1409,6 +1416,18 @@ function irParaCorpoRegistro(fazenda) {
     prepararPedidoCorpo(fazenda);
     mostrarPagina("pedidoCorpo");
   }
+}
+
+// Pedido Balcão: não é vinculado a nenhuma fazenda, só à revenda — pula direto a etapa
+// de escolher fazenda (compartilhada com Visita/Pedido normais) e vai pro corpo do
+// pedido com Propriedade vazia.
+function iniciarRegistroBalcao() {
+  modoRegistro = "pedidoBalcao";
+  dataAtual = hojeISO();
+  quinzenaAtual = calcularQuinzena(dataAtual);
+  propriedadeAtual = "";
+  prepararPedidoCorpo("");
+  mostrarPagina("pedidoCorpo");
 }
 
 /* =========================================================================
@@ -1457,19 +1476,19 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
       Quinzena: quinzenaAtual
     };
 
-    corpo.Id_Envio = novoIdEnvio();
-    const envio = await enviarOuEnfileirar({
-      rotulo: "Visita em " + propriedadeAtual,
-      url: CONFIG.URL_VISITAS,
-      metodo: "POST",
-      corpo,
-      erroPadrao: "Não foi possível enviar a visita."
+    const resp = await fetch(CONFIG.URL_VISITAS, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      },
+      body: JSON.stringify(corpo)
     });
-    if (!envio.ok) throw new Error(envio.erro);
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar a visita.");
 
-    mostrarMsg("msgVisita", envio.enfileirado
-      ? "Sem conexão: visita salva neste aparelho e será enviada quando houver internet."
-      : "Visita registrada com sucesso!", envio.enfileirado ? "info" : "sucesso");
+    mostrarMsg("msgVisita", "Visita registrada com sucesso!", "sucesso");
     document.getElementById("inputObservacaoVisita").value = "";
     document.getElementById("selectTipoVisita").value = "";
   } catch (err) {
@@ -1493,9 +1512,15 @@ function preencherRevendasItem(promotor) {
 
 async function prepararPedidoCorpo(fazenda) {
   carrinho = [];
-  document.getElementById("resumoFazendaPedido").textContent = fazenda;
+  const ehBalcao = modoRegistro === "pedidoBalcao";
+  document.getElementById("rotuloFazendaPedido").textContent = ehBalcao ? "Pedido" : "Fazenda";
+  document.getElementById("resumoFazendaPedido").textContent = ehBalcao ? "Balcão (sem fazenda)" : fazenda;
   document.getElementById("resumoDataPedido").textContent = formatarDataBR(dataAtual);
   document.getElementById("resumoQuinzenaPedido").textContent = quinzenaAtual;
+  document.getElementById("btnTrocarFazendaPedido").classList.toggle("oculto", ehBalcao);
+  document.getElementById("inputObservacaoPedido").placeholder = ehBalcao
+    ? "O que foi tratado no balcão (opcional)"
+    : "O que foi tratado nesta visita";
   preencherRevendasItem(promotorAtual);
   if (todosProdutos.length === 0) await carregarTodosProdutos();
   limparSelecaoProduto();
@@ -1648,7 +1673,10 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 
   const observacaoPedido = document.getElementById("inputObservacaoPedido").value.trim();
   const proximaVisitaPedido = document.getElementById("inputProximaVisitaPedido").value.trim();
-  if (!observacaoPedido) { mostrarMsg("msgPedido", "Descreva o que foi tratado nesta visita.", "erro"); return; }
+  if (modoRegistro !== "pedidoBalcao" && !observacaoPedido) {
+    mostrarMsg("msgPedido", "Descreva o que foi tratado nesta visita.", "erro");
+    return;
+  }
 
   const lancamentos = carrinho.map(item => ({
     Nome_Promotor: promotorAtual,
@@ -1668,28 +1696,24 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    // Um Id_Envio POR LINHA: o índice único no banco é por linha, então o pedido
-    // inteiro não pode compartilhar o mesmo identificador. Gerados aqui e guardados
-    // junto na fila — num reenvio são exatamente os mesmos, e o banco recusa o
-    // lote todo, o que é tratado como "já recebido".
-    const lancamentosComId = lancamentos.map(l => ({ ...l, Id_Envio: novoIdEnvio() }));
-    const envio = await enviarOuEnfileirar({
-      rotulo: "Pedido em " + propriedadeAtual,
-      url: CONFIG.URL_API,
-      metodo: "POST",
-      corpo: { lancamentos: lancamentosComId },
-      erroPadrao: "Não foi possível enviar o pedido."
+    const resp = await fetch(CONFIG.URL_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      },
+      body: JSON.stringify({ lancamentos })
     });
-    if (!envio.ok) throw new Error(envio.erro);
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar o pedido.");
 
     carrinho = [];
     atualizarCarrinho();
     document.getElementById("inputObservacaoPedido").value = "";
     document.getElementById("inputProximaVisitaPedido").value = "";
     document.getElementById("avisoProximoAssunto").classList.add("oculto");
-    mostrarMsg("msgPedido", envio.enfileirado
-      ? "Sem conexão: pedido salvo neste aparelho e será enviado quando houver internet."
-      : "Pedido enviado com sucesso!", envio.enfileirado ? "info" : "sucesso");
+    mostrarMsg("msgPedido", "Pedido enviado com sucesso!", "sucesso");
   } catch (err) {
     mostrarMsg("msgPedido", err.message, "erro");
   } finally {
@@ -3205,7 +3229,7 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     const [respPedidos, respVisitas, respFazendas] = await Promise.all([
       fetch(CONFIG.URL_API, { headers: authHeader }),
       fetch(CONFIG.URL_VISITAS, { headers: authHeader }),
-      fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: { "x-api-key": CONFIG.API_KEY } })
+      fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: authHeader })
     ]);
 
     const dadosPedidos = await respPedidos.json().catch(() => ({}));
@@ -3281,231 +3305,6 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
   }
 });
-
-/* =========================================================================
-   FILA DE ENVIO OFFLINE
-   -------------------------------------------------------------------------
-   Quando o promotor está sem sinal, pedido, visita, cadastro de fazenda e
-   localização não são perdidos: ficam guardados no próprio aparelho
-   (IndexedDB) e sobem sozinhos assim que a conexão volta.
-
-   COM INTERNET NADA MUDA: enviarOuEnfileirar() tenta a rede primeiro e, se der
-   certo, o comportamento é exatamente o de antes. A fila só entra em cena
-   quando o envio falha por falta de rede.
-
-   Falha de REDE (sem sinal) => enfileira.
-   Falha de REGRA (400, 403, 409...) => erro na tela, como sempre foi. Não
-   adianta reenviar um pedido que o servidor recusou por dado inválido.
-
-   Contra duplicata: cada pedido/visita leva um "Id_Envio" (UUID gerado aqui).
-   Se a resposta se perder no caminho e a fila reenviar, o banco recusa o
-   segundo pelo índice único de id_envio, e o app trata isso como sucesso.
-   ========================================================================= */
-
-const FILA_BANCO = "agrohara-offline";
-const FILA_STORE = "fila";
-
-function abrirBancoFila() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(FILA_BANCO, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(FILA_STORE)) {
-        db.createObjectStore(FILA_STORE, { keyPath: "id", autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function operacaoFila(modo, executar) {
-  return abrirBancoFila().then(db => new Promise((resolve, reject) => {
-    const tx = db.transaction(FILA_STORE, modo);
-    const pedido = executar(tx.objectStore(FILA_STORE));
-    tx.oncomplete = () => resolve(pedido && pedido.result);
-    tx.onerror = () => reject(tx.error);
-  }));
-}
-
-const filaGuardar = (item) => operacaoFila("readwrite", s => s.add(item));
-const filaListar  = ()     => operacaoFila("readonly",  s => s.getAll());
-const filaRemover = (id)   => operacaoFila("readwrite", s => s.delete(id));
-
-/* ---------- Selo "X aguardando envio" ---------- */
-function seloFila() {
-  let el = document.getElementById("seloFilaOffline");
-  if (!el) {
-    el = document.createElement("div");
-    el.id = "seloFilaOffline";
-    el.style.cssText = "position:fixed;left:50%;transform:translateX(-50%);bottom:76px;z-index:45;" +
-      "background:#7a5c10;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:999px;" +
-      "box-shadow:0 2px 8px rgba(0,0,0,.25);display:none;cursor:pointer;";
-    el.addEventListener("click", () => sincronizarFila(true));
-    document.body.appendChild(el);
-  }
-  return el;
-}
-
-async function atualizarSeloFila() {
-  try {
-    const itens = await filaListar();
-    const el = seloFila();
-    if (!itens || itens.length === 0) {
-      el.style.display = "none";
-      return 0;
-    }
-    el.textContent = itens.length === 1
-      ? "1 registro aguardando envio"
-      : itens.length + " registros aguardando envio";
-    el.style.display = "block";
-    return itens.length;
-  } catch (err) {
-    return 0;
-  }
-}
-
-/* ---------- Envio ---------- */
-function novoIdEnvio() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  // Reserva para navegador antigo sem crypto.randomUUID.
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
-  });
-}
-
-function cabecalhosEnvio() {
-  return {
-    "Content-Type": "application/json",
-    "x-api-key": CONFIG.API_KEY,
-    "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
-  };
-}
-
-// Devolve { ok, enfileirado, dados, erro }.
-async function enviarOuEnfileirar({ rotulo, url, metodo, corpo, erroPadrao }) {
-  const metodoFinal = metodo || "POST";
-  try {
-    const resp = await fetch(url, {
-      method: metodoFinal,
-      headers: cabecalhosEnvio(),
-      body: JSON.stringify(corpo)
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      return { ok: false, erro: (dados && dados.erro) || erroPadrao || "Não foi possível enviar." };
-    }
-    return { ok: true, enfileirado: false, dados };
-  } catch (err) {
-    // fetch() só lança quando a requisição não chegou ao servidor: sem sinal,
-    // DNS, timeout. Erro de regra vem como resposta e é tratado acima.
-    await filaGuardar({ rotulo, url, metodo: metodoFinal, corpo, criadoEm: new Date().toISOString() });
-    await atualizarSeloFila();
-    return { ok: true, enfileirado: true, dados: {} };
-  }
-}
-
-/* ---------- Sincronização ---------- */
-let sincronizando = false;
-
-async function sincronizarFila(avisar) {
-  if (sincronizando) return;
-  if (!navigator.onLine) {
-    if (avisar) alert("Ainda sem conexão. Os registros continuam guardados neste aparelho.");
-    return;
-  }
-  sincronizando = true;
-  let enviados = 0;
-  let recusados = 0;
-  try {
-    const itens = await filaListar();
-    for (const item of itens) {
-      let resp;
-      try {
-        resp = await fetch(item.url, {
-          method: item.metodo,
-          headers: cabecalhosEnvio(),
-          body: JSON.stringify(item.corpo)
-        });
-      } catch (err) {
-        break; // Caiu a rede de novo: para aqui e tenta tudo mais tarde.
-      }
-
-      if (resp.ok) {
-        await filaRemover(item.id);
-        enviados++;
-        continue;
-      }
-
-      const dados = await resp.json().catch(() => ({}));
-
-      // 409 no cadastro de fazenda = alguém já cadastrou esse nome enquanto o
-      // promotor estava sem sinal. O registro é descartado e os lançamentos
-      // ficam vinculados à fazenda que já existe, com o mesmo nome.
-      if (resp.status === 409) {
-        await filaRemover(item.id);
-        enviados++;
-        continue;
-      }
-
-      // Regra recusou o registro (dado inválido). Reenviar não resolveria.
-      if (resp.status >= 400 && resp.status < 500) {
-        await filaRemover(item.id);
-        recusados++;
-        console.warn("[fila] registro recusado pelo servidor:", item.rotulo, dados);
-        continue;
-      }
-
-      break; // 5xx: problema no servidor, tenta de novo depois.
-    }
-  } finally {
-    sincronizando = false;
-    const restantes = await atualizarSeloFila();
-    if (enviados > 0 || recusados > 0) {
-      let msg = enviados > 0 ? enviados + " registro(s) enviado(s) com sucesso." : "";
-      if (recusados > 0) msg += (msg ? " " : "") + recusados + " registro(s) foram recusados pelo servidor e descartados.";
-      if (restantes > 0) msg += " " + restantes + " ainda na fila.";
-      alert(msg);
-      if (typeof carregarDashboard === "function") carregarDashboard();
-    } else if (avisar) {
-      alert(restantes > 0 ? "Não foi possível enviar agora. Vamos tentar de novo." : "Nada pendente para enviar.");
-    }
-  }
-}
-
-window.addEventListener("online", () => sincronizarFila(false));
-
-// Fazenda cadastrada sem sinal: passa a existir para este aparelho, para o
-// promotor conseguir lançar nela agora mesmo.
-function registrarFazendaLocal(corpo) {
-  const nome = String(corpo.Propriedade || "").trim();
-  if (nome && !todasPropriedades.includes(nome)) {
-    todasPropriedades.push(nome);
-    todasPropriedades.sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }
-}
-
-// Aquecimento: assim que o app abre com internet, já traz catálogo e fazendas
-// para o cache, sem esperar o promotor abrir essas telas. Sem isso, quem perde
-// o sinal antes de entrar no Catálogo o encontraria vazio.
-async function aquecerDadosOffline() {
-  if (!navigator.onLine) return;
-  try { await carregarTodasPropriedades(); } catch (err) {}
-  try { await carregarTodosProdutos(); } catch (err) {}
-}
-
-/* =========================================================================
-   OFFLINE (service worker) — registro. Não altera nenhum comportamento do app;
-   só permite que ele abra sem internet. Ver sw.js.
-   ========================================================================= */
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.warn("Service worker não registrado:", err);
-    });
-  });
-}
 
 </script>
 </body>
