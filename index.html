@@ -228,21 +228,6 @@
   .agenda-acao-linha{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
   .agenda-acao-linha .btn-secundario{width:auto;flex:1;padding:10px;font-size:12px;}
 
-  .agenda-slot{display:flex;gap:10px;padding:10px 0;border-top:1px solid #eef1ee;}
-  .agenda-slot:first-child{border-top:none;}
-  .agenda-slot-hora{flex:0 0 44px;font-size:12px;font-weight:700;color:#8a9690;padding-top:6px;}
-  .agenda-slot-conteudo{flex:1;min-width:0;}
-  .agenda-slot-vazio{border:1px dashed var(--cinza-borda);border-radius:10px;padding:10px 12px;font-size:12px;
-    color:#8a9690;cursor:pointer;}
-  .agenda-slot-vazio:hover{border-color:var(--azul);color:var(--azul);}
-  .agenda-card{background:#fff;border:1px solid var(--cinza-borda);border-left:4px solid var(--azul);border-radius:10px;
-    padding:10px 12px;margin-bottom:8px;cursor:pointer;}
-  .agenda-card:hover{border-color:var(--azul);}
-  .agenda-card-topo{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:2px;}
-  .agenda-card-cliente{font-size:14px;font-weight:700;color:var(--verde-escuro);}
-  .agenda-card-hora{font-size:11px;color:#5b6771;font-weight:600;flex:0 0 auto;}
-  .agenda-card-assunto{font-size:13px;color:#5b6771;}
-  .agenda-card-tipo{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--azul);letter-spacing:.3px;}
 
   .agenda-resumo-linha{display:flex;justify-content:space-between;align-items:center;background:#fff;
     border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;}
@@ -302,17 +287,31 @@
   .agenda-bloco-cliente{font-size:11.5px;font-weight:800;color:var(--verde-escuro);line-height:1.2;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .agenda-bloco-promotor{font-size:10px;font-weight:700;color:#3a6ea5;line-height:1.2;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
+  .agenda-bloco-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;display:inline-block;}
   .agenda-bloco-assunto{font-size:10.5px;color:#5b6771;line-height:1.25;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .agenda-bloco-hora{font-size:9.5px;color:#5b6771;font-weight:600;}
-  .agenda-cor-1{background:#eaf3ff;border-left-color:#2f6fb0;} .agenda-cor-1 .agenda-bloco-promotor{color:#2f6fb0;}
-  .agenda-cor-2{background:#eafbf1;border-left-color:#1f9d55;} .agenda-cor-2 .agenda-bloco-promotor{color:#1f9d55;}
-  .agenda-cor-3{background:#fff4e5;border-left-color:#c67c12;} .agenda-cor-3 .agenda-bloco-promotor{color:#c67c12;}
-  .agenda-cor-4{background:#f5eefc;border-left-color:#7b3fc4;} .agenda-cor-4 .agenda-bloco-promotor{color:#7b3fc4;}
-  .agenda-cor-5{background:#fdecec;border-left-color:#c43f3f;} .agenda-cor-5 .agenda-bloco-promotor{color:#c43f3f;}
-  .agenda-cor-6{background:#e8f7f7;border-left-color:#1a8f8f;} .agenda-cor-6 .agenda-bloco-promotor{color:#1a8f8f;}
+  .agenda-bloco-selo{font-weight:800;}
+  /* Status: pendente (padrão, ainda não aconteceu ou está no prazo) / atrasada (já passou e
+     ninguém marcou como feita) / realizada (feita, com o que foi tratado registrado) */
+  .agenda-bloco-pendente{background:#eaf3ff;border-left-color:#2f6fb0;}
+  .agenda-bloco-pendente .agenda-bloco-hora{color:#2f6fb0;}
+  .agenda-bloco-atrasada{background:#fdecea;border-left-color:#c0392b;}
+  .agenda-bloco-atrasada .agenda-bloco-hora,.agenda-bloco-atrasada .agenda-bloco-selo{color:#c0392b;}
+  .agenda-bloco-realizada{background:#eafbf1;border-left-color:#1f9d55;}
+  .agenda-bloco-realizada .agenda-bloco-hora,.agenda-bloco-realizada .agenda-bloco-selo{color:#1f9d55;}
+  .agenda-bloco-realizada .agenda-bloco-cliente{color:#1f9d55;}
   .agenda-grade-vazio{padding:30px 14px;text-align:center;color:#8a9690;font-size:13px;}
+
+  .agenda-legenda{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 12px;font-size:11px;color:#5b6771;}
+  .agenda-legenda span{display:inline-flex;align-items:center;gap:5px;}
+  .agenda-legenda i{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  .folha-realizar-assunto{width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;padding:10px 12px;
+    border:1px solid var(--cinza-borda);border-radius:10px;resize:vertical;margin:6px 0 14px;}
+  .folha-realizar-resumo{background:#f7faf7;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#5b6771;margin-bottom:14px;}
+  .folha-realizar-resumo b{color:var(--verde-escuro);}
 </style>
 </head>
 <body>
@@ -808,6 +807,12 @@
 
         <div class="card" id="agendaResumoSemana" style="display:none;"></div>
 
+        <div class="agenda-legenda">
+          <span><i style="background:#2f6fb0;"></i>Pendente</span>
+          <span><i style="background:#c0392b;"></i>Atrasada</span>
+          <span><i style="background:#1f9d55;"></i>Realizada</span>
+        </div>
+
         <div class="card" id="agendaDiaCard">
           <h3 class="subtitulo" id="agendaDiaTitulo">—</h3>
           <div id="agendaDiaTimeline"></div>
@@ -823,6 +828,11 @@
         <select id="selectAgendaGestorConsultor">
           <option value="">Todos os consultores</option>
         </select>
+        <div class="agenda-legenda">
+          <span><i style="background:#2f6fb0;"></i>Pendente</span>
+          <span><i style="background:#c0392b;"></i>Atrasada</span>
+          <span><i style="background:#1f9d55;"></i>Realizada</span>
+        </div>
         <div id="agendaGestorConteudo"></div>
       </div>
     </section>
@@ -902,12 +912,30 @@
       <span id="folhaAcoesAgendaTitulo">Compromisso</span>
       <button class="folha-fechar" id="btnFecharFolhaAcoesAgenda" type="button">✕</button>
     </div>
+    <span class="agenda-status" id="folhaAcoesAgendaSelo" style="margin-bottom:14px;display:inline-flex;">—</span>
     <div class="folha-acoes-compromisso">
+      <button class="btn" id="btnAgendaMarcarRealizada" type="button">✓ Marcar como realizada</button>
       <button class="btn btn-secundario" id="btnAgendaEditar" type="button">Editar</button>
       <button class="btn btn-secundario" id="btnAgendaAlterarHorario" type="button">Alterar horário</button>
       <button class="btn btn-secundario" id="btnAgendaAlterarDia" type="button">Alterar dia</button>
       <button class="btn btn-excluir" id="btnAgendaExcluir" type="button">Excluir</button>
     </div>
+  </div>
+</div>
+
+<!-- Bottom sheet: marcar compromisso como realizado (o que foi tratado de verdade) -->
+<div id="folhaRealizarAgendaOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaRealizarAgendaTitulo">Visita realizada</span>
+      <button class="folha-fechar" id="btnFecharFolhaRealizarAgenda" type="button">✕</button>
+    </div>
+    <div class="msg msg-erro oculto" id="folhaRealizarAgendaErro"></div>
+    <label for="inputAgendaAssuntoRealizado">O que foi tratado?</label>
+    <textarea id="inputAgendaAssuntoRealizado" required rows="2" class="folha-realizar-assunto" placeholder="Descreva o que realmente foi tratado nessa visita..."></textarea>
+    <button class="btn" id="btnSalvarRealizarAgenda" type="button">Salvar</button>
+    <button class="btn btn-secundario" id="btnSalvarRealizarEAgendarProxima" type="button" style="margin-top:8px;">Salvar e agendar próxima visita</button>
   </div>
 </div>
 
@@ -965,12 +993,28 @@ const AGENDA_HORA_INICIO = 7;   // primeira linha da grade (07:00)
 const AGENDA_HORA_FIM = 19;     // fim da grade (19:00) — grade cobre 07:00–19:00
 const AGENDA_ALTURA_HORA = 52;  // px por hora na grade
 
-// Cores por consultor: mesma pessoa sempre cai na mesma cor (hash simples do nome).
+// Cor (bolinha) por consultor na visão "Todos" do gestor: mesma pessoa sempre cai na
+// mesma cor (hash simples do nome). A cor do BLOCO em si é o status (pendente/atrasada/
+// realizada — ver agendaClasseStatus), não mais o consultor.
+const AGENDA_PALETA_PROMOTOR = ["#2f6fb0", "#1f9d55", "#c67c12", "#7b3fc4", "#c43f3f", "#1a8f8f"];
 function agendaCorPromotor(nome) {
   const n = String(nome || "");
   let h = 0;
   for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
-  return "agenda-cor-" + ((h % 6) + 1);
+  return AGENDA_PALETA_PROMOTOR[h % AGENDA_PALETA_PROMOTOR.length];
+}
+
+// Status visual de um compromisso: realizada (verde) > atrasada (vermelho, já passou e
+// ninguém marcou) > pendente (azul, padrão — ainda vai acontecer ou é hoje).
+function agendaClasseStatus(c) {
+  if (c.Realizada) return "agenda-bloco-realizada";
+  if (String(c.Data) < hojeISO()) return "agenda-bloco-atrasada";
+  return "agenda-bloco-pendente";
+}
+function agendaSeloStatus(c) {
+  if (c.Realizada) return "✓";
+  if (String(c.Data) < hojeISO()) return "⚠";
+  return "";
 }
 
 function agendaMinutosDesdeInicioGrade(horaStr) {
@@ -1055,17 +1099,18 @@ function agendaMontarColunaGrade(compromissos, { onClickVazio, onClickBloco, mos
     const largura = 96 / it.lanesTotal;
     const esquerda = 2 + it.lane * largura;
 
+    const selo = agendaSeloStatus(c);
     const bloco = document.createElement("div");
-    bloco.className = "agenda-bloco " + agendaCorPromotor(mostrarPromotor ? c.Nome_Promotor : c.Cliente_Nome);
+    bloco.className = "agenda-bloco " + agendaClasseStatus(c);
     bloco.style.top = topoPx + "px";
     bloco.style.height = alturaPx + "px";
     bloco.style.left = esquerda + "%";
     bloco.style.width = (largura - 1.5) + "%";
     bloco.innerHTML = `
-      <div class="agenda-bloco-hora">${agendaEsc(c.Hora_Inicio)} · ${agendaFormatarDuracao(c.Duracao_Minutos)}</div>
+      <div class="agenda-bloco-hora">${selo ? `<span class="agenda-bloco-selo">${selo}</span> ` : ""}${agendaEsc(c.Hora_Inicio)} · ${agendaFormatarDuracao(c.Duracao_Minutos)}</div>
       <div class="agenda-bloco-cliente">${agendaEsc(c.Cliente_Nome)}</div>
-      ${mostrarPromotor ? `<div class="agenda-bloco-promotor">${agendaEsc(c.Nome_Promotor)}</div>` : ""}
-      <div class="agenda-bloco-assunto">${agendaEsc(c.Assunto)}</div>`;
+      ${mostrarPromotor ? `<div class="agenda-bloco-promotor"><span class="agenda-bloco-dot" style="background:${agendaCorPromotor(c.Nome_Promotor)}"></span>${agendaEsc(c.Nome_Promotor)}</div>` : ""}
+      <div class="agenda-bloco-assunto">${agendaEsc(c.Realizada && c.Assunto_Realizado ? c.Assunto_Realizado : c.Assunto)}</div>`;
     if (onClickBloco) bloco.addEventListener("click", e => { e.stopPropagation(); onClickBloco(c); });
     corpo.appendChild(bloco);
   });
@@ -3692,7 +3737,9 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Data: c.Data,
       Hora_Inicio: c.Hora_Inicio,
       Duracao_Horas: c.Duracao_Minutos ? (c.Duracao_Minutos / 60) : "",
-      Assunto: c.Assunto
+      Assunto_Planejado: c.Assunto,
+      Realizada: c.Realizada ? "Sim" : "Não",
+      Assunto_Realizado: c.Assunto_Realizado || ""
     })).sort((a, b) => (a.Data + a.Hora_Inicio).localeCompare(b.Data + b.Hora_Inicio));
 
     const resumoPivot = montarPivotRevendaSemana(pedidos);
@@ -4022,7 +4069,7 @@ async function salvarCompromissoAgenda(manterAberto) {
 
     agendaSemanaAtual = agendaSegundaFeiraISO(data);
     agendaDiaSelecionado = data;
-    await carregarAgendaSemana();
+    await atualizarAgendaAtual();
   } catch (err) {
     erroEl.textContent = err.message;
     erroEl.classList.remove("oculto");
@@ -4031,9 +4078,30 @@ async function salvarCompromissoAgenda(manterAberto) {
 
 /* ---------- Folha (bottom sheet): ações sobre compromisso existente ---------- */
 
+// Recarrega a visão certa depois de qualquer mudança — gestor usa a grade da equipe,
+// consultor usa a própria semana. Usar sempre isso em vez de chamar uma função fixa.
+async function atualizarAgendaAtual() {
+  if (ehGestor()) await carregarAgendaGestor();
+  else await carregarAgendaSemana();
+}
+
 function abrirFolhaAcoesAgenda(compromisso) {
   agendaCompromissoSelecionado = compromisso;
   document.getElementById("folhaAcoesAgendaTitulo").textContent = `${compromisso.Cliente_Nome} · ${compromisso.Hora_Inicio}`;
+  const badge = document.getElementById("folhaAcoesAgendaSelo");
+  if (compromisso.Realizada) {
+    badge.className = "agenda-status agenda-status-aberta";
+    badge.textContent = "✓ Realizada";
+  } else if (String(compromisso.Data) < hojeISO()) {
+    badge.className = "agenda-status agenda-status-travada";
+    badge.textContent = "⚠ Atrasada — ainda não marcada como feita";
+  } else {
+    badge.className = "agenda-status agenda-status-perto";
+    badge.textContent = "🕒 Pendente";
+  }
+  document.getElementById("btnAgendaMarcarRealizada").textContent = compromisso.Realizada
+    ? "↺ Reabrir (desmarcar como realizada)"
+    : "✓ Marcar como realizada";
   document.getElementById("folhaAcoesAgendaOverlay").classList.remove("oculto");
 }
 function fecharFolhaAcoesAgenda() {
@@ -4042,6 +4110,26 @@ function fecharFolhaAcoesAgenda() {
 document.getElementById("btnFecharFolhaAcoesAgenda").addEventListener("click", fecharFolhaAcoesAgenda);
 document.getElementById("folhaAcoesAgendaOverlay").addEventListener("click", e => {
   if (e.target.id === "folhaAcoesAgendaOverlay") fecharFolhaAcoesAgenda();
+});
+
+document.getElementById("btnAgendaMarcarRealizada").addEventListener("click", async () => {
+  const c = agendaCompromissoSelecionado;
+  if (c.Realizada) {
+    if (!confirm("Reabrir esse compromisso (desmarcar como realizada)?")) return;
+    fecharFolhaAcoesAgenda();
+    try {
+      const cabecalhos = { ...cabecalhosAutenticados(), "Content-Type": "application/json" };
+      const resp = await fetch(CONFIG.URL_AGENDA, { method: "PATCH", headers: cabecalhos, body: JSON.stringify({ Id: c.Id, Realizada: false }) });
+      const dados = await resp.json();
+      if (!resp.ok) throw new Error(dados.erro || "Falha ao reabrir.");
+      await atualizarAgendaAtual();
+    } catch (err) {
+      alert(err.message);
+    }
+    return;
+  }
+  fecharFolhaAcoesAgenda();
+  abrirFolhaRealizarAgenda(c);
 });
 
 document.getElementById("btnAgendaEditar").addEventListener("click", () => {
@@ -4074,11 +4162,65 @@ document.getElementById("btnAgendaExcluir").addEventListener("click", async () =
     const resp = await fetch(`${CONFIG.URL_AGENDA}?id=${c.Id}`, { method: "DELETE", headers: cabecalhosAutenticados() });
     const dados = await resp.json();
     if (!resp.ok) throw new Error(dados.erro || "Falha ao excluir.");
-    await carregarAgendaSemana();
+    await atualizarAgendaAtual();
   } catch (err) {
     alert(err.message);
   }
 });
+
+/* ---------- Folha (bottom sheet): marcar como realizada ---------- */
+
+function abrirFolhaRealizarAgenda(compromisso) {
+  agendaCompromissoSelecionado = compromisso;
+  document.getElementById("folhaRealizarAgendaTitulo").textContent = `${compromisso.Cliente_Nome} · ${compromisso.Hora_Inicio}`;
+  document.getElementById("folhaRealizarAgendaErro").classList.add("oculto");
+  document.getElementById("inputAgendaAssuntoRealizado").value = compromisso.Assunto_Realizado || compromisso.Assunto || "";
+  document.getElementById("folhaRealizarAgendaOverlay").classList.remove("oculto");
+}
+function fecharFolhaRealizarAgenda() {
+  document.getElementById("folhaRealizarAgendaOverlay").classList.add("oculto");
+}
+document.getElementById("btnFecharFolhaRealizarAgenda").addEventListener("click", fecharFolhaRealizarAgenda);
+document.getElementById("folhaRealizarAgendaOverlay").addEventListener("click", e => {
+  if (e.target.id === "folhaRealizarAgendaOverlay") fecharFolhaRealizarAgenda();
+});
+
+async function salvarRealizarAgenda(agendarProxima) {
+  const c = agendaCompromissoSelecionado;
+  const erroEl = document.getElementById("folhaRealizarAgendaErro");
+  erroEl.classList.add("oculto");
+  const assuntoRealizado = document.getElementById("inputAgendaAssuntoRealizado").value.trim();
+  if (!assuntoRealizado) {
+    erroEl.textContent = "Descreva o que foi tratado.";
+    erroEl.classList.remove("oculto");
+    return;
+  }
+  try {
+    const cabecalhos = { ...cabecalhosAutenticados(), "Content-Type": "application/json" };
+    const resp = await fetch(CONFIG.URL_AGENDA, {
+      method: "PATCH", headers: cabecalhos,
+      body: JSON.stringify({ Id: c.Id, Realizada: true, Assunto_Realizado: assuntoRealizado })
+    });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao salvar.");
+    fecharFolhaRealizarAgenda();
+    await atualizarAgendaAtual();
+    if (agendarProxima) {
+      // Pré-preenche a próxima visita com o mesmo cliente, 7 dias depois, sem horário
+      // (o consultor escolhe) — só o essencial repetido, nada travado.
+      abrirFolhaAgenda({
+        Tipo_Cliente: c.Tipo_Cliente,
+        Cliente_Nome: c.Cliente_Nome,
+        Data: agendaSomarDias(c.Data, 7)
+      });
+    }
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove("oculto");
+  }
+}
+document.getElementById("btnSalvarRealizarAgenda").addEventListener("click", () => salvarRealizarAgenda(false));
+document.getElementById("btnSalvarRealizarEAgendarProxima").addEventListener("click", () => salvarRealizarAgenda(true));
 
 async function atualizarCompromissoAgendaRapido(id, mudancas) {
   try {
@@ -4086,7 +4228,7 @@ async function atualizarCompromissoAgendaRapido(id, mudancas) {
     const resp = await fetch(CONFIG.URL_AGENDA, { method: "PATCH", headers: cabecalhos, body: JSON.stringify({ Id: id, ...mudancas }) });
     const dados = await resp.json();
     if (!resp.ok) throw new Error(dados.erro || "Falha ao atualizar o compromisso.");
-    await carregarAgendaSemana();
+    await atualizarAgendaAtual();
   } catch (err) {
     alert(err.message);
   }
