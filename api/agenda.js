@@ -100,16 +100,21 @@ module.exports = async function handler(req, res) {
     try {
       const semanaFiltro = String((req.query && req.query.semana) || "").trim();
       const diaFiltro = String((req.query && req.query.dia) || "").trim();
+      // ?tudo=1 (só gestor) -> devolve TODOS os compromissos, sem filtro de data. Usado só
+      // pela exportação em Excel ("Baixar Excel"), que precisa da agenda inteira.
+      const tudoFiltro = ehGestor && String((req.query && req.query.tudo) || "") === "1";
       const visaoEquipe = ehGestor && String((req.query && req.query.equipe) || "") === "1";
       const promotorFiltro = ehGestor ? String((req.query && req.query.promotor) || "").trim() : usuario.nome;
 
-      if (!semanaFiltro && !diaFiltro) {
-        res.status(400).json({ erro: "Informe ?semana=AAAA-MM-DD (segunda-feira) ou ?dia=AAAA-MM-DD." });
+      if (!semanaFiltro && !diaFiltro && !tudoFiltro) {
+        res.status(400).json({ erro: "Informe ?semana=AAAA-MM-DD (segunda-feira), ?dia=AAAA-MM-DD ou ?tudo=1." });
         return;
       }
 
       let consulta = supabase.from("agenda_compromissos").select("*");
-      if (diaFiltro) {
+      if (tudoFiltro) {
+        // sem filtro de data
+      } else if (diaFiltro) {
         consulta = consulta.eq("data", diaFiltro);
       } else {
         // Semana = segunda a sexta (dias úteis de visita a campo).
