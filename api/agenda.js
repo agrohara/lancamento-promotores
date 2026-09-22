@@ -30,7 +30,15 @@
 //
 // Colunas da tabela "agenda_compromissos" no Supabase: nome_promotor, tipo_cliente
 // ('revenda' ou 'propriedade'), cliente_nome, data, hora_inicio, duracao_minutos, assunto,
-// criado_em, atualizado_em.
+// realizada (boolean, default false), assunto_realizado, realizado_em, criado_em,
+// atualizado_em.
+//
+// MARCAR COMO REALIZADA (novo em 22/09/2026): depois da visita, o consultor marca o
+// compromisso como feito e registra o que foi tratado de verdade (pode ser diferente do
+// que estava planejado em "Assunto"). Isso é um PATCH só com {Id, Realizada: true,
+// Assunto_Realizado}. Diferente de reagendar (mudar Data/Hora_Inicio/Cliente), marcar como
+// realizada NUNCA é bloqueada pela trava de prazo — a trava existe pra impedir planejar
+// uma semana perdida, não pra impedir registrar o que já aconteceu.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -51,7 +59,10 @@ function paraObjeto(l) {
     Data: l.data || "",
     Hora_Inicio: l.hora_inicio || "",
     Duracao_Minutos: l.duracao_minutos === undefined || l.duracao_minutos === null ? 60 : Number(l.duracao_minutos),
-    Assunto: l.assunto || ""
+    Assunto: l.assunto || "",
+    Realizada: !!l.realizada,
+    Assunto_Realizado: l.assunto_realizado || "",
+    Realizado_Em: l.realizado_em || null
   };
 }
 
@@ -214,12 +225,20 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const dataFinal = corpo.Data || existente.data;
-      const segunda = segundaFeira(dataFinal);
-      const status = statusSemana(segunda);
-      if (status.bloqueada) {
-        res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sexta-feira 17:00). Fale com seu gestor.", statusSemana: status });
-        return;
+      // Marcar/desmarcar como realizada não é "replanejar" — não mexe em Data/Hora/
+      // Cliente — então nunca é bloqueada pela trava de prazo, mesmo numa semana travada.
+      const apenasMarcandoRealizada = corpo.Realizada !== undefined
+        && corpo.Data === undefined && corpo.Hora_Inicio === undefined
+        && corpo.Cliente_Nome === undefined && corpo.Tipo_Cliente === undefined;
+
+      if (!apenasMarcandoRealizada) {
+        const dataFinal = corpo.Data || existente.data;
+        const segunda = segundaFeira(dataFinal);
+        const status = statusSemana(segunda);
+        if (status.bloqueada) {
+          res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sexta-feira 17:00). Fale com seu gestor.", statusSemana: status });
+          return;
+        }
       }
 
       const atualizacao = { atualizado_em: new Date().toISOString() };
@@ -229,6 +248,12 @@ module.exports = async function handler(req, res) {
       if (corpo.Hora_Inicio !== undefined) atualizacao.hora_inicio = corpo.Hora_Inicio;
       if (corpo.Duracao_Minutos !== undefined) atualizacao.duracao_minutos = Number(corpo.Duracao_Minutos);
       if (corpo.Assunto !== undefined) atualizacao.assunto = String(corpo.Assunto).trim();
+      if (corpo.Realizada !== undefined) {
+        atualizacao.realizada = !!corpo.Realizada;
+        atualizacao.realizado_em = corpo.Realizada ? new Date().toISOString() : null;
+        if (!corpo.Realizada) atualizacao.assunto_realizado = "";
+      }
+      if (corpo.Assunto_Realizado !== undefined) atualizacao.assunto_realizado = String(corpo.Assunto_Realizado).trim();
 
       const { data: atualizado, error: erroUpdate } = await supabase
         .from("agenda_compromissos")
