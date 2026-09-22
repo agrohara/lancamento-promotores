@@ -199,6 +199,92 @@
   .grid-numeros{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;}
   .grid-numeros .campo-numero{margin-bottom:2px;}
   .campo-numero input[type=number]{margin-bottom:14px;}
+
+  /* ---------- AGENDA ---------- */
+  .agenda-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:14px;}
+  .agenda-nav-semana{display:flex;align-items:center;gap:10px;}
+  .agenda-seta{background:#fff;border:1px solid var(--cinza-borda);border-radius:50%;width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--azul);font-size:16px;flex:0 0 32px;}
+  .agenda-seta:hover{border-color:var(--azul);}
+  .agenda-semana-label{font-size:13px;font-weight:700;color:var(--verde-escuro);}
+  .agenda-status{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;border-radius:20px;
+    padding:4px 10px;white-space:nowrap;}
+  .agenda-status-aberta{background:#eaf6ec;color:var(--verde);}
+  .agenda-status-perto{background:#fdf3e3;color:var(--ambar);}
+  .agenda-status-travada{background:#fdecea;color:var(--vermelho);}
+
+  .agenda-faixa-dias{display:flex;gap:6px;margin-bottom:14px;}
+  .agenda-dia-btn{flex:1;background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:8px 2px;
+    text-align:center;cursor:pointer;}
+  .agenda-dia-btn .agenda-dia-nome{display:block;font-size:10px;font-weight:700;color:#8a9690;text-transform:uppercase;}
+  .agenda-dia-btn .agenda-dia-numero{display:block;font-size:15px;font-weight:700;color:var(--texto);margin-top:2px;}
+  .agenda-dia-btn .agenda-dia-bolinha{display:block;width:5px;height:5px;border-radius:50%;background:var(--azul);
+    margin:4px auto 0;visibility:hidden;}
+  .agenda-dia-btn.tem-compromisso .agenda-dia-bolinha{visibility:visible;}
+  .agenda-dia-btn.ativo{background:var(--azul);border-color:var(--azul);}
+  .agenda-dia-btn.ativo .agenda-dia-nome,.agenda-dia-btn.ativo .agenda-dia-numero{color:#fff;}
+  .agenda-dia-btn.ativo .agenda-dia-bolinha{background:#fff;}
+
+  .agenda-acao-linha{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .agenda-acao-linha .btn-secundario{width:auto;flex:1;padding:10px;font-size:12px;}
+
+  .agenda-slot{display:flex;gap:10px;padding:10px 0;border-top:1px solid #eef1ee;}
+  .agenda-slot:first-child{border-top:none;}
+  .agenda-slot-hora{flex:0 0 44px;font-size:12px;font-weight:700;color:#8a9690;padding-top:6px;}
+  .agenda-slot-conteudo{flex:1;min-width:0;}
+  .agenda-slot-vazio{border:1px dashed var(--cinza-borda);border-radius:10px;padding:10px 12px;font-size:12px;
+    color:#8a9690;cursor:pointer;}
+  .agenda-slot-vazio:hover{border-color:var(--azul);color:var(--azul);}
+  .agenda-card{background:#fff;border:1px solid var(--cinza-borda);border-left:4px solid var(--azul);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;cursor:pointer;}
+  .agenda-card:hover{border-color:var(--azul);}
+  .agenda-card-topo{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:2px;}
+  .agenda-card-cliente{font-size:14px;font-weight:700;color:var(--verde-escuro);}
+  .agenda-card-hora{font-size:11px;color:#5b6771;font-weight:600;flex:0 0 auto;}
+  .agenda-card-assunto{font-size:13px;color:#5b6771;}
+  .agenda-card-tipo{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--azul);letter-spacing:.3px;}
+
+  .agenda-resumo-linha{display:flex;justify-content:space-between;align-items:center;background:#fff;
+    border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer;}
+  .agenda-resumo-linha b{color:var(--azul);}
+
+  .agenda-fab{position:fixed;right:18px;bottom:calc(78px + env(safe-area-inset-bottom));width:56px;height:56px;
+    border-radius:50%;background:var(--azul);color:#fff;border:none;font-size:28px;line-height:1;
+    box-shadow:0 4px 12px rgba(0,0,0,.25);cursor:pointer;z-index:41;display:flex;align-items:center;justify-content:center;}
+  .agenda-fab:hover{background:var(--verde-escuro);}
+
+  .folha-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;display:flex;align-items:flex-end;justify-content:center;}
+  .folha{background:#fff;width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    max-height:88vh;overflow-y:auto;}
+  .folha-alca{width:40px;height:4px;background:var(--cinza-borda);border-radius:3px;margin:0 auto 14px;}
+  .folha-titulo{font-size:16px;font-weight:800;color:var(--verde-escuro);margin:0 0 16px;display:flex;justify-content:space-between;align-items:center;}
+  .folha-fechar{background:none;border:none;font-size:22px;color:#8a9690;cursor:pointer;line-height:1;}
+  .tipo-cliente-toggle{display:flex;gap:8px;margin-bottom:14px;}
+  .tipo-cliente-opcao{flex:1;text-align:center;padding:10px;border:1px solid var(--cinza-borda);border-radius:10px;
+    cursor:pointer;font-size:13px;font-weight:700;color:#5b6771;}
+  .tipo-cliente-opcao.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
+  .chips-sugestao{display:flex;gap:6px;flex-wrap:wrap;margin:-8px 0 14px;}
+  .chip-sugestao{background:var(--cinza-fundo);border:1px solid var(--cinza-borda);border-radius:20px;
+    padding:6px 12px;font-size:12px;color:#5b6771;cursor:pointer;}
+  .chip-sugestao:hover{border-color:var(--azul);color:var(--azul);}
+  .folha-acoes-compromisso{display:flex;flex-direction:column;gap:8px;}
+  .folha-acoes-compromisso .btn{text-transform:none;letter-spacing:0;}
+  .folha-acoes-compromisso .btn-excluir{background:#fdecea;border-color:#fdecea;color:var(--vermelho);}
+  .folha-acoes-compromisso .btn-excluir:hover{background:#f8d7d2;border-color:#f8d7d2;}
+
+  .agenda-gestor-toggle{display:flex;gap:8px;margin-bottom:14px;}
+  .agenda-gestor-toggle .btn-secundario{width:auto;flex:1;padding:10px;font-size:12px;}
+  .agenda-gestor-toggle .btn-secundario.ativo{background:var(--azul);color:#fff;}
+  .agenda-equipe-card{margin-bottom:12px;}
+  .agenda-equipe-nome{font-size:14px;font-weight:800;color:var(--verde-escuro);margin-bottom:6px;
+    display:flex;justify-content:space-between;align-items:center;}
+  .agenda-equipe-contagem{font-size:11px;font-weight:700;color:var(--azul);background:#eaf6ec;border-radius:20px;padding:2px 10px;}
+  .agenda-equipe-item{font-size:13px;color:#5b6771;padding:5px 0;border-top:1px solid #f0f2f0;}
+  .agenda-equipe-item:first-child{border-top:none;}
+  .agenda-semana-tabela{width:100%;border-collapse:collapse;font-size:12px;}
+  .agenda-semana-tabela th,.agenda-semana-tabela td{padding:8px 4px;text-align:center;border-bottom:1px solid #f0f2f0;}
+  .agenda-semana-tabela th{color:#8a9690;font-weight:700;text-transform:uppercase;font-size:10px;}
+  .agenda-semana-tabela td:first-child,.agenda-semana-tabela th:first-child{text-align:left;font-weight:700;color:var(--texto);}
 </style>
 </head>
 <body>
@@ -670,6 +756,51 @@
       </div>
     </section>
 
+    <!-- AGENDA -->
+    <section id="pagAgenda" class="pagina oculto">
+      <h2 class="titulo-pagina">Agenda</h2>
+
+      <!-- Visão do consultor -->
+      <div id="agendaConsultor">
+        <div class="agenda-topo">
+          <div class="agenda-nav-semana">
+            <button class="agenda-seta" id="agendaSemanaAnterior" type="button">‹</button>
+            <span class="agenda-semana-label" id="agendaSemanaLabel">—</span>
+            <button class="agenda-seta" id="agendaSemanaProxima" type="button">›</button>
+          </div>
+          <span class="agenda-status" id="agendaStatusBadge">—</span>
+        </div>
+
+        <div class="agenda-faixa-dias" id="agendaFaixaDias"></div>
+
+        <div class="agenda-acao-linha">
+          <button class="btn btn-secundario" id="btnPlanejarProximaSemana" type="button">📅 Planejar próxima semana</button>
+          <button class="btn btn-secundario" id="btnMinhaSemanaToggle" type="button">🗒️ Minha semana</button>
+        </div>
+
+        <div class="card" id="agendaResumoSemana" style="display:none;"></div>
+
+        <div class="card" id="agendaDiaCard">
+          <h3 class="subtitulo" id="agendaDiaTitulo">—</h3>
+          <div id="agendaDiaTimeline"></div>
+        </div>
+      </div>
+
+      <!-- Visão do gestor: Agenda da Equipe -->
+      <div id="agendaGestor" class="oculto">
+        <div class="agenda-gestor-toggle">
+          <button class="btn btn-secundario ativo" id="btnAgendaGestorHoje" type="button">Hoje</button>
+          <button class="btn btn-secundario" id="btnAgendaGestorSemana" type="button">Semana</button>
+        </div>
+        <select id="selectAgendaGestorConsultor">
+          <option value="">Todos os consultores</option>
+        </select>
+        <div id="agendaGestorConteudo"></div>
+      </div>
+    </section>
+
+    <button class="agenda-fab oculto" id="btnAgendaFab" type="button">+</button>
+
     <!-- PERFIL -->
     <section id="pagPerfil" class="pagina oculto">
       <h2 class="titulo-pagina">Perfil</h2>
@@ -691,8 +822,71 @@
     <button class="nav-item" data-pagina="fazendas" type="button"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-9h5v5c0 5-4 9-9 9z"/><path d="M9 15c3-3 6-6 9-9"/></svg></span>Fazendas</button>
     <button class="nav-item" data-pagina="visitas" type="button"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="M9 11h6M9 15h6"/></svg></span>Visitas</button>
     <button class="nav-item" data-pagina="catalogo" type="button"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>Catálogo</button>
+    <button class="nav-item" data-pagina="agenda" type="button"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg></span>Agenda</button>
     <button class="nav-item" data-pagina="perfil" type="button"><span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>Perfil</button>
   </nav>
+</div>
+
+<!-- Bottom sheet: nova/editar visita da Agenda -->
+<div id="folhaAgendaOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaAgendaTitulo">Nova visita</span>
+      <button class="folha-fechar" id="btnFecharFolhaAgenda" type="button">✕</button>
+    </div>
+
+    <div class="msg msg-erro oculto" id="folhaAgendaErro"></div>
+
+    <div class="tipo-cliente-toggle" id="agendaTipoClienteToggle">
+      <div class="tipo-cliente-opcao ativo" data-tipo="revenda">Revenda</div>
+      <div class="tipo-cliente-opcao" data-tipo="propriedade">Fazenda</div>
+    </div>
+
+    <label for="inputAgendaCliente">Cliente</label>
+    <div class="input-combo" style="position:relative;">
+      <input type="text" id="inputAgendaCliente" autocomplete="off" placeholder="Buscar revenda...">
+      <div class="sugestoes oculto" id="agendaSugestoesCliente"></div>
+    </div>
+
+    <label for="inputAgendaData">Data</label>
+    <input type="date" id="inputAgendaData">
+
+    <label for="inputAgendaHora">Horário</label>
+    <input type="text" id="inputAgendaHora" placeholder="08:00" maxlength="5">
+
+    <label for="inputAgendaDuracao">Duração (minutos)</label>
+    <input type="number" id="inputAgendaDuracao" value="60" min="15" step="15">
+
+    <label for="inputAgendaAssunto">O que será tratado?</label>
+    <input type="text" id="inputAgendaAssunto" placeholder="Ex.: Apresentar novo produto, fechar pedido...">
+    <div class="chips-sugestao">
+      <div class="chip-sugestao" data-assunto="Apresentar novo produto">Apresentar produto</div>
+      <div class="chip-sugestao" data-assunto="Fechar pedido">Fechar pedido</div>
+      <div class="chip-sugestao" data-assunto="Follow-up de visita anterior">Follow-up</div>
+      <div class="chip-sugestao" data-assunto="Alinhar pagamento">Alinhar pagamento</div>
+    </div>
+
+    <button class="btn" id="btnSalvarAgenda" type="button">Salvar</button>
+    <button class="btn btn-secundario" id="btnAdicionarOutraVisitaAgenda" type="button" style="margin-top:8px;">+ Adicionar outra visita</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: ações sobre um compromisso existente -->
+<div id="folhaAcoesAgendaOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaAcoesAgendaTitulo">Compromisso</span>
+      <button class="folha-fechar" id="btnFecharFolhaAcoesAgenda" type="button">✕</button>
+    </div>
+    <div class="folha-acoes-compromisso">
+      <button class="btn btn-secundario" id="btnAgendaEditar" type="button">Editar</button>
+      <button class="btn btn-secundario" id="btnAgendaAlterarHorario" type="button">Alterar horário</button>
+      <button class="btn btn-secundario" id="btnAgendaAlterarDia" type="button">Alterar dia</button>
+      <button class="btn btn-excluir" id="btnAgendaExcluir" type="button">Excluir</button>
+    </div>
+  </div>
 </div>
 
 <div id="overlayCarregando" class="overlay-carregando oculto">Enviando...</div>
@@ -712,6 +906,7 @@ const CONFIG = {
   URL_METAS: "/api/metas",
   URL_CESTAS: "/api/cestas",
   URL_METAS_CESTA: "/api/metas-cesta",
+  URL_AGENDA: "/api/agenda",
   API_KEY: "Marcelo9955@"
 };
 
@@ -731,6 +926,19 @@ let carrinho = [];
 let origemCadastroFazenda = "fazendas"; // "registro" ou "fazendas"
 let modoRegistro = null;      // "visita" ou "pedido"
 let todosProdutos = [];
+
+/* Estado da Agenda */
+let agendaSemanaAtual = null;      // AAAA-MM-DD da segunda-feira da semana em exibição
+let agendaDiaSelecionado = null;   // AAAA-MM-DD do dia em exibição na timeline
+let agendaCompromissos = [];       // compromissos carregados da semana atual
+let agendaStatusSemana = null;     // { bloqueada, motivo, prazoISO } vindo da API
+let agendaTipoClienteEscolhido = "revenda"; // "revenda" ou "propriedade", na folha de nova/editar
+let agendaEditandoId = null;       // Id do compromisso em edição, ou null = criando novo
+let agendaResumoAberto = false;
+let agendaCompromissoSelecionado = null; // usado pela folha de ações (editar/alterar/excluir)
+let agendaGestorModo = "hoje";     // "hoje" ou "semana"
+let agendaGestorPromotorFiltro = "";
+let agendaHorasPainel = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
 
 /* =========================================================================
    UTILITÁRIOS
@@ -910,6 +1118,8 @@ function mostrarPagina(nome) {
   document.querySelectorAll(".nav-item").forEach(b => {
     b.classList.toggle("ativo", b.getAttribute("data-pagina") === nome);
   });
+  const fab = document.getElementById("btnAgendaFab");
+  if (fab) fab.classList.toggle("oculto", nome !== "agenda" || ehGestor());
 }
 
 document.querySelectorAll(".nav-item").forEach(btn => {
@@ -930,6 +1140,9 @@ document.querySelectorAll(".nav-item").forEach(btn => {
     } else if (pagina === "relatorios") {
       mostrarPagina("relatorios");
       carregarRelatorios();
+    } else if (pagina === "agenda") {
+      mostrarPagina("agenda");
+      abrirAgenda();
     } else {
       mostrarPagina(pagina);
     }
@@ -3305,6 +3518,476 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
   }
 });
+
+/* =========================================================================
+   AGENDA — planejamento semanal de visitas (substitui o Excel de agenda)
+   Criado em 22/09/2026. Reaproveita cabecalhosAutenticados(), PROMOTOR_CLIENTE,
+   todasPropriedades, hojeISO(), calcularQuinzena() e o padrão visual do resto do app.
+   ========================================================================= */
+
+function agendaEsc(txt) {
+  return String(txt === undefined || txt === null ? "" : txt).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+function agendaSegundaFeiraISO(dataISO) {
+  const [ano, mes, dia] = String(dataISO).split("-").map(Number);
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  const diaSemana = d.getUTCDay();
+  const deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana;
+  d.setUTCDate(d.getUTCDate() + deslocamento);
+  return d.toISOString().slice(0, 10);
+}
+
+function agendaSomarDias(dataISO, n) {
+  const [ano, mes, dia] = String(dataISO).split("-").map(Number);
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function agendaStatusToBadge(status) {
+  if (!status) return { classe: "agenda-status-aberta", texto: "🟢 Aberta" };
+  if (status.bloqueada) return { classe: "agenda-status-travada", texto: "🔒 Prazo encerrado" };
+  if (status.motivo === "semana_atual") return { classe: "agenda-status-aberta", texto: "🟢 Semana atual" };
+  if (status.prazoISO) {
+    const horasRestantes = (new Date(status.prazoISO).getTime() - Date.now()) / 3600000;
+    if (horasRestantes <= 24) return { classe: "agenda-status-perto", texto: "🟡 Prazo perto (sex 17h)" };
+  }
+  return { classe: "agenda-status-aberta", texto: "🟢 Aberta" };
+}
+
+async function abrirAgenda() {
+  if (todasPropriedades.length === 0) {
+    try { await carregarTodasPropriedades(); } catch (err) { /* segue sem bloquear a agenda */ }
+  }
+  if (ehGestor()) {
+    document.getElementById("agendaConsultor").classList.add("oculto");
+    document.getElementById("agendaGestor").classList.remove("oculto");
+    popularFiltroConsultorAgenda();
+    if (!agendaSemanaAtual) agendaSemanaAtual = agendaSegundaFeiraISO(hojeISO());
+    await carregarAgendaGestor();
+  } else {
+    document.getElementById("agendaConsultor").classList.remove("oculto");
+    document.getElementById("agendaGestor").classList.add("oculto");
+    if (!agendaSemanaAtual) agendaSemanaAtual = agendaSegundaFeiraISO(hojeISO());
+    if (!agendaDiaSelecionado) agendaDiaSelecionado = hojeISO();
+    await carregarAgendaSemana();
+  }
+  const fab = document.getElementById("btnAgendaFab");
+  if (fab) fab.classList.toggle("oculto", ehGestor());
+}
+
+/* ---------- Visão do consultor ---------- */
+
+async function carregarAgendaSemana() {
+  const timeline = document.getElementById("agendaDiaTimeline");
+  try {
+    const url = new URL(CONFIG.URL_AGENDA, window.location.origin);
+    url.searchParams.set("semana", agendaSemanaAtual);
+    const resp = await fetch(url, { headers: cabecalhosAutenticados() });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao carregar a agenda.");
+    agendaCompromissos = dados.compromissos || [];
+    agendaStatusSemana = dados.StatusSemana || null;
+    renderizarAgendaConsultor();
+  } catch (err) {
+    if (timeline) timeline.innerHTML = `<div class="msg msg-erro">${agendaEsc(err.message)}</div>`;
+  }
+}
+
+function renderizarAgendaConsultor() {
+  document.getElementById("agendaSemanaLabel").textContent = calcularQuinzena(agendaSemanaAtual);
+  const badge = agendaStatusToBadge(agendaStatusSemana);
+  const badgeEl = document.getElementById("agendaStatusBadge");
+  badgeEl.className = "agenda-status " + badge.classe;
+  badgeEl.textContent = badge.texto;
+
+  const diasSemana = [0, 1, 2, 3, 4].map(i => agendaSomarDias(agendaSemanaAtual, i));
+  if (!diasSemana.includes(agendaDiaSelecionado)) agendaDiaSelecionado = agendaSemanaAtual;
+
+  renderizarFaixaDiasAgenda(diasSemana);
+  renderizarDiaTimelineAgenda();
+  renderizarResumoSemanaAgenda(diasSemana);
+}
+
+function renderizarFaixaDiasAgenda(diasSemana) {
+  const nomes = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+  const container = document.getElementById("agendaFaixaDias");
+  container.innerHTML = "";
+  diasSemana.forEach((dataISO, i) => {
+    const temCompromisso = agendaCompromissos.some(c => c.Data === dataISO);
+    const ativo = dataISO === agendaDiaSelecionado;
+    const numero = Number(dataISO.split("-")[2]);
+    const btn = document.createElement("div");
+    btn.className = "agenda-dia-btn" + (ativo ? " ativo" : "") + (temCompromisso ? " tem-compromisso" : "");
+    btn.innerHTML = `<span class="agenda-dia-nome">${nomes[i]}</span><span class="agenda-dia-numero">${numero}</span><span class="agenda-dia-bolinha"></span>`;
+    btn.addEventListener("click", () => {
+      agendaDiaSelecionado = dataISO;
+      agendaResumoAberto = false;
+      renderizarAgendaConsultor();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function renderizarDiaTimelineAgenda() {
+  const nomesDia = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const [ano, mes, dia] = agendaDiaSelecionado.split("-").map(Number);
+  const dObj = new Date(Date.UTC(ano, mes - 1, dia));
+  document.getElementById("agendaDiaTitulo").textContent = `${nomesDia[dObj.getUTCDay()]}, ${String(dia).padStart(2, "0")}/${NOMES_MES[dObj.getUTCMonth()]}`;
+
+  const doDia = agendaCompromissos.filter(c => c.Data === agendaDiaSelecionado).sort((a, b) => a.Hora_Inicio.localeCompare(b.Hora_Inicio));
+  const container = document.getElementById("agendaDiaTimeline");
+  container.innerHTML = "";
+
+  agendaHorasPainel.forEach(hora => {
+    const horaLabel = String(hora).padStart(2, "0") + ":00";
+    const doSlot = doDia.filter(c => Number(String(c.Hora_Inicio).split(":")[0]) === hora);
+    const linha = document.createElement("div");
+    linha.className = "agenda-slot";
+    const conteudo = doSlot.length === 0
+      ? `<div class="agenda-slot-vazio" data-hora="${horaLabel}">+ Adicionar visita às ${horaLabel}</div>`
+      : doSlot.map(c => `
+        <div class="agenda-card" data-id="${c.Id}">
+          <div class="agenda-card-topo">
+            <span class="agenda-card-cliente">${agendaEsc(c.Cliente_Nome)}</span>
+            <span class="agenda-card-hora">${agendaEsc(c.Hora_Inicio)} · ${agendaEsc(c.Duracao_Minutos)}min</span>
+          </div>
+          <div class="agenda-card-tipo">${c.Tipo_Cliente === "revenda" ? "Revenda" : "Fazenda"}</div>
+          <div class="agenda-card-assunto">${agendaEsc(c.Assunto)}</div>
+        </div>`).join("");
+    linha.innerHTML = `<div class="agenda-slot-hora">${horaLabel}</div><div class="agenda-slot-conteudo">${conteudo}</div>`;
+    container.appendChild(linha);
+  });
+
+  container.querySelectorAll(".agenda-slot-vazio").forEach(el => {
+    el.addEventListener("click", () => abrirFolhaAgenda({ Data: agendaDiaSelecionado, Hora_Inicio: el.getAttribute("data-hora") }));
+  });
+  container.querySelectorAll(".agenda-card").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = Number(el.getAttribute("data-id"));
+      const compromisso = agendaCompromissos.find(c => c.Id === id);
+      if (compromisso) abrirFolhaAcoesAgenda(compromisso);
+    });
+  });
+}
+
+function renderizarResumoSemanaAgenda(diasSemana) {
+  const container = document.getElementById("agendaResumoSemana");
+  if (!agendaResumoAberto) { container.style.display = "none"; return; }
+  container.style.display = "block";
+  const nomes = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+  container.innerHTML = diasSemana.map((dataISO, i) => {
+    const qtd = agendaCompromissos.filter(c => c.Data === dataISO).length;
+    return `<div class="agenda-resumo-linha" data-dia="${dataISO}"><span>${nomes[i]}</span><b>${qtd} visita${qtd === 1 ? "" : "s"}</b></div>`;
+  }).join("");
+  container.querySelectorAll("[data-dia]").forEach(el => {
+    el.addEventListener("click", () => {
+      agendaDiaSelecionado = el.getAttribute("data-dia");
+      agendaResumoAberto = false;
+      renderizarAgendaConsultor();
+    });
+  });
+}
+
+document.getElementById("agendaSemanaAnterior").addEventListener("click", async () => {
+  agendaSemanaAtual = agendaSomarDias(agendaSemanaAtual, -7);
+  agendaDiaSelecionado = agendaSemanaAtual;
+  agendaResumoAberto = false;
+  await carregarAgendaSemana();
+});
+document.getElementById("agendaSemanaProxima").addEventListener("click", async () => {
+  agendaSemanaAtual = agendaSomarDias(agendaSemanaAtual, 7);
+  agendaDiaSelecionado = agendaSemanaAtual;
+  agendaResumoAberto = false;
+  await carregarAgendaSemana();
+});
+document.getElementById("btnPlanejarProximaSemana").addEventListener("click", async () => {
+  agendaSemanaAtual = agendaSomarDias(agendaSegundaFeiraISO(hojeISO()), 7);
+  agendaDiaSelecionado = agendaSemanaAtual;
+  agendaResumoAberto = false;
+  await carregarAgendaSemana();
+});
+document.getElementById("btnMinhaSemanaToggle").addEventListener("click", () => {
+  agendaResumoAberto = !agendaResumoAberto;
+  renderizarResumoSemanaAgenda([0, 1, 2, 3, 4].map(i => agendaSomarDias(agendaSemanaAtual, i)));
+});
+document.getElementById("btnAgendaFab").addEventListener("click", () => abrirFolhaAgenda({ Data: agendaDiaSelecionado }));
+
+/* ---------- Folha (bottom sheet): nova/editar visita ---------- */
+
+function abrirFolhaAgenda(prefill) {
+  agendaEditandoId = prefill && prefill.Id ? prefill.Id : null;
+  document.getElementById("folhaAgendaTitulo").textContent = agendaEditandoId ? "Editar visita" : "Nova visita";
+  document.getElementById("folhaAgendaErro").classList.add("oculto");
+  agendaTipoClienteEscolhido = (prefill && prefill.Tipo_Cliente) || "revenda";
+  document.querySelectorAll("#agendaTipoClienteToggle .tipo-cliente-opcao").forEach(el => {
+    el.classList.toggle("ativo", el.getAttribute("data-tipo") === agendaTipoClienteEscolhido);
+  });
+  const inputCliente = document.getElementById("inputAgendaCliente");
+  inputCliente.value = (prefill && prefill.Cliente_Nome) || "";
+  inputCliente.placeholder = agendaTipoClienteEscolhido === "revenda" ? "Buscar revenda..." : "Buscar fazenda...";
+  document.getElementById("inputAgendaData").value = (prefill && prefill.Data) || agendaDiaSelecionado || hojeISO();
+  document.getElementById("inputAgendaHora").value = (prefill && prefill.Hora_Inicio) || "";
+  document.getElementById("inputAgendaDuracao").value = (prefill && prefill.Duracao_Minutos) || 60;
+  document.getElementById("inputAgendaAssunto").value = (prefill && prefill.Assunto) || "";
+  document.getElementById("agendaSugestoesCliente").classList.add("oculto");
+  document.getElementById("folhaAgendaOverlay").classList.remove("oculto");
+}
+
+function fecharFolhaAgenda() {
+  document.getElementById("folhaAgendaOverlay").classList.add("oculto");
+}
+document.getElementById("btnFecharFolhaAgenda").addEventListener("click", fecharFolhaAgenda);
+document.getElementById("folhaAgendaOverlay").addEventListener("click", e => {
+  if (e.target.id === "folhaAgendaOverlay") fecharFolhaAgenda();
+});
+
+document.querySelectorAll("#agendaTipoClienteToggle .tipo-cliente-opcao").forEach(el => {
+  el.addEventListener("click", () => {
+    agendaTipoClienteEscolhido = el.getAttribute("data-tipo");
+    document.querySelectorAll("#agendaTipoClienteToggle .tipo-cliente-opcao").forEach(o => o.classList.toggle("ativo", o === el));
+    const inputCliente = document.getElementById("inputAgendaCliente");
+    inputCliente.value = "";
+    inputCliente.placeholder = agendaTipoClienteEscolhido === "revenda" ? "Buscar revenda..." : "Buscar fazenda...";
+    document.getElementById("agendaSugestoesCliente").classList.add("oculto");
+  });
+});
+
+document.getElementById("inputAgendaCliente").addEventListener("input", e => {
+  const termo = e.target.value.trim().toLowerCase();
+  const caixa = document.getElementById("agendaSugestoesCliente");
+  if (!termo) { caixa.classList.add("oculto"); return; }
+
+  let opcoes = [];
+  if (agendaTipoClienteEscolhido === "revenda") {
+    const nomeBusca = (agendaEditandoId && agendaCompromissoSelecionado && ehGestor()) ? agendaCompromissoSelecionado.Nome_Promotor : promotorAtual;
+    opcoes = PROMOTOR_CLIENTE
+      .filter(pc => pc.Promotor.toUpperCase() === String(nomeBusca).toUpperCase() && pc.Cliente.toLowerCase().includes(termo))
+      .map(pc => pc.Cliente);
+  } else {
+    opcoes = todasPropriedades.filter(p => String(p).toLowerCase().includes(termo));
+  }
+  opcoes = [...new Set(opcoes)].slice(0, 8);
+
+  caixa.innerHTML = opcoes.length === 0
+    ? '<div class="sugestao-vazia">Nenhum resultado</div>'
+    : opcoes.map(o => `<div class="sugestao-item" data-valor="${agendaEsc(o)}">${agendaEsc(o)}</div>`).join("");
+  caixa.classList.remove("oculto");
+  caixa.querySelectorAll(".sugestao-item").forEach(item => {
+    item.addEventListener("click", () => {
+      document.getElementById("inputAgendaCliente").value = item.getAttribute("data-valor");
+      caixa.classList.add("oculto");
+    });
+  });
+});
+
+document.querySelectorAll(".chip-sugestao").forEach(chip => {
+  chip.addEventListener("click", () => {
+    document.getElementById("inputAgendaAssunto").value = chip.getAttribute("data-assunto");
+  });
+});
+
+document.getElementById("btnSalvarAgenda").addEventListener("click", () => salvarCompromissoAgenda(false));
+document.getElementById("btnAdicionarOutraVisitaAgenda").addEventListener("click", () => salvarCompromissoAgenda(true));
+
+async function salvarCompromissoAgenda(manterAberto) {
+  const erroEl = document.getElementById("folhaAgendaErro");
+  erroEl.classList.add("oculto");
+
+  const cliente = document.getElementById("inputAgendaCliente").value.trim();
+  const data = document.getElementById("inputAgendaData").value;
+  const hora = document.getElementById("inputAgendaHora").value.trim();
+  const duracao = Number(document.getElementById("inputAgendaDuracao").value);
+  const assunto = document.getElementById("inputAgendaAssunto").value.trim();
+
+  if (!cliente || !data || !/^\d{2}:\d{2}$/.test(hora) || !assunto) {
+    erroEl.textContent = "Preencha cliente, data, horário (HH:MM) e o que será tratado.";
+    erroEl.classList.remove("oculto");
+    return;
+  }
+
+  const corpo = {
+    Tipo_Cliente: agendaTipoClienteEscolhido,
+    Cliente_Nome: cliente,
+    Data: data,
+    Hora_Inicio: hora,
+    Duracao_Minutos: duracao || 60,
+    Assunto: assunto
+  };
+
+  try {
+    const cabecalhos = { ...cabecalhosAutenticados(), "Content-Type": "application/json" };
+    const resp = agendaEditandoId
+      ? await fetch(CONFIG.URL_AGENDA, { method: "PATCH", headers: cabecalhos, body: JSON.stringify({ Id: agendaEditandoId, ...corpo }) })
+      : await fetch(CONFIG.URL_AGENDA, { method: "POST", headers: cabecalhos, body: JSON.stringify(corpo) });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao salvar o compromisso.");
+
+    if (manterAberto) {
+      agendaEditandoId = null;
+      document.getElementById("inputAgendaCliente").value = "";
+      document.getElementById("inputAgendaHora").value = "";
+      document.getElementById("inputAgendaAssunto").value = "";
+      document.getElementById("folhaAgendaTitulo").textContent = "Nova visita";
+    } else {
+      fecharFolhaAgenda();
+    }
+
+    agendaSemanaAtual = agendaSegundaFeiraISO(data);
+    agendaDiaSelecionado = data;
+    await carregarAgendaSemana();
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.classList.remove("oculto");
+  }
+}
+
+/* ---------- Folha (bottom sheet): ações sobre compromisso existente ---------- */
+
+function abrirFolhaAcoesAgenda(compromisso) {
+  agendaCompromissoSelecionado = compromisso;
+  document.getElementById("folhaAcoesAgendaTitulo").textContent = `${compromisso.Cliente_Nome} · ${compromisso.Hora_Inicio}`;
+  document.getElementById("folhaAcoesAgendaOverlay").classList.remove("oculto");
+}
+function fecharFolhaAcoesAgenda() {
+  document.getElementById("folhaAcoesAgendaOverlay").classList.add("oculto");
+}
+document.getElementById("btnFecharFolhaAcoesAgenda").addEventListener("click", fecharFolhaAcoesAgenda);
+document.getElementById("folhaAcoesAgendaOverlay").addEventListener("click", e => {
+  if (e.target.id === "folhaAcoesAgendaOverlay") fecharFolhaAcoesAgenda();
+});
+
+document.getElementById("btnAgendaEditar").addEventListener("click", () => {
+  const c = agendaCompromissoSelecionado;
+  fecharFolhaAcoesAgenda();
+  abrirFolhaAgenda(c);
+});
+
+document.getElementById("btnAgendaAlterarHorario").addEventListener("click", () => {
+  const c = agendaCompromissoSelecionado;
+  const novaHora = prompt("Novo horário (HH:MM):", c.Hora_Inicio);
+  if (!novaHora) return;
+  fecharFolhaAcoesAgenda();
+  atualizarCompromissoAgendaRapido(c.Id, { Hora_Inicio: novaHora });
+});
+
+document.getElementById("btnAgendaAlterarDia").addEventListener("click", () => {
+  const c = agendaCompromissoSelecionado;
+  const novoDia = prompt("Nova data (AAAA-MM-DD):", c.Data);
+  if (!novoDia) return;
+  fecharFolhaAcoesAgenda();
+  atualizarCompromissoAgendaRapido(c.Id, { Data: novoDia });
+});
+
+document.getElementById("btnAgendaExcluir").addEventListener("click", async () => {
+  const c = agendaCompromissoSelecionado;
+  if (!confirm(`Excluir a visita "${c.Cliente_Nome}" às ${c.Hora_Inicio}?`)) return;
+  fecharFolhaAcoesAgenda();
+  try {
+    const resp = await fetch(`${CONFIG.URL_AGENDA}?id=${c.Id}`, { method: "DELETE", headers: cabecalhosAutenticados() });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao excluir.");
+    await carregarAgendaSemana();
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+async function atualizarCompromissoAgendaRapido(id, mudancas) {
+  try {
+    const cabecalhos = { ...cabecalhosAutenticados(), "Content-Type": "application/json" };
+    const resp = await fetch(CONFIG.URL_AGENDA, { method: "PATCH", headers: cabecalhos, body: JSON.stringify({ Id: id, ...mudancas }) });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao atualizar o compromisso.");
+    await carregarAgendaSemana();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+/* ---------- Visão do gestor: "Agenda da Equipe" ---------- */
+
+function popularFiltroConsultorAgenda() {
+  const select = document.getElementById("selectAgendaGestorConsultor");
+  const nomes = [...new Set(PROMOTOR_CLIENTE.map(pc => pc.Promotor))].sort();
+  select.innerHTML = '<option value="">Todos os consultores</option>' + nomes.map(n => `<option value="${agendaEsc(n)}">${agendaEsc(n)}</option>`).join("");
+  select.value = agendaGestorPromotorFiltro;
+}
+
+document.getElementById("selectAgendaGestorConsultor").addEventListener("change", e => {
+  agendaGestorPromotorFiltro = e.target.value;
+  carregarAgendaGestor();
+});
+document.getElementById("btnAgendaGestorHoje").addEventListener("click", () => {
+  agendaGestorModo = "hoje";
+  document.getElementById("btnAgendaGestorHoje").classList.add("ativo");
+  document.getElementById("btnAgendaGestorSemana").classList.remove("ativo");
+  carregarAgendaGestor();
+});
+document.getElementById("btnAgendaGestorSemana").addEventListener("click", () => {
+  agendaGestorModo = "semana";
+  document.getElementById("btnAgendaGestorSemana").classList.add("ativo");
+  document.getElementById("btnAgendaGestorHoje").classList.remove("ativo");
+  if (!agendaSemanaAtual) agendaSemanaAtual = agendaSegundaFeiraISO(hojeISO());
+  carregarAgendaGestor();
+});
+
+async function carregarAgendaGestor() {
+  const container = document.getElementById("agendaGestorConteudo");
+  container.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const url = new URL(CONFIG.URL_AGENDA, window.location.origin);
+    if (agendaGestorModo === "hoje") {
+      url.searchParams.set("dia", hojeISO());
+    } else {
+      if (!agendaSemanaAtual) agendaSemanaAtual = agendaSegundaFeiraISO(hojeISO());
+      url.searchParams.set("semana", agendaSemanaAtual);
+    }
+    url.searchParams.set("equipe", "1");
+    if (agendaGestorPromotorFiltro) url.searchParams.set("promotor", agendaGestorPromotorFiltro);
+
+    const resp = await fetch(url, { headers: cabecalhosAutenticados() });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Falha ao carregar a agenda da equipe.");
+
+    const porPromotor = dados.PorPromotor || {};
+    const nomes = Object.keys(porPromotor).sort();
+
+    if (nomes.length === 0) {
+      container.innerHTML = '<div class="carregando-lista">Nenhuma visita planejada.</div>';
+      return;
+    }
+
+    if (agendaGestorModo === "hoje") {
+      container.innerHTML = nomes.map(nome => {
+        const itens = [...porPromotor[nome]].sort((a, b) => a.Hora_Inicio.localeCompare(b.Hora_Inicio));
+        return `<div class="card agenda-equipe-card">
+          <div class="agenda-equipe-nome"><span>${agendaEsc(nome)}</span><span class="agenda-equipe-contagem">${itens.length} visita${itens.length === 1 ? "" : "s"}</span></div>
+          ${itens.map(i => `<div class="agenda-equipe-item">${agendaEsc(i.Hora_Inicio)} — ${agendaEsc(i.Cliente_Nome)} — ${agendaEsc(i.Assunto)}</div>`).join("")}
+        </div>`;
+      }).join("");
+    } else {
+      const nomesDia = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+      const inicioSemanaMs = new Date(agendaSemanaAtual + "T00:00:00Z").getTime();
+      const linhas = nomes.map(nome => {
+        const contagens = [0, 0, 0, 0, 0];
+        porPromotor[nome].forEach(c => {
+          const dif = Math.round((new Date(c.Data + "T00:00:00Z").getTime() - inicioSemanaMs) / 86400000);
+          if (dif >= 0 && dif <= 4) contagens[dif]++;
+        });
+        const total = contagens.reduce((a, b) => a + b, 0);
+        return `<tr><td>${agendaEsc(nome)}</td>${contagens.map(n => `<td>${n || "—"}</td>`).join("")}<td><b>${total}</b></td></tr>`;
+      }).join("");
+      container.innerHTML = `<div class="card"><table class="agenda-semana-tabela">
+        <thead><tr><th>Consultor</th>${nomesDia.map(n => `<th>${n}</th>`).join("")}<th>Total</th></tr></thead>
+        <tbody>${linhas}</tbody>
+      </table></div>`;
+    }
+  } catch (err) {
+    container.innerHTML = `<div class="msg msg-erro">${agendaEsc(err.message)}</div>`;
+  }
+}
 
 </script>
 </body>
