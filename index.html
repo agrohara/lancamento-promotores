@@ -263,28 +263,56 @@
   .tipo-cliente-opcao{flex:1;text-align:center;padding:10px;border:1px solid var(--cinza-borda);border-radius:10px;
     cursor:pointer;font-size:13px;font-weight:700;color:#5b6771;}
   .tipo-cliente-opcao.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
-  .chips-sugestao{display:flex;gap:6px;flex-wrap:wrap;margin:-8px 0 14px;}
-  .chip-sugestao{background:var(--cinza-fundo);border:1px solid var(--cinza-borda);border-radius:20px;
-    padding:6px 12px;font-size:12px;color:#5b6771;cursor:pointer;}
-  .chip-sugestao:hover{border-color:var(--azul);color:var(--azul);}
   .folha-acoes-compromisso{display:flex;flex-direction:column;gap:8px;}
   .folha-acoes-compromisso .btn{text-transform:none;letter-spacing:0;}
   .folha-acoes-compromisso .btn-excluir{background:#fdecea;border-color:#fdecea;color:var(--vermelho);}
   .folha-acoes-compromisso .btn-excluir:hover{background:#f8d7d2;border-color:#f8d7d2;}
 
-  .agenda-gestor-toggle{display:flex;gap:8px;margin-bottom:14px;}
-  .agenda-gestor-toggle .btn-secundario{width:auto;flex:1;padding:10px;font-size:12px;}
+  /* Página da Agenda mais larga pro gestor (visão de calendário precisa de espaço) */
+  #pagAgenda.agenda-larga{width:100vw;max-width:100vw;position:relative;left:50%;right:50%;
+    margin-left:-50vw;margin-right:-50vw;padding:0 16px 90px;box-sizing:border-box;}
+  @media (min-width:860px){ #pagAgenda.agenda-larga{padding:0 32px 90px;} }
+
+  .agenda-gestor-toggle{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .agenda-gestor-toggle .btn-secundario{width:auto;flex:0 0 auto;padding:10px 16px;font-size:12px;}
   .agenda-gestor-toggle .btn-secundario.ativo{background:var(--azul);color:#fff;}
-  .agenda-equipe-card{margin-bottom:12px;}
-  .agenda-equipe-nome{font-size:14px;font-weight:800;color:var(--verde-escuro);margin-bottom:6px;
-    display:flex;justify-content:space-between;align-items:center;}
-  .agenda-equipe-contagem{font-size:11px;font-weight:700;color:var(--azul);background:#eaf6ec;border-radius:20px;padding:2px 10px;}
-  .agenda-equipe-item{font-size:13px;color:#5b6771;padding:5px 0;border-top:1px solid #f0f2f0;}
-  .agenda-equipe-item:first-child{border-top:none;}
-  .agenda-semana-tabela{width:100%;border-collapse:collapse;font-size:12px;}
-  .agenda-semana-tabela th,.agenda-semana-tabela td{padding:8px 4px;text-align:center;border-bottom:1px solid #f0f2f0;}
-  .agenda-semana-tabela th{color:#8a9690;font-weight:700;text-transform:uppercase;font-size:10px;}
-  .agenda-semana-tabela td:first-child,.agenda-semana-tabela th:first-child{text-align:left;font-weight:700;color:var(--texto);}
+  #selectAgendaGestorConsultor{margin-bottom:14px;}
+
+  /* Grade de calendário (gestor e, com 1 coluna, o dia do consultor) */
+  .agenda-grade-wrap{overflow-x:auto;}
+  .agenda-grade{display:flex;border:1px solid var(--cinza-borda);border-radius:12px;background:#fff;overflow:hidden;min-width:100%;}
+  .agenda-grade-eixo{flex:0 0 46px;border-right:1px solid #eef1ee;}
+  .agenda-grade-eixo-cab{height:46px;border-bottom:1px solid #eef1ee;}
+  .agenda-grade-eixo-hora{font-size:10px;font-weight:700;color:#8a9690;text-align:right;padding-right:6px;
+    box-sizing:border-box;transform:translateY(-6px);}
+  .agenda-grade-colunas{display:flex;flex:1;min-width:0;}
+  .agenda-grade-coluna{flex:1;min-width:130px;border-right:1px solid #f0f2f0;position:relative;}
+  .agenda-grade-coluna:last-child{border-right:none;}
+  .agenda-grade-coluna-cab{height:46px;border-bottom:1px solid #eef1ee;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--verde-escuro);
+    text-align:center;padding:2px 4px;box-sizing:border-box;}
+  .agenda-grade-coluna-cab small{font-weight:600;color:#8a9690;font-size:10px;}
+  .agenda-grade-coluna-corpo{position:relative;}
+  .agenda-grade-linha-hora{border-top:1px solid #f4f5f3;box-sizing:border-box;}
+  .agenda-grade-linha-hora.clicavel{cursor:pointer;}
+  .agenda-grade-linha-hora.clicavel:hover{background:#f7faf7;}
+  .agenda-bloco{position:absolute;left:2%;right:2%;border-radius:8px;border-left:4px solid var(--azul);
+    background:#eaf3ff;padding:4px 7px;overflow:hidden;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.06);z-index:2;}
+  .agenda-bloco:hover{filter:brightness(0.97);}
+  .agenda-bloco-cliente{font-size:11.5px;font-weight:800;color:var(--verde-escuro);line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .agenda-bloco-promotor{font-size:10px;font-weight:700;color:#3a6ea5;line-height:1.2;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .agenda-bloco-assunto{font-size:10.5px;color:#5b6771;line-height:1.25;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .agenda-bloco-hora{font-size:9.5px;color:#5b6771;font-weight:600;}
+  .agenda-cor-1{background:#eaf3ff;border-left-color:#2f6fb0;} .agenda-cor-1 .agenda-bloco-promotor{color:#2f6fb0;}
+  .agenda-cor-2{background:#eafbf1;border-left-color:#1f9d55;} .agenda-cor-2 .agenda-bloco-promotor{color:#1f9d55;}
+  .agenda-cor-3{background:#fff4e5;border-left-color:#c67c12;} .agenda-cor-3 .agenda-bloco-promotor{color:#c67c12;}
+  .agenda-cor-4{background:#f5eefc;border-left-color:#7b3fc4;} .agenda-cor-4 .agenda-bloco-promotor{color:#7b3fc4;}
+  .agenda-cor-5{background:#fdecec;border-left-color:#c43f3f;} .agenda-cor-5 .agenda-bloco-promotor{color:#c43f3f;}
+  .agenda-cor-6{background:#e8f7f7;border-left-color:#1a8f8f;} .agenda-cor-6 .agenda-bloco-promotor{color:#1a8f8f;}
+  .agenda-grade-vazio{padding:30px 14px;text-align:center;color:#8a9690;font-size:13px;}
 </style>
 </head>
 <body>
@@ -712,7 +740,7 @@
       <div id="areaExportar" class="oculto">
         <h3 class="subtitulo-secao">Exportar dados</h3>
         <div id="msgExportar"></div>
-        <button class="btn btn-secundario" id="btnExportarExcel" type="button">Baixar Excel (Pedidos, Visitas, Fazendas)</button>
+        <button class="btn btn-secundario" id="btnExportarExcel" type="button">Baixar Excel (Pedidos, Visitas, Fazendas, Metas, Agenda)</button>
       </div>
     </section>
 
@@ -855,17 +883,11 @@
     <label for="inputAgendaHora">Horário</label>
     <input type="text" id="inputAgendaHora" placeholder="08:00" maxlength="5">
 
-    <label for="inputAgendaDuracao">Duração (minutos)</label>
-    <input type="number" id="inputAgendaDuracao" value="60" min="15" step="15">
+    <label for="inputAgendaDuracao">Duração (horas)</label>
+    <input type="number" id="inputAgendaDuracao" value="1" min="0.5" step="0.5">
 
-    <label for="inputAgendaAssunto">O que será tratado?</label>
-    <input type="text" id="inputAgendaAssunto" placeholder="Ex.: Apresentar novo produto, fechar pedido...">
-    <div class="chips-sugestao">
-      <div class="chip-sugestao" data-assunto="Apresentar novo produto">Apresentar produto</div>
-      <div class="chip-sugestao" data-assunto="Fechar pedido">Fechar pedido</div>
-      <div class="chip-sugestao" data-assunto="Follow-up de visita anterior">Follow-up</div>
-      <div class="chip-sugestao" data-assunto="Alinhar pagamento">Alinhar pagamento</div>
-    </div>
+    <label for="inputAgendaAssunto">O que será tratado? <span style="color:var(--vermelho);">*</span></label>
+    <textarea id="inputAgendaAssunto" required rows="2" placeholder="Descreva o que será tratado nessa visita (obrigatório)..." style="width:100%;box-sizing:border-box;font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--cinza-borda);border-radius:10px;resize:vertical;margin-bottom:14px;"></textarea>
 
     <button class="btn" id="btnSalvarAgenda" type="button">Salvar</button>
     <button class="btn btn-secundario" id="btnAdicionarOutraVisitaAgenda" type="button" style="margin-top:8px;">+ Adicionar outra visita</button>
@@ -939,6 +961,155 @@ let agendaCompromissoSelecionado = null; // usado pela folha de ações (editar/
 let agendaGestorModo = "hoje";     // "hoje" ou "semana"
 let agendaGestorPromotorFiltro = "";
 let agendaHorasPainel = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+const AGENDA_HORA_INICIO = 7;   // primeira linha da grade (07:00)
+const AGENDA_HORA_FIM = 19;     // fim da grade (19:00) — grade cobre 07:00–19:00
+const AGENDA_ALTURA_HORA = 52;  // px por hora na grade
+
+// Cores por consultor: mesma pessoa sempre cai na mesma cor (hash simples do nome).
+function agendaCorPromotor(nome) {
+  const n = String(nome || "");
+  let h = 0;
+  for (let i = 0; i < n.length; i++) h = (h * 31 + n.charCodeAt(i)) >>> 0;
+  return "agenda-cor-" + ((h % 6) + 1);
+}
+
+function agendaMinutosDesdeInicioGrade(horaStr) {
+  const partes = String(horaStr || "0:0").split(":");
+  const h = Number(partes[0]) || 0;
+  const m = Number(partes[1]) || 0;
+  return (h - AGENDA_HORA_INICIO) * 60 + m;
+}
+
+function agendaFormatarDuracao(minutos) {
+  const min = Math.max(0, Math.round(Number(minutos) || 0));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m}min`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${String(m).padStart(2, "0")}`;
+}
+
+// Distribui compromissos que se sobrepõem em "raias" lado a lado, igual ao Google Agenda.
+// Recebe itens com .inicioMin/.fimMin e devolve os mesmos itens com .lane e .lanesTotal.
+function agendaDistribuirRaias(itens) {
+  const ordenados = [...itens].sort((a, b) => a.inicioMin - b.inicioMin || a.fimMin - b.fimMin);
+  let cluster = [];
+  let fimCluster = -Infinity;
+  function fecharCluster() {
+    if (cluster.length === 0) return;
+    const totalRaias = Math.max(...cluster.map(it => it.lane + 1));
+    cluster.forEach(it => { it.lanesTotal = totalRaias; });
+    cluster = [];
+  }
+  ordenados.forEach(it => {
+    if (it.inicioMin >= fimCluster) {
+      fecharCluster();
+      fimCluster = it.fimMin;
+    } else {
+      fimCluster = Math.max(fimCluster, it.fimMin);
+    }
+    const raiasUsadas = cluster.filter(x => x.fimMin > it.inicioMin).map(x => x.lane);
+    let lane = 0;
+    while (raiasUsadas.includes(lane)) lane++;
+    it.lane = lane;
+    cluster.push(it);
+  });
+  fecharCluster();
+  return ordenados;
+}
+
+// Constrói o miolo de UMA coluna da grade (linhas de hora clicáveis + blocos posicionados).
+// compromissos: já filtrados pro dia/coluna. onClickVazio(horaLabel) / onClickBloco(compromisso).
+function agendaMontarColunaGrade(compromissos, { onClickVazio, onClickBloco, mostrarPromotor }) {
+  const alturaTotal = (AGENDA_HORA_FIM - AGENDA_HORA_INICIO) * AGENDA_ALTURA_HORA;
+  const corpo = document.createElement("div");
+  corpo.className = "agenda-grade-coluna-corpo";
+  corpo.style.height = alturaTotal + "px";
+
+  for (let h = AGENDA_HORA_INICIO; h < AGENDA_HORA_FIM; h++) {
+    const linha = document.createElement("div");
+    linha.className = "agenda-grade-linha-hora" + (onClickVazio ? " clicavel" : "");
+    linha.style.height = AGENDA_ALTURA_HORA + "px";
+    if (onClickVazio) {
+      const horaLabel = String(h).padStart(2, "0") + ":00";
+      linha.title = "+ Adicionar visita às " + horaLabel;
+      linha.addEventListener("click", () => onClickVazio(horaLabel));
+    }
+    corpo.appendChild(linha);
+  }
+
+  const itens = compromissos.map(c => ({
+    compromisso: c,
+    inicioMin: agendaMinutosDesdeInicioGrade(c.Hora_Inicio),
+    fimMin: agendaMinutosDesdeInicioGrade(c.Hora_Inicio) + (Number(c.Duracao_Minutos) || 60)
+  }));
+  const distribuidos = agendaDistribuirRaias(itens);
+
+  distribuidos.forEach(it => {
+    const c = it.compromisso;
+    const topoMin = Math.max(0, it.inicioMin);
+    const fimMin = Math.min((AGENDA_HORA_FIM - AGENDA_HORA_INICIO) * 60, it.fimMin);
+    if (fimMin <= 0 || topoMin >= (AGENDA_HORA_FIM - AGENDA_HORA_INICIO) * 60) return;
+    const topoPx = (topoMin / 60) * AGENDA_ALTURA_HORA;
+    const alturaPx = Math.max(((fimMin - topoMin) / 60) * AGENDA_ALTURA_HORA - 2, 22);
+    const largura = 96 / it.lanesTotal;
+    const esquerda = 2 + it.lane * largura;
+
+    const bloco = document.createElement("div");
+    bloco.className = "agenda-bloco " + agendaCorPromotor(mostrarPromotor ? c.Nome_Promotor : c.Cliente_Nome);
+    bloco.style.top = topoPx + "px";
+    bloco.style.height = alturaPx + "px";
+    bloco.style.left = esquerda + "%";
+    bloco.style.width = (largura - 1.5) + "%";
+    bloco.innerHTML = `
+      <div class="agenda-bloco-hora">${agendaEsc(c.Hora_Inicio)} · ${agendaFormatarDuracao(c.Duracao_Minutos)}</div>
+      <div class="agenda-bloco-cliente">${agendaEsc(c.Cliente_Nome)}</div>
+      ${mostrarPromotor ? `<div class="agenda-bloco-promotor">${agendaEsc(c.Nome_Promotor)}</div>` : ""}
+      <div class="agenda-bloco-assunto">${agendaEsc(c.Assunto)}</div>`;
+    if (onClickBloco) bloco.addEventListener("click", e => { e.stopPropagation(); onClickBloco(c); });
+    corpo.appendChild(bloco);
+  });
+
+  return corpo;
+}
+
+// Constrói a grade completa (eixo de horas à esquerda + N colunas).
+function agendaMontarGrade(colunas) {
+  const wrap = document.createElement("div");
+  wrap.className = "agenda-grade-wrap";
+  const grade = document.createElement("div");
+  grade.className = "agenda-grade";
+
+  const eixo = document.createElement("div");
+  eixo.className = "agenda-grade-eixo";
+  const eixoCab = document.createElement("div");
+  eixoCab.className = "agenda-grade-eixo-cab";
+  eixo.appendChild(eixoCab);
+  for (let h = AGENDA_HORA_INICIO; h < AGENDA_HORA_FIM; h++) {
+    const label = document.createElement("div");
+    label.className = "agenda-grade-eixo-hora";
+    label.style.height = AGENDA_ALTURA_HORA + "px";
+    label.textContent = String(h).padStart(2, "0") + ":00";
+    eixo.appendChild(label);
+  }
+  grade.appendChild(eixo);
+
+  const colunasWrap = document.createElement("div");
+  colunasWrap.className = "agenda-grade-colunas";
+  colunas.forEach(col => {
+    const colEl = document.createElement("div");
+    colEl.className = "agenda-grade-coluna";
+    const cab = document.createElement("div");
+    cab.className = "agenda-grade-coluna-cab";
+    cab.innerHTML = col.titulo;
+    colEl.appendChild(cab);
+    colEl.appendChild(col.corpo);
+    colunasWrap.appendChild(colEl);
+  });
+  grade.appendChild(colunasWrap);
+  wrap.appendChild(grade);
+  return wrap;
+}
 
 /* =========================================================================
    UTILITÁRIOS
@@ -3439,19 +3610,28 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
   const authHeader = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
 
   try {
-    const [respPedidos, respVisitas, respFazendas] = await Promise.all([
+    const [respPedidos, respVisitas, respFazendas, respMetas, respAgenda] = await Promise.all([
       fetch(CONFIG.URL_API, { headers: authHeader }),
       fetch(CONFIG.URL_VISITAS, { headers: authHeader }),
-      fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: authHeader })
+      fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: authHeader }),
+      fetch(CONFIG.URL_METAS, { headers: authHeader }),
+      fetch(`${CONFIG.URL_AGENDA}?tudo=1&equipe=1`, { headers: authHeader })
     ]);
 
     const dadosPedidos = await respPedidos.json().catch(() => ({}));
     const dadosVisitas = await respVisitas.json().catch(() => ({}));
     const dadosFazendas = await respFazendas.json().catch(() => ({}));
+    const dadosMetas = await respMetas.json().catch(() => ({}));
+    const dadosAgenda = await respAgenda.json().catch(() => ({}));
 
     if (!respPedidos.ok || !respVisitas.ok || !respFazendas.ok) {
       throw new Error("Não foi possível buscar todos os dados para exportar.");
     }
+    // Metas e Agenda não derrubam a exportação se falharem (ex.: RLS/tabela ainda não
+    // configurada) — só ficam de fora e um aviso aparece pro usuário.
+    const avisos = [];
+    if (!respMetas.ok) avisos.push("metas");
+    if (!respAgenda.ok) avisos.push("agenda");
 
     const pedidos = (dadosPedidos.lancamentos || []).map(l => ({
       Promotor: l.Nome_Promotor,
@@ -3499,6 +3679,22 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Longitude: p.Longitude
     }));
 
+    const metas = (dadosMetas.metas || []).map(m => ({
+      Revenda: m.Revenda,
+      Meta_Semanal: m.Meta_Semanal
+    }));
+
+    const agendaTodos = Object.values(dadosAgenda.PorPromotor || {}).flat();
+    const agenda = agendaTodos.map(c => ({
+      Promotor: c.Nome_Promotor,
+      Tipo_Cliente: c.Tipo_Cliente === "revenda" ? "Revenda" : "Fazenda",
+      Cliente: c.Cliente_Nome,
+      Data: c.Data,
+      Hora_Inicio: c.Hora_Inicio,
+      Duracao_Horas: c.Duracao_Minutos ? (c.Duracao_Minutos / 60) : "",
+      Assunto: c.Assunto
+    })).sort((a, b) => (a.Data + a.Hora_Inicio).localeCompare(b.Data + b.Hora_Inicio));
+
     const resumoPivot = montarPivotRevendaSemana(pedidos);
 
     const wb = XLSX.utils.book_new();
@@ -3508,14 +3704,20 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pedidos), "Pedidos");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(visitas), "Visitas");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fazendas), "Fazendas");
+    if (metas.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(metas), "Metas");
+    if (agenda.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(agenda), "Agenda");
 
     const dataArquivo = hojeISO();
     XLSX.writeFile(wb, `agro-hara-dados-${dataArquivo}.xlsx`);
+
+    if (avisos.length > 0) {
+      mostrarMsg("msgExportar", `Excel gerado, mas não foi possível incluir: ${avisos.join(", ")}.`, "erro");
+    }
   } catch (err) {
     mostrarMsg("msgExportar", err.message, "erro");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas)";
+    btn.textContent = "Baixar Excel (Pedidos, Visitas, Fazendas, Metas, Agenda)";
   }
 });
 
@@ -3560,6 +3762,7 @@ async function abrirAgenda() {
   if (todasPropriedades.length === 0) {
     try { await carregarTodasPropriedades(); } catch (err) { /* segue sem bloquear a agenda */ }
   }
+  document.getElementById("pagAgenda").classList.toggle("agenda-larga", ehGestor());
   if (ehGestor()) {
     document.getElementById("agendaConsultor").classList.add("oculto");
     document.getElementById("agendaGestor").classList.remove("oculto");
@@ -3636,40 +3839,19 @@ function renderizarDiaTimelineAgenda() {
   const dObj = new Date(Date.UTC(ano, mes - 1, dia));
   document.getElementById("agendaDiaTitulo").textContent = `${nomesDia[dObj.getUTCDay()]}, ${String(dia).padStart(2, "0")}/${NOMES_MES[dObj.getUTCMonth()]}`;
 
-  const doDia = agendaCompromissos.filter(c => c.Data === agendaDiaSelecionado).sort((a, b) => a.Hora_Inicio.localeCompare(b.Hora_Inicio));
+  const doDia = agendaCompromissos.filter(c => c.Data === agendaDiaSelecionado);
   const container = document.getElementById("agendaDiaTimeline");
   container.innerHTML = "";
 
-  agendaHorasPainel.forEach(hora => {
-    const horaLabel = String(hora).padStart(2, "0") + ":00";
-    const doSlot = doDia.filter(c => Number(String(c.Hora_Inicio).split(":")[0]) === hora);
-    const linha = document.createElement("div");
-    linha.className = "agenda-slot";
-    const conteudo = doSlot.length === 0
-      ? `<div class="agenda-slot-vazio" data-hora="${horaLabel}">+ Adicionar visita às ${horaLabel}</div>`
-      : doSlot.map(c => `
-        <div class="agenda-card" data-id="${c.Id}">
-          <div class="agenda-card-topo">
-            <span class="agenda-card-cliente">${agendaEsc(c.Cliente_Nome)}</span>
-            <span class="agenda-card-hora">${agendaEsc(c.Hora_Inicio)} · ${agendaEsc(c.Duracao_Minutos)}min</span>
-          </div>
-          <div class="agenda-card-tipo">${c.Tipo_Cliente === "revenda" ? "Revenda" : "Fazenda"}</div>
-          <div class="agenda-card-assunto">${agendaEsc(c.Assunto)}</div>
-        </div>`).join("");
-    linha.innerHTML = `<div class="agenda-slot-hora">${horaLabel}</div><div class="agenda-slot-conteudo">${conteudo}</div>`;
-    container.appendChild(linha);
+  const corpo = agendaMontarColunaGrade(doDia, {
+    mostrarPromotor: false,
+    onClickVazio: horaLabel => abrirFolhaAgenda({ Data: agendaDiaSelecionado, Hora_Inicio: horaLabel }),
+    onClickBloco: compromisso => abrirFolhaAcoesAgenda(compromisso)
   });
-
-  container.querySelectorAll(".agenda-slot-vazio").forEach(el => {
-    el.addEventListener("click", () => abrirFolhaAgenda({ Data: agendaDiaSelecionado, Hora_Inicio: el.getAttribute("data-hora") }));
-  });
-  container.querySelectorAll(".agenda-card").forEach(el => {
-    el.addEventListener("click", () => {
-      const id = Number(el.getAttribute("data-id"));
-      const compromisso = agendaCompromissos.find(c => c.Id === id);
-      if (compromisso) abrirFolhaAcoesAgenda(compromisso);
-    });
-  });
+  const grade = agendaMontarGrade([{ titulo: "", corpo }]);
+  grade.querySelector(".agenda-grade-coluna-cab").style.display = "none";
+  grade.querySelector(".agenda-grade-eixo-cab").style.height = "0";
+  container.appendChild(grade);
 }
 
 function renderizarResumoSemanaAgenda(diasSemana) {
@@ -3729,7 +3911,7 @@ function abrirFolhaAgenda(prefill) {
   inputCliente.placeholder = agendaTipoClienteEscolhido === "revenda" ? "Buscar revenda..." : "Buscar fazenda...";
   document.getElementById("inputAgendaData").value = (prefill && prefill.Data) || agendaDiaSelecionado || hojeISO();
   document.getElementById("inputAgendaHora").value = (prefill && prefill.Hora_Inicio) || "";
-  document.getElementById("inputAgendaDuracao").value = (prefill && prefill.Duracao_Minutos) || 60;
+  document.getElementById("inputAgendaDuracao").value = (prefill && prefill.Duracao_Minutos) ? (prefill.Duracao_Minutos / 60) : 1;
   document.getElementById("inputAgendaAssunto").value = (prefill && prefill.Assunto) || "";
   document.getElementById("agendaSugestoesCliente").classList.add("oculto");
   document.getElementById("folhaAgendaOverlay").classList.remove("oculto");
@@ -3782,12 +3964,6 @@ document.getElementById("inputAgendaCliente").addEventListener("input", e => {
   });
 });
 
-document.querySelectorAll(".chip-sugestao").forEach(chip => {
-  chip.addEventListener("click", () => {
-    document.getElementById("inputAgendaAssunto").value = chip.getAttribute("data-assunto");
-  });
-});
-
 document.getElementById("btnSalvarAgenda").addEventListener("click", () => salvarCompromissoAgenda(false));
 document.getElementById("btnAdicionarOutraVisitaAgenda").addEventListener("click", () => salvarCompromissoAgenda(true));
 
@@ -3798,11 +3974,21 @@ async function salvarCompromissoAgenda(manterAberto) {
   const cliente = document.getElementById("inputAgendaCliente").value.trim();
   const data = document.getElementById("inputAgendaData").value;
   const hora = document.getElementById("inputAgendaHora").value.trim();
-  const duracao = Number(document.getElementById("inputAgendaDuracao").value);
+  const duracaoHoras = Number(document.getElementById("inputAgendaDuracao").value);
   const assunto = document.getElementById("inputAgendaAssunto").value.trim();
 
-  if (!cliente || !data || !/^\d{2}:\d{2}$/.test(hora) || !assunto) {
-    erroEl.textContent = "Preencha cliente, data, horário (HH:MM) e o que será tratado.";
+  if (!cliente || !data || !/^\d{2}:\d{2}$/.test(hora)) {
+    erroEl.textContent = "Preencha cliente, data e horário (HH:MM).";
+    erroEl.classList.remove("oculto");
+    return;
+  }
+  if (!duracaoHoras || duracaoHoras <= 0) {
+    erroEl.textContent = "Informe a duração em horas (ex.: 0.5, 1, 1.5, 2...).";
+    erroEl.classList.remove("oculto");
+    return;
+  }
+  if (!assunto) {
+    erroEl.textContent = "Descreva o que será tratado — esse campo é obrigatório.";
     erroEl.classList.remove("oculto");
     return;
   }
@@ -3812,7 +3998,7 @@ async function salvarCompromissoAgenda(manterAberto) {
     Cliente_Nome: cliente,
     Data: data,
     Hora_Inicio: hora,
-    Duracao_Minutos: duracao || 60,
+    Duracao_Minutos: Math.round(duracaoHoras * 60),
     Assunto: assunto
   };
 
@@ -3953,36 +4139,43 @@ async function carregarAgendaGestor() {
 
     const porPromotor = dados.PorPromotor || {};
     const nomes = Object.keys(porPromotor).sort();
+    const todos = nomes.flatMap(n => porPromotor[n]);
 
-    if (nomes.length === 0) {
-      container.innerHTML = '<div class="carregando-lista">Nenhuma visita planejada.</div>';
+    if (todos.length === 0) {
+      container.innerHTML = '<div class="agenda-grade-vazio">Nenhuma visita planejada.</div>';
       return;
     }
 
+    container.innerHTML = "";
+
     if (agendaGestorModo === "hoje") {
-      container.innerHTML = nomes.map(nome => {
-        const itens = [...porPromotor[nome]].sort((a, b) => a.Hora_Inicio.localeCompare(b.Hora_Inicio));
-        return `<div class="card agenda-equipe-card">
-          <div class="agenda-equipe-nome"><span>${agendaEsc(nome)}</span><span class="agenda-equipe-contagem">${itens.length} visita${itens.length === 1 ? "" : "s"}</span></div>
-          ${itens.map(i => `<div class="agenda-equipe-item">${agendaEsc(i.Hora_Inicio)} — ${agendaEsc(i.Cliente_Nome)} — ${agendaEsc(i.Assunto)}</div>`).join("")}
-        </div>`;
-      }).join("");
-    } else {
-      const nomesDia = ["Seg", "Ter", "Qua", "Qui", "Sex"];
-      const inicioSemanaMs = new Date(agendaSemanaAtual + "T00:00:00Z").getTime();
-      const linhas = nomes.map(nome => {
-        const contagens = [0, 0, 0, 0, 0];
-        porPromotor[nome].forEach(c => {
-          const dif = Math.round((new Date(c.Data + "T00:00:00Z").getTime() - inicioSemanaMs) / 86400000);
-          if (dif >= 0 && dif <= 4) contagens[dif]++;
+      // Uma coluna por consultor — visão lado a lado do dia inteiro (visão de calendário).
+      const colunas = nomes.map(nome => {
+        const itens = porPromotor[nome];
+        const corpo = agendaMontarColunaGrade(itens, {
+          mostrarPromotor: false,
+          onClickVazio: null,
+          onClickBloco: compromisso => abrirFolhaAcoesAgenda(compromisso)
         });
-        const total = contagens.reduce((a, b) => a + b, 0);
-        return `<tr><td>${agendaEsc(nome)}</td>${contagens.map(n => `<td>${n || "—"}</td>`).join("")}<td><b>${total}</b></td></tr>`;
-      }).join("");
-      container.innerHTML = `<div class="card"><table class="agenda-semana-tabela">
-        <thead><tr><th>Consultor</th>${nomesDia.map(n => `<th>${n}</th>`).join("")}<th>Total</th></tr></thead>
-        <tbody>${linhas}</tbody>
-      </table></div>`;
+        return { titulo: `${agendaEsc(nome)}<br><small>${itens.length} visita${itens.length === 1 ? "" : "s"}</small>`, corpo };
+      });
+      container.appendChild(agendaMontarGrade(colunas));
+    } else {
+      // Grade semanal (Seg–Sex). Com "Todos os consultores", mistura tudo colorido por pessoa.
+      const nomesDia = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+      const diasSemana = [0, 1, 2, 3, 4].map(i => agendaSomarDias(agendaSemanaAtual, i));
+      const mostrarPromotor = !agendaGestorPromotorFiltro;
+      const colunas = diasSemana.map((dataISO, i) => {
+        const [anoD, mesD, diaD] = dataISO.split("-").map(Number);
+        const doDia = todos.filter(c => c.Data === dataISO);
+        const corpo = agendaMontarColunaGrade(doDia, {
+          mostrarPromotor,
+          onClickVazio: null,
+          onClickBloco: compromisso => abrirFolhaAcoesAgenda(compromisso)
+        });
+        return { titulo: `${nomesDia[i]}<br><small>${String(diaD).padStart(2, "0")}/${NOMES_MES[mesD - 1]}</small>`, corpo };
+      });
+      container.appendChild(agendaMontarGrade(colunas));
     }
   } catch (err) {
     container.innerHTML = `<div class="msg msg-erro">${agendaEsc(err.message)}</div>`;
