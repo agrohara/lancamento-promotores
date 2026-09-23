@@ -1,9 +1,13 @@
 /* Service Worker — PromotoresVet / Agro Hara Gestão de Campo
  *
- * FASE 1 (esta): fazer o app ABRIR sem internet.
- * Ainda NÃO existe fila de envio offline — isso é a fase 2. Aqui o objetivo é só que,
- * sem sinal, o promotor consiga abrir o aplicativo e ver as telas em vez de tomar a
- * página de erro do navegador.
+ * FASE 1 (leitura, aqui): fazer o app ABRIR e CONSULTAR sem internet.
+ * FASE 2 (gravação): a fila de envio offline (Visita, Pedido, Cadastro de fazenda,
+ * Editar fazenda/pedido/visita) NÃO mora neste arquivo — mora no próprio index.html,
+ * usando IndexedDB (módulo "enviarOuEnfileirar" / fila offline). Este service worker
+ * só cuida de leitura; por isso o handler de "fetch" abaixo devolve cedo (return, sem
+ * responder) para qualquer requisição que não seja GET — POST/PATCH vão direto pra
+ * rede e, se falharem, é o JS da página (não este arquivo) que decide enfileirar.
+ * Ver OFFLINE.md na documentação do projeto para a descrição completa das duas fases.
  *
  * NADA do comportamento atual muda quando há internet: toda chamada a /api/ continua
  * indo direto para a rede, como sempre foi. O cache só entra em cena quando a rede falha.
@@ -21,10 +25,13 @@
  *     relatório desatualizado servido como se fosse atual confundiria o gestor.
  *
  * Para publicar uma versão nova do app: troque VERSAO_CACHE. O service worker antigo
- * apaga os caches anteriores e assume no próximo carregamento.
+ * apaga os caches anteriores e assume no próximo carregamento. O index.html também
+ * regrava sozinho a cópia offline a cada abertura com internet (ver seção 4 do
+ * OFFLINE.md), então esquecer de trocar essa constante não deixa a cópia congelada —
+ * mas trocar continua sendo o caminho correto.
  */
 
-const VERSAO_CACHE = "agrohara-v2";
+const VERSAO_CACHE = "agrohara-v3";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 
@@ -88,8 +95,9 @@ function ehApiDeConsulta(url) {
 self.addEventListener("fetch", (evento) => {
   const req = evento.request;
 
-  // Só GET passa pelo cache. POST e PATCH (enviar pedido, visita, salvar localização)
-  // vão sempre direto para a rede e falham sem sinal — a fila offline é a fase 2.
+  // Só GET passa pelo cache. POST e PATCH (enviar/editar pedido, visita, fazenda,
+  // salvar localização) vão sempre direto para a rede — a fila offline (Fase 2) mora
+  // no index.html (IndexedDB), não aqui.
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
