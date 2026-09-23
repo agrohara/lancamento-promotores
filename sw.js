@@ -31,7 +31,7 @@
  * mas trocar continua sendo o caminho correto.
  */
 
-const VERSAO_CACHE = "agrohara-v3";
+const VERSAO_CACHE = "agrohara-v4";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 
@@ -134,7 +134,13 @@ self.addEventListener("fetch", (evento) => {
   if (req.mode === "navigate") {
     evento.respondWith((async () => {
       try {
-        const resp = await fetch(req);
+        // cache: "no-store" força ignorar qualquer cache HTTP intermediário (do
+        // navegador ou da CDN) e buscar sempre a resposta mais nova direto do
+        // servidor. Sem isto, mesmo com internet, o navegador podia devolver uma
+        // cópia de index.html guardada no cache HTTP comum (não no cache deste
+        // service worker) depois de um novo deploy — o app parecia "não atualizar"
+        // mesmo com o arquivo certo já publicado no GitHub/Vercel.
+        const resp = await fetch(req, { cache: "no-store" });
         // Toda abertura com internet REGRAVA a cópia offline. Sem isto, a cópia
         // guardada congela na versão do dia da instalação: online o promotor veria
         // o app novo e offline o antigo, silenciosamente. Foi o que aconteceu entre
