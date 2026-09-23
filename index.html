@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Agro Hara · Gestão de Campo</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#3d8b28">
+<link rel="icon" href="/icone-192.png">
+<link rel="apple-touch-icon" href="/icone-192.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -53,6 +57,12 @@
   .msg-info{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;}
   .overlay-carregando{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;
     justify-content:center;font-size:15px;color:var(--azul);font-weight:600;z-index:50;}
+
+  /* ---------- FILA OFFLINE ---------- */
+  .pilha-fila-offline{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;z-index:60;
+    background:#1f2b23;color:#fff;padding:8px 16px;border-radius:999px;font-size:12px;font-weight:600;
+    box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer;max-width:88vw;text-align:center;}
+  .pilha-fila-offline.oculto{display:none;}
 
   /* ---------- LOGIN ---------- */
   .tela-login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
@@ -123,13 +133,18 @@
   .chip-filtro{background:#fff;border:1px solid var(--cinza-borda);border-radius:20px;padding:8px 16px;
     font-size:13px;font-weight:700;color:#5b6771;cursor:pointer;}
   .chip-filtro.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
-  .item-historico{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer;}
-  .item-historico-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .item-historico{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+  .item-historico-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;}
   .item-historico-titulo{font-size:14px;font-weight:700;}
   .item-historico-sub{font-size:12px;color:#5b6771;margin-top:2px;}
   .item-historico-valor{font-size:13px;font-weight:700;color:var(--azul);flex:0 0 auto;}
   .item-historico-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid var(--cinza-fundo);font-size:13px;line-height:1.6;color:#44525c;}
   .item-historico-detalhe .linha-produto{display:flex;justify-content:space-between;padding:3px 0;}
+  .linha-produto-editavel{border-bottom:1px dashed var(--cinza-fundo);padding-bottom:6px;margin-bottom:6px;}
+  .linha-produto-editavel:last-child{border-bottom:none;margin-bottom:0;}
+  .historico-edicoes{margin-top:8px;padding:8px 10px;background:var(--cinza-fundo);border-radius:8px;font-size:11px;color:#5b6771;}
+  .historico-edicoes-titulo{font-weight:700;margin-bottom:4px;color:#44525c;}
+  .historico-edicoes-linha{padding:2px 0;}
 
   /* ---------- FAZENDA (detalhe) ---------- */
   .campo-detalhe{padding:8px 0;border-bottom:1px solid var(--cinza-fundo);font-size:14px;display:flex;justify-content:space-between;gap:10px;}
@@ -941,6 +956,8 @@
 
 <div id="overlayCarregando" class="overlay-carregando oculto">Enviando...</div>
 
+<div id="pilhaFilaOffline" class="pilha-fila-offline oculto"></div>
+
 <script>
 /* =========================================================================
    CONFIGURAÇÃO
@@ -959,6 +976,186 @@ const CONFIG = {
   URL_AGENDA: "/api/agenda",
   API_KEY: "Marcelo9955@"
 };
+
+/* =========================================================================
+   OFFLINE — fila de envio (IndexedDB) + registro do Service Worker
+   Ver OFFLINE.md na documentação do projeto para a descrição completa.
+   Fase 1 (sw.js): abrir/consultar o app sem sinal. Fase 2 (aqui): gravar Visita,
+   Pedido, Cadastro de fazenda e Editar fazenda/pedido/visita mesmo sem sinal —
+   fica guardado neste aparelho e é reenviado sozinho quando a conexão voltar.
+   ========================================================================= */
+
+// Registra o Service Worker (fase 1 — cache de leitura). Não muda nada do
+// comportamento com internet: toda chamada a /api/ continua indo direto pra rede.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.warn("[offline] não consegui registrar o service worker", err);
+    });
+  });
+}
+
+function novoIdEnvio() {
+  if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  // Alternativa simples para navegadores muito antigos sem crypto.randomUUID.
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+const FILA_OFFLINE_BANCO = "agrohara-offline";
+const FILA_OFFLINE_STORE = "fila";
+
+function abrirBancoOffline() {
+  return new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error("IndexedDB não suportado neste navegador.")); return; }
+    const pedido = indexedDB.open(FILA_OFFLINE_BANCO, 1);
+    pedido.onupgradeneeded = () => {
+      const banco = pedido.result;
+      if (!banco.objectStoreNames.contains(FILA_OFFLINE_STORE)) {
+        banco.createObjectStore(FILA_OFFLINE_STORE, { keyPath: "chave", autoIncrement: true });
+      }
+    };
+    pedido.onsuccess = () => resolve(pedido.result);
+    pedido.onerror = () => reject(pedido.error);
+  });
+}
+
+async function enfileirarEnvio(item) {
+  const banco = await abrirBancoOffline();
+  return new Promise((resolve, reject) => {
+    const transacao = banco.transaction(FILA_OFFLINE_STORE, "readwrite");
+    transacao.objectStore(FILA_OFFLINE_STORE).add(item);
+    transacao.oncomplete = () => resolve();
+    transacao.onerror = () => reject(transacao.error);
+  });
+}
+
+async function listarFilaOffline() {
+  const banco = await abrirBancoOffline();
+  return new Promise((resolve, reject) => {
+    const transacao = banco.transaction(FILA_OFFLINE_STORE, "readonly");
+    const pedido = transacao.objectStore(FILA_OFFLINE_STORE).getAll();
+    pedido.onsuccess = () => resolve(pedido.result || []);
+    pedido.onerror = () => reject(pedido.error);
+  });
+}
+
+async function removerDaFilaOffline(chave) {
+  const banco = await abrirBancoOffline();
+  return new Promise((resolve, reject) => {
+    const transacao = banco.transaction(FILA_OFFLINE_STORE, "readwrite");
+    transacao.objectStore(FILA_OFFLINE_STORE).delete(chave);
+    transacao.oncomplete = () => resolve();
+    transacao.onerror = () => reject(transacao.error);
+  });
+}
+
+function cabecalhosEnvio() {
+  return {
+    "Content-Type": "application/json",
+    "x-api-key": CONFIG.API_KEY,
+    "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+  };
+}
+
+// Função central de todo envio (POST/PATCH) que precisa funcionar sem sinal. Tenta a
+// rede primeiro — com internet, o comportamento é idêntico ao de sempre. Só enfileira
+// quando o fetch NÃO CONSEGUE SEQUER CHEGAR ao servidor (sem conexão); erro de validação
+// (400/403/409...) chega como resposta normal e nunca é enfileirado — reenviar um dado
+// que o servidor recusou não resolveria nada.
+async function enviarOuEnfileirar(rotulo, url, metodo, corpo) {
+  try {
+    const resp = await fetch(url, { method: metodo, headers: cabecalhosEnvio(), body: JSON.stringify(corpo) });
+    return { enfileirado: false, resp };
+  } catch (err) {
+    try {
+      await enfileirarEnvio({ rotulo, url, metodo, corpo, criadoEm: new Date().toISOString() });
+      await atualizarPilhaFilaOffline();
+    } catch (errFila) {
+      console.warn("[offline] não consegui guardar na fila", errFila);
+      throw new Error("Sem conexão, e não foi possível salvar neste aparelho para enviar depois.");
+    }
+    return { enfileirado: true };
+  }
+}
+
+let sincronizandoFilaOffline = false;
+
+// Processa a fila em ordem de chegada. Para no primeiro erro de rede (sem sinal —
+// tenta tudo de novo mais tarde) e em respostas 5xx (problema do servidor, tenta de
+// novo depois). Respostas 4xx descartam o item — reenviar não resolveria.
+async function sincronizarFilaOffline() {
+  if (sincronizandoFilaOffline) return;
+  if (!sessao || !sessao.token) return;
+  sincronizandoFilaOffline = true;
+  let enviados = 0;
+  try {
+    const itens = await listarFilaOffline();
+    for (const item of itens) {
+      try {
+        const resp = await fetch(item.url, { method: item.metodo, headers: cabecalhosEnvio(), body: JSON.stringify(item.corpo) });
+        if (resp.ok) {
+          await removerDaFilaOffline(item.chave);
+          enviados++;
+        } else if (resp.status >= 500) {
+          break; // problema no servidor — tenta tudo de novo mais tarde
+        } else {
+          await removerDaFilaOffline(item.chave); // 4xx: descarta, reenviar não resolve
+        }
+      } catch (err) {
+        break; // sem rede — para aqui, tenta o resto depois
+      }
+    }
+  } finally {
+    sincronizandoFilaOffline = false;
+    await atualizarPilhaFilaOffline();
+    if (enviados > 0) {
+      mostrarMsgFilaOffline(enviados === 1 ? "1 registro pendente foi enviado." : `${enviados} registros pendentes foram enviados.`);
+    }
+  }
+}
+
+function mostrarMsgFilaOffline(texto) {
+  // Reaproveita a área de mensagem do Início se estiver visível; senão ignora — a
+  // pílula de pendentes já comunica o essencial.
+  const alvo = document.getElementById("msgSincronizacaoOffline");
+  if (alvo) {
+    alvo.innerHTML = `<div class="msg msg-sucesso">${texto}</div>`;
+    setTimeout(() => { alvo.innerHTML = ""; }, 6000);
+  }
+}
+
+async function atualizarPilhaFilaOffline() {
+  const pilha = document.getElementById("pilhaFilaOffline");
+  if (!pilha) return;
+  try {
+    const itens = await listarFilaOffline();
+    if (itens.length > 0) {
+      pilha.textContent = itens.length === 1
+        ? "1 registro aguardando envio — toque para tentar agora"
+        : `${itens.length} registros aguardando envio — toque para tentar agora`;
+      pilha.classList.remove("oculto");
+    } else {
+      pilha.classList.add("oculto");
+    }
+  } catch (err) {
+    // IndexedDB indisponível — sem fila visível, mas o app continua funcionando.
+  }
+}
+
+document.getElementById("pilhaFilaOffline").addEventListener("click", () => sincronizarFilaOffline());
+window.addEventListener("online", () => sincronizarFilaOffline());
+
+// "Aquecimento": com internet, carrega catálogo e fazendas em segundo plano assim que
+// o app abre, sem esperar o promotor entrar nessas telas — assim, se o sinal cair antes
+// disso, o Service Worker já tem a última lista conhecida guardada (ver sw.js).
+async function aquecerCacheOffline() {
+  try { await carregarTodosProdutos(); } catch (err) { /* silencioso */ }
+  try { await carregarTodasPropriedades(); } catch (err) { /* silencioso */ }
+}
 
 /* Lista de promotores e revendas (clientes) vinculados */
 const PROMOTOR_CLIENTE = [{"Promotor": "AROLDO", "Cliente": "CASA RURAL AGROPECUARIA LOANDA LTDA"}, {"Promotor": "AROLDO", "Cliente": "EPA PIRES & PIRES LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRACIOSA AGROPECUARIA LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRUPO POMARO"}, {"Promotor": "AROLDO", "Cliente": "GRUPO VIUDES"}, {"Promotor": "AROLDO", "Cliente": "Projeto Lançamentos - AGD's - AROLDO"}, {"Promotor": "EMILY", "Cliente": "CLEISO CELLA & CIA LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "COASUL COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "EMILY", "Cliente": "COMERCIAL AGROVETERINARIA MALYS LTDA"}, {"Promotor": "EMILY", "Cliente": "H P AGRONUTRI COMERCIO E REPRESENTAÇÃO LTDA  - ME"}, {"Promotor": "EMILY", "Cliente": "Projeto Lançamentos - AGD's - EMILY"}, {"Promotor": "GABRIEL", "Cliente": "COOPERATIVA AGRICOLA MISTA SAO CRISTOVAO LTDA"}, {"Promotor": "GABRIEL", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL"}, {"Promotor": "GABRIEL", "Cliente": "VALE NUTRICAO E SAUDE ANIMAL LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "BOFF & BOFF LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "CARLOS ROBERTO BUENO & CIA LTDA - ME"}, {"Promotor": "GABRIEL S", "Cliente": "COAGRO COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GABRIEL S", "Cliente": "COOPERATIVA DE LEITE DA AGRICULTURA FAMILIAR DE SALTO DO LONTRA"}, {"Promotor": "GABRIEL S", "Cliente": "D. C. DE LIMA AGROCENTER EIRELI"}, {"Promotor": "GABRIEL S", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL S"}, {"Promotor": "GIANCARLO", "Cliente": "COOPERATIVA DE DESENVOLVIMENTO E PRODUCAO AGROPECUARIA - CODEPA"}, {"Promotor": "GIANCARLO", "Cliente": "GRUPO PASQUALOTO"}, {"Promotor": "GIANCARLO", "Cliente": "MARTINS DISTRIBUIDORA DE PRODUTOS AGROPECUARIOS LTDA - ME"}, {"Promotor": "GIANCARLO", "Cliente": "Projeto Lançamentos - AGD's - GIANCARLO"}, {"Promotor": "JOAO TALES", "Cliente": "AGRO-MANICA COMERCIO E REPRESENTACOES DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "AGROPECUARIA APOEMA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "COAMIG AGROINDUSTRIAL COOPERATIVA"}, {"Promotor": "JOAO TALES", "Cliente": "D L DA SILVA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "FEMAGRI COMERCIO DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "GRUPO SIMIONATO"}, {"Promotor": "JOAO TALES", "Cliente": "Projeto Lançamentos - AGD's - JOAO TALES"}, {"Promotor": "KAUANA", "Cliente": "3B AGRO LTDA"}, {"Promotor": "KAUANA", "Cliente": "AMIGOS DO CAMPO AGROPECUARIA LTDA"}, {"Promotor": "KAUANA", "Cliente": "DAZAK BROCARDO LTDA - ME"}, {"Promotor": "KAUANA", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "KAUANA", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "KAUANA", "Cliente": "Projeto Lançamentos - AGD's - KAUANA"}, {"Promotor": "KAUANA", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LEONARDO", "Cliente": "COAGRU COOPERATIVA AGROINDUSTRIAL UNIAO"}, {"Promotor": "LEONARDO", "Cliente": "KATUAGRO COMERCIO DE PRODUTOS AGROPECUARIOS LTDA - EPP"}, {"Promotor": "LEONARDO", "Cliente": "P BODNAR AGROPECUARIA - ME"}, {"Promotor": "LEONARDO", "Cliente": "Projeto Lançamentos - AGD's - LEONARDO"}, {"Promotor": "LEONARDO", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LUCAS", "Cliente": "COCARI - COOPERATIVA AGROPECUARIA E INDUSTRIAL"}, {"Promotor": "LUCAS", "Cliente": "COMERCIAL IBAITI"}, {"Promotor": "LUCAS", "Cliente": "GRUPO AGROCAMPO"}, {"Promotor": "LUCAS", "Cliente": "Projeto Lançamentos - AGD's - LUCAS"}, {"Promotor": "LUCAS", "Cliente": "RURAL NORTE DISTRIBUIDORA DE INSUMOS AGRICOLAS LTDA"}, {"Promotor": "LUCAS", "Cliente": "SOLUCAO PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "MARIANA", "Cliente": "AGRO PECUARIA ALIANCA LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ARROBA NUTRICAO ANIMAL LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ASSOCIACAO DOS PRODUTORES DE LEITE DE PEROLA - APEROLEITE"}, {"Promotor": "MARIANA", "Cliente": "COOPERATIVA DOS PRODUTORES DE LEITE DO TERRITORIO ENTRE RIOS - COOPELE"}, {"Promotor": "MARIANA", "Cliente": "FABRICIO G. RAZENTE & CIA. LTDA."}, {"Promotor": "MARIANA", "Cliente": "Projeto Lançamentos - AGD's - MARIANA"}, {"Promotor": "PEDRO", "Cliente": "FELIPE MENEGAS ME"}, {"Promotor": "PEDRO", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "PEDRO", "Cliente": "GRUPO GALERA"}, {"Promotor": "PEDRO", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "PEDRO", "Cliente": "Projeto Lançamentos - AGD's - PEDRO"}, {"Promotor": "PEDRO", "Cliente": "SIMIONATTO & SANSIGOLO LTDA"}, {"Promotor": "PEDRO", "Cliente": "TERRAGRZ COMERCIO DE PRODUTOS AGROPECUARIOS EIRELLE- ME"}, {"Promotor": "PEDRO", "Cliente": "VICTOR LUIZ ZAGO ME"}];
@@ -1313,6 +1510,12 @@ function iniciarApp() {
   document.getElementById("acaoMetas").classList.toggle("oculto", !ehGestor());
   mostrarPagina("inicio");
   carregarDashboard();
+
+  // Offline: tenta enviar o que ficou pendente de uma sessão anterior sem sinal,
+  // atualiza a pílula e, com internet, já deixa catálogo/fazendas guardados.
+  atualizarPilhaFilaOffline();
+  sincronizarFilaOffline();
+  aquecerCacheOffline();
 }
 
 (function iniciarSeJaLogado() {
@@ -1486,34 +1689,147 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
     const dados = await resp.json();
     if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar os dados.");
     const p = dados.propriedade;
-    areaDetalhe.innerHTML = `
-      <div class="campo-detalhe"><span>Município</span><b>${p.Municipio || "—"}</b></div>
-      <div class="campo-detalhe"><span>Proprietário</span><b>${p.Proprietario || "—"}</b></div>
-      <div class="campo-detalhe"><span>Decisor</span><b>${p.Decisor || "—"}</b></div>
-      <div class="campo-detalhe"><span>Personalidade do decisor</span><b>${p.Personalidade_Decisor || "—"}</b></div>
-      ${p.Personalidade_Observacao ? `<div class="campo-detalhe"><span>Observação (personalidade)</span><b>${p.Personalidade_Observacao}</b></div>` : ""}
-      <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
-      <div class="campo-detalhe"><span>Tipo</span><b>${p.Tipo_Propriedade || "—"}</b></div>
-      <div class="campo-detalhe"><span>Matrizes</span><b>${p.Matrizes}</b></div>
-      <div class="campo-detalhe"><span>Primíparas</span><b>${p.Primiparas}</b></div>
-      <div class="campo-detalhe"><span>Novilhas</span><b>${p.Novilhas}</b></div>
-      <div class="campo-detalhe"><span>Bezerros machos</span><b>${p.Bezerros_Machos}</b></div>
-      <div class="campo-detalhe"><span>Bezerros fêmeas</span><b>${p.Bezerros_Femeas}</b></div>
-      <div class="campo-detalhe"><span>Garrotes</span><b>${p.Garrotes}</b></div>
-      <div class="campo-detalhe"><span>Touros</span><b>${p.Touros}</b></div>
-      <div class="campo-detalhe"><span>Equinos</span><b>${p.Equinos}</b></div>
-      <div class="campo-detalhe"><span>Cadastrada por</span><b>${p.Cadastrada_Por || "—"}</b></div>
-      <div class="campo-detalhe"><span>Data do cadastro</span><b>${p.Data_Cadastro ? formatarDataBR(p.Data_Cadastro) : "—"}</b></div>
-      <div class="campo-detalhe"><span>Localização</span><b>${
-        p.Latitude != null && p.Longitude != null
-          ? `<a href="https://www.google.com/maps?q=${p.Latitude},${p.Longitude}" target="_blank" rel="noopener" style="color:var(--azul);">Ver no mapa ↗</a>`
-          : "—"
-      }</b></div>
-    `;
+    renderizarDetalheFazenda(areaDetalhe, p);
   } catch (err) {
     areaDetalhe.innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
   }
 });
+
+function renderizarDetalheFazenda(areaDetalhe, p) {
+  const editavel = podeEditarRegistro(p.Cadastrada_Por);
+  areaDetalhe.innerHTML = `
+    <div class="campo-detalhe"><span>Município</span><b>${p.Municipio || "—"}</b></div>
+    <div class="campo-detalhe"><span>Proprietário</span><b>${p.Proprietario || "—"}</b></div>
+    <div class="campo-detalhe"><span>Decisor</span><b>${p.Decisor || "—"}</b></div>
+    <div class="campo-detalhe"><span>Personalidade do decisor</span><b>${p.Personalidade_Decisor || "—"}</b></div>
+    ${p.Personalidade_Observacao ? `<div class="campo-detalhe"><span>Observação (personalidade)</span><b>${p.Personalidade_Observacao}</b></div>` : ""}
+    <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
+    <div class="campo-detalhe"><span>Tipo</span><b>${p.Tipo_Propriedade || "—"}</b></div>
+    <div class="campo-detalhe"><span>Matrizes</span><b>${p.Matrizes}</b></div>
+    <div class="campo-detalhe"><span>Primíparas</span><b>${p.Primiparas}</b></div>
+    <div class="campo-detalhe"><span>Novilhas</span><b>${p.Novilhas}</b></div>
+    <div class="campo-detalhe"><span>Bezerros machos</span><b>${p.Bezerros_Machos}</b></div>
+    <div class="campo-detalhe"><span>Bezerros fêmeas</span><b>${p.Bezerros_Femeas}</b></div>
+    <div class="campo-detalhe"><span>Garrotes</span><b>${p.Garrotes}</b></div>
+    <div class="campo-detalhe"><span>Touros</span><b>${p.Touros}</b></div>
+    <div class="campo-detalhe"><span>Equinos</span><b>${p.Equinos}</b></div>
+    <div class="campo-detalhe"><span>Cadastrada por</span><b>${p.Cadastrada_Por || "—"}</b></div>
+    <div class="campo-detalhe"><span>Data do cadastro</span><b>${p.Data_Cadastro ? formatarDataBR(p.Data_Cadastro) : "—"}</b></div>
+    <div class="campo-detalhe"><span>Localização</span><b>${
+      p.Latitude != null && p.Longitude != null
+        ? `<a href="https://www.google.com/maps?q=${p.Latitude},${p.Longitude}" target="_blank" rel="noopener" style="color:var(--azul);">Ver no mapa ↗</a>`
+        : "—"
+    }</b></div>
+    ${editavel ? `
+    <div class="btn-linha" style="margin-top:10px;">
+      <button class="btn btn-secundario" type="button" data-editar-fazenda="1">✏️ Editar fazenda</button>
+    </div>
+    <div class="item-catalogo-editar oculto" id="formEditarFazenda"></div>
+    ` : ""}
+  `;
+
+  if (!editavel) return;
+
+  const btnEditar = areaDetalhe.querySelector("[data-editar-fazenda]");
+  btnEditar.addEventListener("click", () => {
+    renderizarFormEdicaoFazenda(areaDetalhe, p);
+  });
+}
+
+function renderizarFormEdicaoFazenda(areaDetalhe, p) {
+  const form = areaDetalhe.querySelector("#formEditarFazenda");
+  form.classList.remove("oculto");
+  form.innerHTML = `
+    <label>Município</label>
+    <input type="text" id="efMunicipio" value="${(p.Municipio || '').replace(/"/g,'&quot;')}">
+    <label>Proprietário</label>
+    <input type="text" id="efProprietario" value="${(p.Proprietario || '').replace(/"/g,'&quot;')}">
+    <label>Decisor</label>
+    <input type="text" id="efDecisor" value="${(p.Decisor || '').replace(/"/g,'&quot;')}">
+    <label>Personalidade do decisor</label>
+    <input type="text" id="efPersonalidade" value="${(p.Personalidade_Decisor || '').replace(/"/g,'&quot;')}">
+    <label>Observação (personalidade)</label>
+    <input type="text" id="efPersonalidadeObs" value="${(p.Personalidade_Observacao || '').replace(/"/g,'&quot;')}">
+    <label>Vendedor responsável</label>
+    <input type="text" id="efVendedor" value="${(p.Vendedor_Responsavel || '').replace(/"/g,'&quot;')}">
+    <label>Tipo</label>
+    <input type="text" id="efTipo" value="${(p.Tipo_Propriedade || '').replace(/"/g,'&quot;')}">
+    <div class="campo-detalhe"><span>Localização atual</span><b id="efLocalizacaoTexto">${
+      p.Latitude != null && p.Longitude != null ? `${p.Latitude.toFixed(5)}, ${p.Longitude.toFixed(5)}` : "não marcada"
+    }</b></div>
+    <div class="btn-linha">
+      <button class="btn btn-secundario" type="button" id="efCapturarLocalizacao">📍 Usar minha localização atual</button>
+    </div>
+    <div id="efMsg"></div>
+    <div class="btn-linha">
+      <button class="btn btn-secundario" type="button" id="efCancelar">Cancelar</button>
+      <button class="btn" type="button" id="efSalvar">Salvar alterações</button>
+    </div>
+  `;
+
+  let efLat = p.Latitude != null ? p.Latitude : null;
+  let efLon = p.Longitude != null ? p.Longitude : null;
+
+  form.querySelector("#efCapturarLocalizacao").addEventListener("click", () => {
+    const texto = form.querySelector("#efLocalizacaoTexto");
+    if (!navigator.geolocation) {
+      texto.textContent = "Este navegador não suporta localização.";
+      return;
+    }
+    texto.textContent = "Obtendo localização...";
+    navigator.geolocation.getCurrentPosition(
+      (posicao) => {
+        efLat = posicao.coords.latitude;
+        efLon = posicao.coords.longitude;
+        texto.textContent = `${efLat.toFixed(5)}, ${efLon.toFixed(5)} (capturada agora ✓)`;
+      },
+      () => {
+        texto.textContent = "Não foi possível obter a localização agora.";
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  form.querySelector("#efCancelar").addEventListener("click", () => {
+    renderizarDetalheFazenda(areaDetalhe, p);
+  });
+
+  form.querySelector("#efSalvar").addEventListener("click", async () => {
+    const btn = form.querySelector("#efSalvar");
+    btn.disabled = true;
+    form.querySelector("#efMsg").innerHTML = "";
+    try {
+      const corpo = {
+        Propriedade: p.Propriedade,
+        Municipio: form.querySelector("#efMunicipio").value.trim(),
+        Proprietario: form.querySelector("#efProprietario").value.trim(),
+        Decisor: form.querySelector("#efDecisor").value.trim(),
+        Personalidade_Decisor: form.querySelector("#efPersonalidade").value.trim(),
+        Personalidade_Observacao: form.querySelector("#efPersonalidadeObs").value.trim(),
+        Vendedor_Responsavel: form.querySelector("#efVendedor").value.trim(),
+        Tipo_Propriedade: form.querySelector("#efTipo").value.trim(),
+        Latitude: efLat === null ? "" : efLat,
+        Longitude: efLon === null ? "" : efLon
+      };
+      const resultado = await enviarOuEnfileirar("Edição de fazenda", CONFIG.URL_PROPRIEDADES, "PATCH", corpo);
+      if (resultado.enfileirado) {
+        const pAtualizado = { ...p, ...corpo, Latitude: efLat, Longitude: efLon };
+        form.querySelector("#efMsg").innerHTML = '<div class="msg msg-sucesso">Sem conexão — as alterações foram salvas neste aparelho e serão enviadas quando a internet voltar.</div>';
+        setTimeout(() => renderizarDetalheFazenda(areaDetalhe, pAtualizado), 1200);
+        return;
+      }
+      const dadosResp = await resultado.resp.json().catch(() => ({}));
+      if (!resultado.resp.ok) throw new Error((dadosResp && dadosResp.erro) || "Não foi possível salvar.");
+
+      const pAtualizado = { ...p, ...corpo, Latitude: efLat, Longitude: efLon };
+      renderizarDetalheFazenda(areaDetalhe, pAtualizado);
+    } catch (err) {
+      form.querySelector("#efMsg").innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
 
 document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
   const termo = e.target.value.toLowerCase().trim();
@@ -1664,13 +1980,18 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY },
-      body: JSON.stringify(corpo)
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível cadastrar a fazenda.");
+    const resultado = await enviarOuEnfileirar("Cadastro de fazenda", CONFIG.URL_PROPRIEDADES, "POST", corpo);
+    if (resultado.enfileirado) {
+      mostrarMsg("msgCadastroPropriedade", "Sem conexão — a fazenda foi salva neste aparelho e será enviada quando a internet voltar.", "sucesso");
+      if (origemCadastroFazenda === "registro") {
+        irParaCorpoRegistro(corpo.Propriedade);
+      } else {
+        mostrarPagina("fazendas");
+      }
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível cadastrar a fazenda.");
 
     if (origemCadastroFazenda === "registro") {
       await carregarTodasPropriedades();
@@ -1792,13 +2113,14 @@ document.getElementById("btnCapturarLocalizacaoRegistro").addEventListener("clic
     const lon = pos.coords.longitude;
     status.textContent = "Salvando...";
     try {
-      const resp = await fetch(CONFIG.URL_PROPRIEDADES, {
-        method: "PATCH",
-        headers: { "x-api-key": CONFIG.API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ Propriedade: nome, Latitude: lat, Longitude: lon })
-      });
-      const dados = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(dados.erro || "Não foi possível salvar a localização.");
+      const resultado = await enviarOuEnfileirar("Salvar localização", CONFIG.URL_PROPRIEDADES, "PATCH", { Propriedade: nome, Latitude: lat, Longitude: lon });
+      if (resultado.enfileirado) {
+        status.textContent = "Sem conexão — localização salva neste aparelho, será enviada quando a internet voltar.";
+        document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
+        return;
+      }
+      const dados = await resultado.resp.json().catch(() => ({}));
+      if (!resultado.resp.ok) throw new Error(dados.erro || "Não foi possível salvar a localização.");
       status.textContent = "Localização salva nessa fazenda ✓";
       document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
     } catch (err) {
@@ -1902,20 +2224,19 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
       Observacao: observacao,
       Foto_URL: "",
       Dia_Visita: dataAtual,
-      Quinzena: quinzenaAtual
+      Quinzena: quinzenaAtual,
+      Id_Envio: novoIdEnvio()
     };
 
-    const resp = await fetch(CONFIG.URL_VISITAS, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": CONFIG.API_KEY,
-        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
-      },
-      body: JSON.stringify(corpo)
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar a visita.");
+    const resultado = await enviarOuEnfileirar("Visita", CONFIG.URL_VISITAS, "POST", corpo);
+    if (resultado.enfileirado) {
+      mostrarMsg("msgVisita", "Sem conexão — a visita foi salva neste aparelho e será enviada quando a internet voltar.", "sucesso");
+      document.getElementById("inputObservacaoVisita").value = "";
+      document.getElementById("selectTipoVisita").value = "";
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar a visita.");
 
     mostrarMsg("msgVisita", "Visita registrada com sucesso!", "sucesso");
     document.getElementById("inputObservacaoVisita").value = "";
@@ -2107,6 +2428,9 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     return;
   }
 
+  // Id_Envio é por LINHA, não por pedido — o índice único no banco é por linha, então
+  // um pedido com vários produtos compartilhando o mesmo UUID seria recusado já no
+  // primeiro envio (ver OFFLINE.md, seção 6).
   const lancamentos = carrinho.map(item => ({
     Nome_Promotor: promotorAtual,
     Revenda: item.Revenda,
@@ -2118,24 +2442,26 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     Dia_Lancamento: dataAtual,
     Quinzena: quinzenaAtual,
     Observacao_Visita: observacaoPedido,
-    Proxima_Visita: proximaVisitaPedido
+    Proxima_Visita: proximaVisitaPedido,
+    Id_Envio: novoIdEnvio()
   }));
 
   const btn = document.getElementById("btnEnviar");
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
-    const resp = await fetch(CONFIG.URL_API, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": CONFIG.API_KEY,
-        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
-      },
-      body: JSON.stringify({ lancamentos })
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar o pedido.");
+    const resultado = await enviarOuEnfileirar("Pedido", CONFIG.URL_API, "POST", { lancamentos });
+    if (resultado.enfileirado) {
+      carrinho = [];
+      atualizarCarrinho();
+      document.getElementById("inputObservacaoPedido").value = "";
+      document.getElementById("inputProximaVisitaPedido").value = "";
+      document.getElementById("avisoProximoAssunto").classList.add("oculto");
+      mostrarMsg("msgPedido", "Sem conexão — o pedido foi salvo neste aparelho e será enviado quando a internet voltar.", "sucesso");
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar o pedido.");
 
     carrinho = [];
     atualizarCarrinho();
@@ -2218,6 +2544,17 @@ function agruparPedidos(lancamentos) {
   return [...mapa.values()].sort((a, b) => b.Dia_Lancamento.localeCompare(a.Dia_Lancamento));
 }
 
+function blocoHistoricoEdicoes(texto) {
+  if (!texto) return "";
+  const linhas = String(texto).split("\n").filter(Boolean);
+  return `
+    <div class="historico-edicoes">
+      <div class="historico-edicoes-titulo">Histórico de alterações</div>
+      ${linhas.map(l => `<div class="historico-edicoes-linha">${l}</div>`).join("")}
+    </div>
+  `;
+}
+
 async function renderizarHistoricoAtual() {
   await garantirCacheHistorico();
   const container = document.getElementById("historicoLista");
@@ -2230,16 +2567,23 @@ async function renderizarHistoricoAtual() {
       return;
     }
     container.innerHTML = lista.map((v, i) => `
-      <div class="item-historico" data-toggle-historico="v${i}">
-        <div class="item-historico-topo">
+      <div class="item-historico">
+        <div class="item-historico-topo" data-toggle-historico="v${i}">
           <div>
             <div class="item-historico-titulo">${v.Propriedade}</div>
             <div class="item-historico-sub">${v.Tipo_Visita} · ${formatarDataBR(v.Dia_Visita)}${gestor ? " · " + v.Nome_Promotor : ""}</div>
           </div>
         </div>
         <div class="item-historico-detalhe oculto" id="hv${i}">
-          <div>${v.Observacao || "Sem observação."}</div>
+          <div id="hvTexto${i}">${v.Observacao || "Sem observação."}</div>
           ${v.Foto_URL ? `<div style="margin-top:8px;"><a href="${v.Foto_URL}" target="_blank" rel="noopener">Ver foto</a></div>` : ""}
+          ${blocoHistoricoEdicoes(v.Historico_Edicoes)}
+          ${podeEditarRegistro(v.Nome_Promotor) ? `
+            <div class="btn-linha" style="margin-top:10px;">
+              <button class="btn btn-secundario" type="button" data-editar-visita="${i}">✏️ Editar</button>
+            </div>
+            <div class="item-catalogo-editar oculto" id="formEditarVisita${i}"></div>
+          ` : ""}
         </div>
       </div>
     `).join("");
@@ -2250,8 +2594,8 @@ async function renderizarHistoricoAtual() {
       return;
     }
     container.innerHTML = grupos.map((g, i) => `
-      <div class="item-historico" data-toggle-historico="p${i}">
-        <div class="item-historico-topo">
+      <div class="item-historico">
+        <div class="item-historico-topo" data-toggle-historico="p${i}">
           <div>
             <div class="item-historico-titulo">${g.Propriedade}</div>
             <div class="item-historico-sub">${formatarDataBR(g.Dia_Lancamento)}${gestor ? " · " + g.Nome_Promotor : ""}</div>
@@ -2259,10 +2603,19 @@ async function renderizarHistoricoAtual() {
           <div class="item-historico-valor">${formatarMoeda(g.valorTotal)}</div>
         </div>
         <div class="item-historico-detalhe oculto" id="hp${i}">
-          ${g.itens.map(item => `
-            <div class="linha-produto">
-              <span>${item.Produto} (${item.Revenda})</span>
-              <span>${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)}</span>
+          ${g.itens.map((item, j) => `
+            <div class="linha-produto-editavel" id="linhaPedido${i}_${j}">
+              <div class="linha-produto">
+                <span>${item.Produto} (${item.Revenda})</span>
+                <span>${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)}</span>
+              </div>
+              ${podeEditarRegistro(item.Nome_Promotor) ? `
+                <div class="btn-linha" style="margin:4px 0 8px;">
+                  <button class="btn btn-secundario" type="button" data-editar-pedido="${i}_${j}" style="padding:4px 10px;font-size:12px;">✏️ Editar</button>
+                </div>
+                <div class="item-catalogo-editar oculto" id="formEditarPedido${i}_${j}"></div>
+              ` : ""}
+              ${blocoHistoricoEdicoes(item.Historico_Edicoes)}
             </div>
           `).join("")}
         </div>
@@ -2275,6 +2628,129 @@ async function renderizarHistoricoAtual() {
       const id = "h" + el.getAttribute("data-toggle-historico");
       document.getElementById(id).classList.toggle("oculto");
     });
+  });
+
+  if (modoHistorico === "visitas") {
+    const lista = cacheHistoricoVisitas || [];
+    container.querySelectorAll("[data-editar-visita]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const i = btn.getAttribute("data-editar-visita");
+        abrirFormEdicaoVisita(Number(i), lista[Number(i)]);
+      });
+    });
+  } else {
+    const grupos = agruparPedidos(cacheHistoricoPedidos || []);
+    container.querySelectorAll("[data-editar-pedido]").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const [i, j] = btn.getAttribute("data-editar-pedido").split("_").map(Number);
+        abrirFormEdicaoPedido(i, j, grupos[i].itens[j]);
+      });
+    });
+  }
+}
+
+function abrirFormEdicaoVisita(i, v) {
+  const form = document.getElementById("formEditarVisita" + i);
+  form.classList.remove("oculto");
+  form.innerHTML = `
+    <label>Tipo de visita</label>
+    <input type="text" id="evTipo${i}" value="${(v.Tipo_Visita || '').replace(/"/g,'&quot;')}">
+    <label>O que foi tratado</label>
+    <textarea id="evObs${i}" rows="3" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${v.Observacao || ""}</textarea>
+    <div id="evMsg${i}"></div>
+    <div class="btn-linha">
+      <button class="btn btn-secundario" type="button" id="evCancelar${i}">Cancelar</button>
+      <button class="btn" type="button" id="evSalvar${i}">Salvar</button>
+    </div>
+  `;
+  document.getElementById("evCancelar" + i).addEventListener("click", () => {
+    form.classList.add("oculto");
+    form.innerHTML = "";
+  });
+  document.getElementById("evSalvar" + i).addEventListener("click", async () => {
+    const btn = document.getElementById("evSalvar" + i);
+    const tipo = document.getElementById("evTipo" + i).value.trim();
+    const obs = document.getElementById("evObs" + i).value.trim();
+    if (!tipo || !obs) {
+      document.getElementById("evMsg" + i).innerHTML = '<div class="msg msg-erro">Preencha tipo e observação.</div>';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const resultado = await enviarOuEnfileirar("Edição de visita", CONFIG.URL_VISITAS, "PATCH", { Id: v.Id, Tipo_Visita: tipo, Observacao: obs });
+      if (resultado.enfileirado) {
+        document.getElementById("evMsg" + i).innerHTML = '<div class="msg msg-sucesso">Sem conexão — a alteração foi salva neste aparelho e será enviada quando a internet voltar.</div>';
+        btn.disabled = false;
+        return;
+      }
+      const dados = await resultado.resp.json().catch(() => ({}));
+      if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
+      cacheHistoricoVisitas = null;
+      await renderizarHistoricoAtual();
+    } catch (err) {
+      document.getElementById("evMsg" + i).innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
+      btn.disabled = false;
+    }
+  });
+}
+
+function abrirFormEdicaoPedido(i, j, item) {
+  const id = `${i}_${j}`;
+  const form = document.getElementById("formEditarPedido" + id);
+  form.classList.remove("oculto");
+  form.innerHTML = `
+    <label>Volume</label>
+    <input type="number" min="0" step="0.01" id="epVolume${id}" value="${item.Volume}">
+    <label>Preço unitário (R$)</label>
+    <input type="number" min="0" step="0.01" id="epPreco${id}" value="${item.Preco_Unitario}">
+    <label>O que foi tratado na visita${item.Propriedade ? "" : " (opcional — pedido balcão)"}</label>
+    <textarea id="epObs${id}" rows="3" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${item.Observacao_Visita || ""}</textarea>
+    <label>Assunto da próxima visita (opcional)</label>
+    <textarea id="epProxima${id}" rows="2" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${item.Proxima_Visita || ""}</textarea>
+    <div id="epMsg${id}"></div>
+    <div class="btn-linha">
+      <button class="btn btn-secundario" type="button" id="epCancelar${id}">Cancelar</button>
+      <button class="btn" type="button" id="epSalvar${id}">Salvar</button>
+    </div>
+  `;
+  document.getElementById("epCancelar" + id).addEventListener("click", () => {
+    form.classList.add("oculto");
+    form.innerHTML = "";
+  });
+  document.getElementById("epSalvar" + id).addEventListener("click", async () => {
+    const btn = document.getElementById("epSalvar" + id);
+    const volume = document.getElementById("epVolume" + id).value;
+    const preco = document.getElementById("epPreco" + id).value;
+    const obs = document.getElementById("epObs" + id).value.trim();
+    const proxima = document.getElementById("epProxima" + id).value.trim();
+    if (item.Propriedade && !obs) {
+      document.getElementById("epMsg" + id).innerHTML = '<div class="msg msg-erro">Pedido vinculado a fazenda precisa da descrição do que foi tratado.</div>';
+      return;
+    }
+    btn.disabled = true;
+    try {
+      const resultado = await enviarOuEnfileirar("Edição de pedido", CONFIG.URL_API, "PATCH", {
+        Id: item.Id,
+        Volume: volume,
+        Preco_Unitario: preco,
+        Observacao_Visita: obs,
+        Proxima_Visita: proxima
+      });
+      if (resultado.enfileirado) {
+        document.getElementById("epMsg" + id).innerHTML = '<div class="msg msg-sucesso">Sem conexão — a alteração foi salva neste aparelho e será enviada quando a internet voltar.</div>';
+        btn.disabled = false;
+        return;
+      }
+      const dados = await resultado.resp.json().catch(() => ({}));
+      if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
+      cacheHistoricoPedidos = null;
+      await renderizarHistoricoAtual();
+    } catch (err) {
+      document.getElementById("epMsg" + id).innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
+      btn.disabled = false;
+    }
   });
 }
 
@@ -2453,6 +2929,14 @@ let drillItens = [];
 function ehGestor() {
   const cargo = String((sessao && sessao.cargo) || "").toLowerCase();
   return cargo === "gerente" || cargo === "desenvolvedor";
+}
+
+// Regra de permissão de edição usada em Fazenda, Pedido e Visita: só quem originalmente
+// cadastrou/lançou o registro, ou Gerente/Desenvolvedor, pode editar depois.
+function podeEditarRegistro(nomeDono) {
+  if (ehGestor()) return true;
+  if (!sessao || !sessao.nome || !nomeDono) return false;
+  return String(nomeDono).trim().toLowerCase() === String(sessao.nome).trim().toLowerCase();
 }
 
 async function carregarRelatorios() {
