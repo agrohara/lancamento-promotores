@@ -999,6 +999,18 @@
       <button class="folha-fechar" id="btnFecharFolhaPedido" type="button">✕</button>
     </div>
     <div class="msg msg-erro oculto" id="folhaPedidoErro"></div>
+    <label for="fpRevenda">Revenda (cliente)</label>
+    <select id="fpRevenda"></select>
+    <label for="fpPropriedade">Fazenda</label>
+    <div class="input-combo">
+      <input type="text" id="fpPropriedade" placeholder="Buscar fazenda, ou deixe vazio para pedido balcão" autocomplete="off">
+      <div id="fpSugestoesPropriedade" class="sugestoes oculto"></div>
+    </div>
+    <label for="fpProduto">Produto</label>
+    <div class="input-combo">
+      <input type="text" id="fpProduto" placeholder="Buscar produto..." autocomplete="off">
+      <div id="fpSugestoesProduto" class="sugestoes oculto"></div>
+    </div>
     <label for="fpVolume">Volume</label>
     <input type="number" min="0" step="0.01" id="fpVolume">
     <label for="fpPreco">Preço unitário (R$)</label>
@@ -1962,12 +1974,38 @@ document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
    ========================================================================= */
 let pdPedidoAtual = null;
 let pdAoSalvar = null;
+let pdUnidadeSelecionada = "";
 
-function abrirFolhaEdicaoPedido(item, aoSalvar) {
+// Revenda é uma lista fixa por promotor (mesma origem do combo do lançamento novo,
+// PROMOTOR_CLIENTE). Ao editar, o dono do pedido pode não ser quem está editando (um
+// gestor, por exemplo) — por isso o combo é preenchido com base em item.Nome_Promotor,
+// não em promotorAtual. Se o valor gravado não estiver mais na lista do promotor
+// (revenda descadastrada depois, etc.), ele é mantido como primeira opção pra não
+// "sumir" o valor atual silenciosamente.
+function preencherRevendaEdicaoPedido(promotor, valorAtual) {
+  const select = document.getElementById("fpRevenda");
+  const revendas = [...new Set(
+    PROMOTOR_CLIENTE.filter(p => p.Promotor === promotor).map(p => p.Cliente)
+  )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (valorAtual && !revendas.includes(valorAtual)) revendas.unshift(valorAtual);
+  select.innerHTML = revendas.map(r => `<option value="${r.replace(/"/g, "&quot;")}">${r}</option>`).join("");
+  select.value = valorAtual || "";
+}
+
+async function abrirFolhaEdicaoPedido(item, aoSalvar) {
   pdPedidoAtual = item;
   pdAoSalvar = aoSalvar || null;
+  pdUnidadeSelecionada = item.Unidade || "";
   document.getElementById("folhaPedidoErro").classList.add("oculto");
   document.getElementById("folhaPedidoTitulo").textContent = item.Propriedade ? `Pedido — ${item.Propriedade}` : "Pedido balcão";
+  // Fazenda e produto vêm de listas carregadas sob demanda (a pessoa pode chegar aqui
+  // direto da aba Histórico ou de Relatórios, sem nunca ter passado pela tela de Novo
+  // Pedido, que é quem normalmente carrega essas duas listas).
+  if (todasPropriedades.length === 0) await carregarTodasPropriedades();
+  if (todosProdutos.length === 0) await carregarTodosProdutos();
+  preencherRevendaEdicaoPedido(item.Nome_Promotor, item.Revenda || "");
+  document.getElementById("fpPropriedade").value = item.Propriedade || "";
+  document.getElementById("fpProduto").value = item.Produto || "";
   document.getElementById("fpVolume").value = item.Volume;
   document.getElementById("fpPreco").value = item.Preco_Unitario;
   document.getElementById("fpObs").value = item.Observacao_Visita || "";
@@ -1977,6 +2015,8 @@ function abrirFolhaEdicaoPedido(item, aoSalvar) {
 
 function fecharFolhaEdicaoPedido() {
   document.getElementById("folhaPedidoOverlay").classList.add("oculto");
+  document.getElementById("fpSugestoesPropriedade").classList.add("oculto");
+  document.getElementById("fpSugestoesProduto").classList.add("oculto");
   pdPedidoAtual = null;
   pdAoSalvar = null;
 }
@@ -1986,24 +2026,108 @@ document.getElementById("folhaPedidoOverlay").addEventListener("click", (e) => {
   if (e.target.id === "folhaPedidoOverlay") fecharFolhaEdicaoPedido();
 });
 
+// Combo de fazenda dentro da folha de edição — mesmo padrão (lista em JS, não
+// <datalist>) do combo de fazenda do registro novo, pelo mesmo motivo: <datalist> não
+// filtra de forma confiável em alguns navegadores de celular.
+const fpPropriedadeInput = document.getElementById("fpPropriedade");
+const fpSugestoesPropriedade = document.getElementById("fpSugestoesPropriedade");
+
+function renderizarSugestoesFpPropriedade() {
+  const termo = fpPropriedadeInput.value.trim().toLowerCase();
+  const opcoes = termo
+    ? todasPropriedades.filter(p => p.toLowerCase().includes(termo)).slice(0, 40)
+    : todasPropriedades.slice(0, 40);
+  fpSugestoesPropriedade.innerHTML = opcoes.length
+    ? opcoes.map(p => `<div class="sugestao-item" data-fp-fazenda="${p.replace(/"/g, "&quot;")}">${p}</div>`).join("")
+    : '<div class="sugestao-vazia">Nenhuma fazenda encontrada. Deixe vazio para pedido balcão.</div>';
+  fpSugestoesPropriedade.classList.remove("oculto");
+}
+fpPropriedadeInput.addEventListener("input", renderizarSugestoesFpPropriedade);
+fpPropriedadeInput.addEventListener("focus", renderizarSugestoesFpPropriedade);
+fpPropriedadeInput.addEventListener("blur", () => {
+  setTimeout(() => fpSugestoesPropriedade.classList.add("oculto"), 150);
+});
+fpSugestoesPropriedade.addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-fp-fazenda]");
+  if (!item) return;
+  fpPropriedadeInput.value = item.getAttribute("data-fp-fazenda");
+  fpSugestoesPropriedade.classList.add("oculto");
+});
+
+// Combo de produto — mesmo padrão do combo de produto do registro novo (busca por
+// texto, guarda a unidade junto quando a pessoa escolhe uma sugestão).
+const fpProdutoInput = document.getElementById("fpProduto");
+const fpSugestoesProduto = document.getElementById("fpSugestoesProduto");
+
+function renderizarSugestoesFpProduto() {
+  const termo = fpProdutoInput.value.toLowerCase().trim();
+  const encontrados = termo
+    ? todosProdutos.filter(p => p.Produto.toLowerCase().includes(termo)).slice(0, 30)
+    : todosProdutos.slice(0, 30);
+  fpSugestoesProduto.innerHTML = encontrados.length
+    ? encontrados.map(p =>
+        `<div class="sugestao-item" data-fp-produto="${p.Produto.replace(/"/g, "&quot;")}" data-fp-unidade="${(p.Unidade || "").replace(/"/g, "&quot;")}">
+          <span>${p.Produto}</span><span class="unidade-tag">${p.Unidade || ""}</span>
+        </div>`
+      ).join("")
+    : '<div class="sugestao-vazia">Nenhum produto encontrado.</div>';
+  fpSugestoesProduto.classList.remove("oculto");
+}
+fpProdutoInput.addEventListener("input", renderizarSugestoesFpProduto);
+fpProdutoInput.addEventListener("focus", renderizarSugestoesFpProduto);
+fpProdutoInput.addEventListener("blur", () => {
+  setTimeout(() => fpSugestoesProduto.classList.add("oculto"), 150);
+});
+fpSugestoesProduto.addEventListener("mousedown", (e) => {
+  const item = e.target.closest("[data-fp-produto]");
+  if (!item) return;
+  fpProdutoInput.value = item.getAttribute("data-fp-produto");
+  pdUnidadeSelecionada = item.getAttribute("data-fp-unidade") || "";
+  fpSugestoesProduto.classList.add("oculto");
+});
+// Se a pessoa digitar o produto à mão em vez de escolher da lista, e o texto final
+// bater com um produto conhecido, ainda assim recupera a unidade certa ao salvar (ver
+// btnSalvarPedido) — pdUnidadeSelecionada só é atualizado aqui na escolha por clique.
+
 document.getElementById("btnSalvarPedido").addEventListener("click", async () => {
   if (!pdPedidoAtual) return;
   const btn = document.getElementById("btnSalvarPedido");
   const erroBox = document.getElementById("folhaPedidoErro");
   erroBox.classList.add("oculto");
+  const revenda = document.getElementById("fpRevenda").value;
+  const propriedade = document.getElementById("fpPropriedade").value.trim();
+  const produto = document.getElementById("fpProduto").value.trim();
   const volume = document.getElementById("fpVolume").value;
   const preco = document.getElementById("fpPreco").value;
   const obs = document.getElementById("fpObs").value.trim();
   const proxima = document.getElementById("fpProxima").value.trim();
-  if (pdPedidoAtual.Propriedade && !obs) {
+  if (!revenda) {
+    erroBox.textContent = "Selecione a revenda.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
+  if (!produto) {
+    erroBox.textContent = "Informe o produto.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
+  if (propriedade && !obs) {
     erroBox.textContent = "Pedido vinculado a fazenda precisa da descrição do que foi tratado.";
     erroBox.classList.remove("oculto");
     return;
   }
+  // Se o produto final bate com um item conhecido do catálogo, usa a unidade dele —
+  // cobre o caso de a pessoa ter digitado o nome à mão em vez de escolher da lista.
+  const produtoCatalogo = todosProdutos.find(p => p.Produto === produto);
+  const unidadeFinal = produtoCatalogo ? (produtoCatalogo.Unidade || "") : pdUnidadeSelecionada;
   btn.disabled = true;
   try {
     const corpo = {
       Id: pdPedidoAtual.Id,
+      Revenda: revenda,
+      Propriedade: propriedade,
+      Produto: produto,
+      Unidade: unidadeFinal,
       Volume: volume,
       Preco_Unitario: preco,
       Observacao_Visita: obs,
@@ -4048,8 +4172,12 @@ document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
     const r = drillItens.find(x => String(x.id) === id);
     if (r) {
       abrirFolhaEdicaoPedido(
-        { Id: r.id, Propriedade: r.propriedade, Volume: r.volume, Preco_Unitario: r.precoUnitario, Observacao_Visita: r.observacao, Proxima_Visita: r.proximaVisita },
+        { Id: r.id, Nome_Promotor: r.promotor, Revenda: r.revenda, Propriedade: r.propriedade, Produto: r.produto, Unidade: r.unidade, Volume: r.volume, Preco_Unitario: r.precoUnitario, Observacao_Visita: r.observacao, Proxima_Visita: r.proximaVisita },
         (corpo) => {
+          r.revenda = corpo.Revenda;
+          r.propriedade = corpo.Propriedade;
+          r.produto = corpo.Produto;
+          r.unidade = corpo.Unidade;
           r.volume = Number(corpo.Volume) || 0;
           r.precoUnitario = Number(corpo.Preco_Unitario) || 0;
           r.observacao = corpo.Observacao_Visita;
@@ -4271,7 +4399,7 @@ document.getElementById("listaBuscaHistoricoRel").addEventListener("click", (e) 
   if (!r) return;
   if (tipo === "pedido") {
     abrirFolhaEdicaoPedido(
-      { Id: r.Id, Propriedade: r.Propriedade, Volume: r.Volume, Preco_Unitario: r.Preco_Unitario, Observacao_Visita: r.Observacao_Visita, Proxima_Visita: r.Proxima_Visita },
+      { Id: r.Id, Nome_Promotor: r.Nome_Promotor, Revenda: r.Revenda, Propriedade: r.Propriedade, Produto: r.Produto, Unidade: r.Unidade, Volume: r.Volume, Preco_Unitario: r.Preco_Unitario, Observacao_Visita: r.Observacao_Visita, Proxima_Visita: r.Proxima_Visita },
       (corpo) => {
         r.Volume = corpo.Volume;
         r.Preco_Unitario = corpo.Preco_Unitario;
