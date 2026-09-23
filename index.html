@@ -141,6 +141,7 @@
   .item-historico-titulo{font-size:14px;font-weight:700;}
   .item-historico-sub{font-size:12px;color:#5b6771;margin-top:2px;}
   .item-historico-valor{font-size:13px;font-weight:700;color:var(--azul);flex:0 0 auto;}
+  .btn-editar-linha{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;flex:0 0 auto;}
   .item-historico-detalhe{margin-top:10px;padding-top:10px;border-top:1px solid var(--cinza-fundo);font-size:13px;line-height:1.6;color:#44525c;}
   .item-historico-detalhe .linha-produto{display:flex;justify-content:space-between;padding:3px 0;}
   .linha-produto-editavel{border-bottom:1px dashed var(--cinza-fundo);padding-bottom:6px;margin-bottom:6px;}
@@ -985,6 +986,45 @@
     <div class="campo-detalhe"><span>Localização atual</span><b id="ffLocalizacaoTexto">—</b></div>
     <button class="btn btn-secundario" type="button" id="ffCapturarLocalizacao" style="margin:10px 0 16px;">📍 Usar minha localização atual</button>
     <button class="btn" type="button" id="btnSalvarFazenda">Salvar alterações</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: editar um Pedido já lançado. Global — chamada tanto da aba
+     Histórico quanto do drill-down e da busca em Relatórios, com a mesma folha. -->
+<div id="folhaPedidoOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaPedidoTitulo">Editar pedido</span>
+      <button class="folha-fechar" id="btnFecharFolhaPedido" type="button">✕</button>
+    </div>
+    <div class="msg msg-erro oculto" id="folhaPedidoErro"></div>
+    <label for="fpVolume">Volume</label>
+    <input type="number" min="0" step="0.01" id="fpVolume">
+    <label for="fpPreco">Preço unitário (R$)</label>
+    <input type="number" min="0" step="0.01" id="fpPreco">
+    <label for="fpObs">O que foi tratado na visita</label>
+    <textarea id="fpObs" rows="3"></textarea>
+    <label for="fpProxima">Assunto da próxima visita (opcional)</label>
+    <textarea id="fpProxima" rows="2"></textarea>
+    <button class="btn" type="button" id="btnSalvarPedido">Salvar alterações</button>
+  </div>
+</div>
+
+<!-- Bottom sheet: editar uma Visita já registrada. -->
+<div id="folhaVisitaOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaVisitaTitulo">Editar visita</span>
+      <button class="folha-fechar" id="btnFecharFolhaVisita" type="button">✕</button>
+    </div>
+    <div class="msg msg-erro oculto" id="folhaVisitaErro"></div>
+    <label for="fvTipo">Tipo de visita</label>
+    <input type="text" id="fvTipo">
+    <label for="fvObs">O que foi tratado</label>
+    <textarea id="fvObs" rows="3"></textarea>
+    <button class="btn" type="button" id="btnSalvarVisita">Salvar alterações</button>
   </div>
 </div>
 
@@ -1914,6 +1954,142 @@ document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
   renderizarListaFazendas(todasPropriedades.filter(p => p.toLowerCase().includes(termo)));
 });
 
+/* =========================================================================
+   EDIÇÃO DE PEDIDO E VISITA — folhas globais (mesmo padrão da edição de fazenda
+   acima). Reutilizadas em qualquer tela que mostre um pedido/visita já lançado:
+   aba Histórico, drill-down de Relatórios e busca "por fazenda, cliente ou
+   revenda" — em vez de cada tela ter seu próprio formulário de edição.
+   ========================================================================= */
+let pdPedidoAtual = null;
+let pdAoSalvar = null;
+
+function abrirFolhaEdicaoPedido(item, aoSalvar) {
+  pdPedidoAtual = item;
+  pdAoSalvar = aoSalvar || null;
+  document.getElementById("folhaPedidoErro").classList.add("oculto");
+  document.getElementById("folhaPedidoTitulo").textContent = item.Propriedade ? `Pedido — ${item.Propriedade}` : "Pedido balcão";
+  document.getElementById("fpVolume").value = item.Volume;
+  document.getElementById("fpPreco").value = item.Preco_Unitario;
+  document.getElementById("fpObs").value = item.Observacao_Visita || "";
+  document.getElementById("fpProxima").value = item.Proxima_Visita || "";
+  document.getElementById("folhaPedidoOverlay").classList.remove("oculto");
+}
+
+function fecharFolhaEdicaoPedido() {
+  document.getElementById("folhaPedidoOverlay").classList.add("oculto");
+  pdPedidoAtual = null;
+  pdAoSalvar = null;
+}
+
+document.getElementById("btnFecharFolhaPedido").addEventListener("click", fecharFolhaEdicaoPedido);
+document.getElementById("folhaPedidoOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "folhaPedidoOverlay") fecharFolhaEdicaoPedido();
+});
+
+document.getElementById("btnSalvarPedido").addEventListener("click", async () => {
+  if (!pdPedidoAtual) return;
+  const btn = document.getElementById("btnSalvarPedido");
+  const erroBox = document.getElementById("folhaPedidoErro");
+  erroBox.classList.add("oculto");
+  const volume = document.getElementById("fpVolume").value;
+  const preco = document.getElementById("fpPreco").value;
+  const obs = document.getElementById("fpObs").value.trim();
+  const proxima = document.getElementById("fpProxima").value.trim();
+  if (pdPedidoAtual.Propriedade && !obs) {
+    erroBox.textContent = "Pedido vinculado a fazenda precisa da descrição do que foi tratado.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const corpo = {
+      Id: pdPedidoAtual.Id,
+      Volume: volume,
+      Preco_Unitario: preco,
+      Observacao_Visita: obs,
+      Proxima_Visita: proxima
+    };
+    const resultado = await enviarOuEnfileirar("Edição de pedido", CONFIG.URL_API, "PATCH", corpo);
+    if (resultado.enfileirado) {
+      const callback = pdAoSalvar;
+      fecharFolhaEdicaoPedido();
+      mostrarMsgFilaOffline("Pedido salvo neste aparelho — será enviado quando a internet voltar.");
+      if (callback) callback(corpo);
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
+    const callback = pdAoSalvar;
+    fecharFolhaEdicaoPedido();
+    if (callback) callback(corpo);
+  } catch (err) {
+    erroBox.textContent = err.message;
+    erroBox.classList.remove("oculto");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+let vsVisitaAtual = null;
+let vsAoSalvar = null;
+
+function abrirFolhaEdicaoVisita(v, aoSalvar) {
+  vsVisitaAtual = v;
+  vsAoSalvar = aoSalvar || null;
+  document.getElementById("folhaVisitaErro").classList.add("oculto");
+  document.getElementById("folhaVisitaTitulo").textContent = v.Propriedade ? `Visita — ${v.Propriedade}` : "Visita";
+  document.getElementById("fvTipo").value = v.Tipo_Visita || "";
+  document.getElementById("fvObs").value = v.Observacao || "";
+  document.getElementById("folhaVisitaOverlay").classList.remove("oculto");
+}
+
+function fecharFolhaEdicaoVisita() {
+  document.getElementById("folhaVisitaOverlay").classList.add("oculto");
+  vsVisitaAtual = null;
+  vsAoSalvar = null;
+}
+
+document.getElementById("btnFecharFolhaVisita").addEventListener("click", fecharFolhaEdicaoVisita);
+document.getElementById("folhaVisitaOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "folhaVisitaOverlay") fecharFolhaEdicaoVisita();
+});
+
+document.getElementById("btnSalvarVisita").addEventListener("click", async () => {
+  if (!vsVisitaAtual) return;
+  const btn = document.getElementById("btnSalvarVisita");
+  const erroBox = document.getElementById("folhaVisitaErro");
+  erroBox.classList.add("oculto");
+  const tipo = document.getElementById("fvTipo").value.trim();
+  const obs = document.getElementById("fvObs").value.trim();
+  if (!tipo || !obs) {
+    erroBox.textContent = "Preencha tipo e observação.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
+  btn.disabled = true;
+  try {
+    const corpo = { Id: vsVisitaAtual.Id, Tipo_Visita: tipo, Observacao: obs };
+    const resultado = await enviarOuEnfileirar("Edição de visita", CONFIG.URL_VISITAS, "PATCH", corpo);
+    if (resultado.enfileirado) {
+      const callback = vsAoSalvar;
+      fecharFolhaEdicaoVisita();
+      mostrarMsgFilaOffline("Visita salva neste aparelho — será enviada quando a internet voltar.");
+      if (callback) callback(corpo);
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
+    const callback = vsAoSalvar;
+    fecharFolhaEdicaoVisita();
+    if (callback) callback(corpo);
+  } catch (err) {
+    erroBox.textContent = err.message;
+    erroBox.classList.remove("oculto");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 document.getElementById("btnNovaFazendaTab").addEventListener("click", () => {
   origemCadastroFazenda = "fazendas";
   abrirCadastroFazenda();
@@ -2638,6 +2814,9 @@ async function renderizarHistoricoAtual() {
   const container = document.getElementById("historicoLista");
   const gestor = ehGestor();
 
+  // Botão "✏️ Editar" sempre visível no cabeçalho do item (não escondido dentro do
+  // detalhe expansível) — mesmo motivo da mudança na aba Fazendas: era exatamente
+  // onde o usuário relatou não conseguir encontrar a opção de editar.
   if (modoHistorico === "visitas") {
     const lista = cacheHistoricoVisitas || [];
     if (lista.length === 0) {
@@ -2651,17 +2830,12 @@ async function renderizarHistoricoAtual() {
             <div class="item-historico-titulo">${v.Propriedade}</div>
             <div class="item-historico-sub">${v.Tipo_Visita} · ${formatarDataBR(v.Dia_Visita)}${gestor ? " · " + v.Nome_Promotor : ""}</div>
           </div>
+          ${podeEditarRegistro(v.Nome_Promotor) ? `<button class="btn-editar-linha" type="button" data-editar-visita="${i}">✏️ Editar</button>` : ""}
         </div>
         <div class="item-historico-detalhe oculto" id="hv${i}">
           <div id="hvTexto${i}">${v.Observacao || "Sem observação."}</div>
           ${v.Foto_URL ? `<div style="margin-top:8px;"><a href="${v.Foto_URL}" target="_blank" rel="noopener">Ver foto</a></div>` : ""}
           ${blocoHistoricoEdicoes(v.Historico_Edicoes)}
-          ${podeEditarRegistro(v.Nome_Promotor) ? `
-            <div class="btn-linha" style="margin-top:10px;">
-              <button class="btn btn-secundario" type="button" data-editar-visita="${i}">✏️ Editar</button>
-            </div>
-            <div class="item-catalogo-editar oculto" id="formEditarVisita${i}"></div>
-          ` : ""}
         </div>
       </div>
     `).join("");
@@ -2683,15 +2857,14 @@ async function renderizarHistoricoAtual() {
         <div class="item-historico-detalhe oculto" id="hp${i}">
           ${g.itens.map((item, j) => `
             <div class="linha-produto-editavel" id="linhaPedido${i}_${j}">
-              <div class="linha-produto">
+              <div class="linha-produto" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
                 <span>${item.Produto} (${item.Revenda})</span>
                 <span>${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)}</span>
               </div>
               ${podeEditarRegistro(item.Nome_Promotor) ? `
-                <div class="btn-linha" style="margin:4px 0 8px;">
-                  <button class="btn btn-secundario" type="button" data-editar-pedido="${i}_${j}" style="padding:4px 10px;font-size:12px;">✏️ Editar</button>
+                <div class="btn-linha" style="margin:6px 0 8px;">
+                  <button class="btn-editar-linha" type="button" data-editar-pedido="${i}_${j}">✏️ Editar</button>
                 </div>
-                <div class="item-catalogo-editar oculto" id="formEditarPedido${i}_${j}"></div>
               ` : ""}
               ${blocoHistoricoEdicoes(item.Historico_Edicoes)}
             </div>
@@ -2713,8 +2886,8 @@ async function renderizarHistoricoAtual() {
     container.querySelectorAll("[data-editar-visita]").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const i = btn.getAttribute("data-editar-visita");
-        abrirFormEdicaoVisita(Number(i), lista[Number(i)]);
+        const i = Number(btn.getAttribute("data-editar-visita"));
+        abrirFolhaEdicaoVisita(lista[i], () => { cacheHistoricoVisitas = null; renderizarHistoricoAtual(); });
       });
     });
   } else {
@@ -2723,113 +2896,10 @@ async function renderizarHistoricoAtual() {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const [i, j] = btn.getAttribute("data-editar-pedido").split("_").map(Number);
-        abrirFormEdicaoPedido(i, j, grupos[i].itens[j]);
+        abrirFolhaEdicaoPedido(grupos[i].itens[j], () => { cacheHistoricoPedidos = null; renderizarHistoricoAtual(); });
       });
     });
   }
-}
-
-function abrirFormEdicaoVisita(i, v) {
-  const form = document.getElementById("formEditarVisita" + i);
-  form.classList.remove("oculto");
-  form.innerHTML = `
-    <label>Tipo de visita</label>
-    <input type="text" id="evTipo${i}" value="${(v.Tipo_Visita || '').replace(/"/g,'&quot;')}">
-    <label>O que foi tratado</label>
-    <textarea id="evObs${i}" rows="3" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${v.Observacao || ""}</textarea>
-    <div id="evMsg${i}"></div>
-    <div class="btn-linha">
-      <button class="btn btn-secundario" type="button" id="evCancelar${i}">Cancelar</button>
-      <button class="btn" type="button" id="evSalvar${i}">Salvar</button>
-    </div>
-  `;
-  document.getElementById("evCancelar" + i).addEventListener("click", () => {
-    form.classList.add("oculto");
-    form.innerHTML = "";
-  });
-  document.getElementById("evSalvar" + i).addEventListener("click", async () => {
-    const btn = document.getElementById("evSalvar" + i);
-    const tipo = document.getElementById("evTipo" + i).value.trim();
-    const obs = document.getElementById("evObs" + i).value.trim();
-    if (!tipo || !obs) {
-      document.getElementById("evMsg" + i).innerHTML = '<div class="msg msg-erro">Preencha tipo e observação.</div>';
-      return;
-    }
-    btn.disabled = true;
-    try {
-      const resultado = await enviarOuEnfileirar("Edição de visita", CONFIG.URL_VISITAS, "PATCH", { Id: v.Id, Tipo_Visita: tipo, Observacao: obs });
-      if (resultado.enfileirado) {
-        document.getElementById("evMsg" + i).innerHTML = '<div class="msg msg-sucesso">Sem conexão — a alteração foi salva neste aparelho e será enviada quando a internet voltar.</div>';
-        btn.disabled = false;
-        return;
-      }
-      const dados = await resultado.resp.json().catch(() => ({}));
-      if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
-      cacheHistoricoVisitas = null;
-      await renderizarHistoricoAtual();
-    } catch (err) {
-      document.getElementById("evMsg" + i).innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
-      btn.disabled = false;
-    }
-  });
-}
-
-function abrirFormEdicaoPedido(i, j, item) {
-  const id = `${i}_${j}`;
-  const form = document.getElementById("formEditarPedido" + id);
-  form.classList.remove("oculto");
-  form.innerHTML = `
-    <label>Volume</label>
-    <input type="number" min="0" step="0.01" id="epVolume${id}" value="${item.Volume}">
-    <label>Preço unitário (R$)</label>
-    <input type="number" min="0" step="0.01" id="epPreco${id}" value="${item.Preco_Unitario}">
-    <label>O que foi tratado na visita${item.Propriedade ? "" : " (opcional — pedido balcão)"}</label>
-    <textarea id="epObs${id}" rows="3" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${item.Observacao_Visita || ""}</textarea>
-    <label>Assunto da próxima visita (opcional)</label>
-    <textarea id="epProxima${id}" rows="2" style="width:100%;padding:8px;font-size:14px;margin-bottom:10px;">${item.Proxima_Visita || ""}</textarea>
-    <div id="epMsg${id}"></div>
-    <div class="btn-linha">
-      <button class="btn btn-secundario" type="button" id="epCancelar${id}">Cancelar</button>
-      <button class="btn" type="button" id="epSalvar${id}">Salvar</button>
-    </div>
-  `;
-  document.getElementById("epCancelar" + id).addEventListener("click", () => {
-    form.classList.add("oculto");
-    form.innerHTML = "";
-  });
-  document.getElementById("epSalvar" + id).addEventListener("click", async () => {
-    const btn = document.getElementById("epSalvar" + id);
-    const volume = document.getElementById("epVolume" + id).value;
-    const preco = document.getElementById("epPreco" + id).value;
-    const obs = document.getElementById("epObs" + id).value.trim();
-    const proxima = document.getElementById("epProxima" + id).value.trim();
-    if (item.Propriedade && !obs) {
-      document.getElementById("epMsg" + id).innerHTML = '<div class="msg msg-erro">Pedido vinculado a fazenda precisa da descrição do que foi tratado.</div>';
-      return;
-    }
-    btn.disabled = true;
-    try {
-      const resultado = await enviarOuEnfileirar("Edição de pedido", CONFIG.URL_API, "PATCH", {
-        Id: item.Id,
-        Volume: volume,
-        Preco_Unitario: preco,
-        Observacao_Visita: obs,
-        Proxima_Visita: proxima
-      });
-      if (resultado.enfileirado) {
-        document.getElementById("epMsg" + id).innerHTML = '<div class="msg msg-sucesso">Sem conexão — a alteração foi salva neste aparelho e será enviada quando a internet voltar.</div>';
-        btn.disabled = false;
-        return;
-      }
-      const dados = await resultado.resp.json().catch(() => ({}));
-      if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar.");
-      cacheHistoricoPedidos = null;
-      await renderizarHistoricoAtual();
-    } catch (err) {
-      document.getElementById("epMsg" + id).innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
-      btn.disabled = false;
-    }
-  });
 }
 
 /* =========================================================================
@@ -3725,6 +3795,11 @@ function formatarItemPedido(r, opcoes) {
   const volumeExtra = r.volume ? ` — ${r.volume}${r.unidade ? " " + r.unidade : ""}` : "";
   const detalheExtra = opcoes.mostrarPromotor && r.promotor ? " · " + r.promotor : "";
   const observacao = r.observacao ? `<div class="item-historico-detalhe" style="margin-top:6px;padding-top:6px;">${r.observacao}</div>` : "";
+  // Botão de editar: só aparece quando o item já traz um "id" (drill-down de
+  // Relatórios) e o usuário pode editar aquele registro — mesma regra de sempre.
+  const editar = (r.id && podeEditarRegistro(r.promotor))
+    ? `<button class="btn-editar-linha" type="button" data-editar-pedido-drill="${r.id}" style="margin-top:8px;">✏️ Editar</button>`
+    : "";
   return `
     <div class="item-ranking" style="flex-direction:column;align-items:stretch;gap:2px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3732,6 +3807,7 @@ function formatarItemPedido(r, opcoes) {
         <span class="item-ranking-detalhe">${formatarMoeda(r.valor)} · ${formatarDataBR(r.data)}${detalheExtra}</span>
       </div>
       ${observacao}
+      ${editar}
     </div>
   `;
 }
@@ -3740,6 +3816,9 @@ function formatarItemVisita(r, opcoes) {
   opcoes = opcoes || {};
   const detalheExtra = opcoes.mostrarPromotor && r.promotor ? " · " + r.promotor : "";
   const observacao = r.observacao ? `<div class="item-historico-detalhe" style="margin-top:6px;padding-top:6px;">${r.observacao}</div>` : "";
+  const editar = (r.id && podeEditarRegistro(r.promotor))
+    ? `<button class="btn-editar-linha" type="button" data-editar-visita-drill="${r.id}" style="margin-top:8px;">✏️ Editar</button>`
+    : "";
   return `
     <div class="item-ranking" style="flex-direction:column;align-items:stretch;gap:2px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3747,6 +3826,7 @@ function formatarItemVisita(r, opcoes) {
         <span class="item-ranking-detalhe">${formatarDataBR(r.data)}${detalheExtra}</span>
       </div>
       ${observacao}
+      ${editar}
     </div>
   `;
 }
@@ -3848,8 +3928,8 @@ async function abrirDetalhePromotor(nomePromotor) {
     }
 
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita })),
-      ...(dadosVisitas.visitas || []).map(r => ({ tipo: "visita", propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
+      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor || nomePromotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
+      ...(dadosVisitas.visitas || []).map(r => ({ tipo: "visita", id: r.Id, promotor: r.Nome_Promotor || nomePromotor, propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPromotorAtual = nomePromotor;
     drillNivel = 1;
@@ -3889,8 +3969,8 @@ async function abrirDetalheFazenda(nomeFazenda) {
     // A API faz busca parcial pelo nome — filtra exatamente para não misturar fazendas de
     // nome parecido (ex.: "Fazenda Ferri" e "Propriedade Ferri").
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita })),
-      ...(dadosVisitas.visitas || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "visita", promotor: r.Nome_Promotor, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
+      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
+      ...(dadosVisitas.visitas || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "visita", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPropriedadeAtual = nomeFazenda;
     drillNivel = 3;
@@ -3917,7 +3997,7 @@ async function abrirDetalheRevenda(nomeRevenda) {
 
     drillItens = (dados.lancamentos || [])
       .filter(r => r.Revenda === nomeRevenda)
-      .map(r => ({ tipo: "pedido", promotor: r.Nome_Promotor, propriedade: r.Propriedade, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita }));
+      .map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita }));
     drillRevendaAtual = nomeRevenda;
     drillNivel = 4;
     renderPainelDrill();
@@ -3962,6 +4042,41 @@ document.getElementById("listaPorRevenda").addEventListener("click", (e) => {
 });
 
 document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
+  const btnEditarPedido = e.target.closest("[data-editar-pedido-drill]");
+  if (btnEditarPedido) {
+    const id = btnEditarPedido.getAttribute("data-editar-pedido-drill");
+    const r = drillItens.find(x => String(x.id) === id);
+    if (r) {
+      abrirFolhaEdicaoPedido(
+        { Id: r.id, Propriedade: r.propriedade, Volume: r.volume, Preco_Unitario: r.precoUnitario, Observacao_Visita: r.observacao, Proxima_Visita: r.proximaVisita },
+        (corpo) => {
+          r.volume = Number(corpo.Volume) || 0;
+          r.precoUnitario = Number(corpo.Preco_Unitario) || 0;
+          r.observacao = corpo.Observacao_Visita;
+          r.proximaVisita = corpo.Proxima_Visita;
+          r.valor = r.volume * r.precoUnitario;
+          renderPainelDrill();
+        }
+      );
+    }
+    return;
+  }
+  const btnEditarVisita = e.target.closest("[data-editar-visita-drill]");
+  if (btnEditarVisita) {
+    const id = btnEditarVisita.getAttribute("data-editar-visita-drill");
+    const r = drillItens.find(x => String(x.id) === id);
+    if (r) {
+      abrirFolhaEdicaoVisita(
+        { Id: r.id, Propriedade: r.propriedade, Tipo_Visita: r.tipoVisita, Observacao: r.observacao },
+        (corpo) => {
+          r.tipoVisita = corpo.Tipo_Visita;
+          r.observacao = corpo.Observacao;
+          renderPainelDrill();
+        }
+      );
+    }
+    return;
+  }
   const item = e.target.closest("[data-propriedade-nivel1]");
   if (!item) return;
   drillPropriedadeAtual = item.getAttribute("data-propriedade-nivel1");
@@ -4104,10 +4219,14 @@ async function buscarHistoricoRel(termo) {
       return;
     }
 
+    resultadosBuscaHistorico = resultados;
     const totalGeral = pedidos.reduce((soma, r) => soma + (Number(r.Valor_Total) || 0), 0);
     lista.innerHTML = `
       <div class="total-linha">${pedidos.length} pedido(s) · ${visitas.length} visita(s) · Total em vendas: <b>${formatarMoeda(totalGeral)}</b></div>
     ` + resultados.map(r => {
+      const editar = podeEditarRegistro(r.Nome_Promotor)
+        ? `<button class="btn-editar-linha" type="button" data-editar-busca="${r.tipo}:${r.Id}" style="margin-top:8px;">✏️ Editar</button>`
+        : "";
       if (r.tipo === "pedido") {
         return `
           <div class="item-historico">
@@ -4119,6 +4238,7 @@ async function buscarHistoricoRel(termo) {
               <div class="item-historico-valor">${formatarMoeda(r.Valor_Total)}</div>
             </div>
             ${r.Observacao_Visita ? `<div class="item-historico-detalhe">${r.Observacao_Visita}</div>` : ""}
+            ${editar}
           </div>
         `;
       }
@@ -4131,6 +4251,7 @@ async function buscarHistoricoRel(termo) {
             </div>
           </div>
           ${r.Observacao ? `<div class="item-historico-detalhe">${r.Observacao}</div>` : ""}
+          ${editar}
         </div>
       `;
     }).join("");
@@ -4139,6 +4260,34 @@ async function buscarHistoricoRel(termo) {
     mostrarMsg("msgBuscaHistoricoRel", err.message, "erro");
   }
 }
+
+let resultadosBuscaHistorico = [];
+
+document.getElementById("listaBuscaHistoricoRel").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-editar-busca]");
+  if (!btn) return;
+  const [tipo, id] = btn.getAttribute("data-editar-busca").split(":");
+  const r = resultadosBuscaHistorico.find(x => x.tipo === tipo && String(x.Id) === id);
+  if (!r) return;
+  if (tipo === "pedido") {
+    abrirFolhaEdicaoPedido(
+      { Id: r.Id, Propriedade: r.Propriedade, Volume: r.Volume, Preco_Unitario: r.Preco_Unitario, Observacao_Visita: r.Observacao_Visita, Proxima_Visita: r.Proxima_Visita },
+      (corpo) => {
+        r.Volume = corpo.Volume;
+        r.Preco_Unitario = corpo.Preco_Unitario;
+        r.Observacao_Visita = corpo.Observacao_Visita;
+        r.Proxima_Visita = corpo.Proxima_Visita;
+        r.Valor_Total = (Number(corpo.Volume) || 0) * (Number(corpo.Preco_Unitario) || 0);
+        buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim());
+      }
+    );
+  } else {
+    abrirFolhaEdicaoVisita(
+      { Id: r.Id, Propriedade: r.Propriedade, Tipo_Visita: r.Tipo_Visita, Observacao: r.Observacao },
+      () => buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim())
+    );
+  }
+});
 
 /* =========================================================================
    EXPORTAR PARA EXCEL (só Gerente/Desenvolvedor)
