@@ -111,7 +111,10 @@
   .aviso-em-breve{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;border-radius:10px;padding:16px;font-size:14px;line-height:1.5;}
 
   /* ---------- FAZENDAS (lista) ---------- */
-  .item-fazenda{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:14px 16px;margin-bottom:8px;font-size:14px;font-weight:600;cursor:pointer;}
+  .item-fazenda{background:#fff;border:1px solid var(--cinza-borda);border-radius:10px;padding:14px 16px;margin-bottom:8px;font-size:14px;font-weight:600;}
+  .item-fazenda-topo{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;}
+  .item-fazenda-acoes{flex:0 0 auto;}
+  .item-fazenda-acoes button{background:#eef7ec;color:var(--verde-escuro);border:1px solid #cfe6c9;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;}
   .carregando-lista{padding:20px;text-align:center;color:#8a9690;font-size:13px;}
 
   /* ---------- CATÁLOGO ---------- */
@@ -954,6 +957,37 @@
   </div>
 </div>
 
+<!-- Bottom sheet: editar uma fazenda já cadastrada (mesmo padrão visual da Agenda,
+     de propósito — não depende do painel expansível da lista, então um clique aqui
+     dentro nunca fecha a lista por engano). -->
+<div id="folhaFazendaOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaFazendaTitulo">Editar fazenda</span>
+      <button class="folha-fechar" id="btnFecharFolhaFazenda" type="button">✕</button>
+    </div>
+    <div class="msg msg-erro oculto" id="folhaFazendaErro"></div>
+    <label for="ffMunicipio">Município</label>
+    <input type="text" id="ffMunicipio">
+    <label for="ffProprietario">Proprietário</label>
+    <input type="text" id="ffProprietario">
+    <label for="ffDecisor">Decisor</label>
+    <input type="text" id="ffDecisor">
+    <label for="ffPersonalidade">Personalidade do decisor</label>
+    <input type="text" id="ffPersonalidade">
+    <label for="ffPersonalidadeObs">Observação (personalidade)</label>
+    <input type="text" id="ffPersonalidadeObs">
+    <label for="ffVendedor">Vendedor responsável</label>
+    <input type="text" id="ffVendedor">
+    <label for="ffTipo">Tipo</label>
+    <input type="text" id="ffTipo">
+    <div class="campo-detalhe"><span>Localização atual</span><b id="ffLocalizacaoTexto">—</b></div>
+    <button class="btn btn-secundario" type="button" id="ffCapturarLocalizacao" style="margin:10px 0 16px;">📍 Usar minha localização atual</button>
+    <button class="btn" type="button" id="btnSalvarFazenda">Salvar alterações</button>
+  </div>
+</div>
+
 <div id="overlayCarregando" class="overlay-carregando oculto">Enviando...</div>
 
 <div id="pilhaFilaOffline" class="pilha-fila-offline oculto"></div>
@@ -1660,25 +1694,41 @@ function renderizarListaFazendas(lista) {
     container.innerHTML = '<div class="carregando-lista">Nenhuma fazenda encontrada.</div>';
     return;
   }
+  // Botão "✏️ Editar" sempre visível na linha (não escondido dentro do detalhe
+  // expansível) — mais intuitivo, e evita depender do painel de detalhe pra editar.
+  // Toda fazenda que aparece aqui já é do próprio promotor (a API só lista as que ele
+  // cadastrou) ou o usuário é gestor — nos dois casos a edição é sempre permitida.
   container.innerHTML = lista.map((nome, i) => `
-    <div class="item-fazenda" data-abrir-fazenda="${nome.replace(/"/g,'&quot;')}">
-      ${nome}
+    <div class="item-fazenda">
+      <div class="item-fazenda-topo" data-abrir-fazenda="${nome.replace(/"/g,'&quot;')}">
+        <span>${nome}</span>
+        <div class="item-fazenda-acoes">
+          <button type="button" data-editar-fazenda-linha="${nome.replace(/"/g,'&quot;')}">✏️ Editar</button>
+        </div>
+      </div>
       <div class="item-catalogo-editar oculto" id="detalheFazenda${i}"></div>
     </div>
   `).join("");
 }
 
 document.getElementById("listaFazendas").addEventListener("click", async (e) => {
-  // Qualquer clique dentro do painel de detalhe/edição (botão Editar, campos do
-  // formulário, Salvar, Cancelar, Usar minha localização) NÃO deve fechar o painel —
-  // antes da correção, esse clique "borbulhava" até aqui e o toggle abaixo fechava o
-  // painel imediatamente (jaAberto já era true), dando a impressão de que editar "voltava
-  // pra trás" e não salvava nada.
+  const btnEditarLinha = e.target.closest("[data-editar-fazenda-linha]");
+  if (btnEditarLinha) {
+    // Botão de editar da própria linha: nunca deve mexer no toggle de abrir/fechar
+    // o detalhe abaixo dele — para por aqui.
+    e.stopPropagation();
+    abrirFolhaEdicaoFazenda(btnEditarLinha.getAttribute("data-editar-fazenda-linha"));
+    return;
+  }
+
+  // Qualquer clique dentro do painel de detalhe expansível também não deve mexer
+  // no toggle (ele só reage a clique no cabeçalho data-abrir-fazenda).
   if (e.target.closest(".item-catalogo-editar")) return;
-  const item = e.target.closest("[data-abrir-fazenda]");
-  if (!item) return;
-  const nome = item.getAttribute("data-abrir-fazenda");
-  const areaDetalhe = item.querySelector(".item-catalogo-editar");
+
+  const topo = e.target.closest("[data-abrir-fazenda]");
+  if (!topo) return;
+  const nome = topo.getAttribute("data-abrir-fazenda");
+  const areaDetalhe = topo.closest(".item-fazenda").querySelector(".item-catalogo-editar");
   const jaAberto = !areaDetalhe.classList.contains("oculto");
   document.querySelectorAll("#listaFazendas .item-catalogo-editar").forEach(el => el.classList.add("oculto"));
   if (jaAberto) return;
@@ -1694,15 +1744,13 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
     });
     const dados = await resp.json();
     if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar os dados.");
-    const p = dados.propriedade;
-    renderizarDetalheFazenda(areaDetalhe, p);
+    renderizarDetalheFazenda(areaDetalhe, dados.propriedade);
   } catch (err) {
     areaDetalhe.innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
   }
 });
 
 function renderizarDetalheFazenda(areaDetalhe, p) {
-  const editavel = podeEditarRegistro(p.Cadastrada_Por);
   areaDetalhe.innerHTML = `
     <div class="campo-detalhe"><span>Município</span><b>${p.Municipio || "—"}</b></div>
     <div class="campo-detalhe"><span>Proprietário</span><b>${p.Proprietario || "—"}</b></div>
@@ -1726,116 +1774,140 @@ function renderizarDetalheFazenda(areaDetalhe, p) {
         ? `<a href="https://www.google.com/maps?q=${p.Latitude},${p.Longitude}" target="_blank" rel="noopener" style="color:var(--azul);">Ver no mapa ↗</a>`
         : "—"
     }</b></div>
-    ${editavel ? `
+    ${podeEditarRegistro(p.Cadastrada_Por) ? `
     <div class="btn-linha" style="margin-top:10px;">
-      <button class="btn btn-secundario" type="button" data-editar-fazenda="1">✏️ Editar fazenda</button>
+      <button class="btn btn-secundario" type="button" data-editar-fazenda-detalhe="1">✏️ Editar fazenda</button>
     </div>
-    <div class="item-catalogo-editar oculto" id="formEditarFazenda"></div>
     ` : ""}
   `;
-
-  if (!editavel) return;
-
-  const btnEditar = areaDetalhe.querySelector("[data-editar-fazenda]");
-  btnEditar.addEventListener("click", () => {
-    renderizarFormEdicaoFazenda(areaDetalhe, p);
-  });
+  const btnEditar = areaDetalhe.querySelector("[data-editar-fazenda-detalhe]");
+  if (btnEditar) {
+    btnEditar.addEventListener("click", (e) => {
+      e.stopPropagation();
+      abrirFolhaEdicaoFazenda(p.Propriedade, areaDetalhe);
+    });
+  }
 }
 
-function renderizarFormEdicaoFazenda(areaDetalhe, p) {
-  const form = areaDetalhe.querySelector("#formEditarFazenda");
-  form.classList.remove("oculto");
-  form.innerHTML = `
-    <label>Município</label>
-    <input type="text" id="efMunicipio" value="${(p.Municipio || '').replace(/"/g,'&quot;')}">
-    <label>Proprietário</label>
-    <input type="text" id="efProprietario" value="${(p.Proprietario || '').replace(/"/g,'&quot;')}">
-    <label>Decisor</label>
-    <input type="text" id="efDecisor" value="${(p.Decisor || '').replace(/"/g,'&quot;')}">
-    <label>Personalidade do decisor</label>
-    <input type="text" id="efPersonalidade" value="${(p.Personalidade_Decisor || '').replace(/"/g,'&quot;')}">
-    <label>Observação (personalidade)</label>
-    <input type="text" id="efPersonalidadeObs" value="${(p.Personalidade_Observacao || '').replace(/"/g,'&quot;')}">
-    <label>Vendedor responsável</label>
-    <input type="text" id="efVendedor" value="${(p.Vendedor_Responsavel || '').replace(/"/g,'&quot;')}">
-    <label>Tipo</label>
-    <input type="text" id="efTipo" value="${(p.Tipo_Propriedade || '').replace(/"/g,'&quot;')}">
-    <div class="campo-detalhe"><span>Localização atual</span><b id="efLocalizacaoTexto">${
-      p.Latitude != null && p.Longitude != null ? `${p.Latitude.toFixed(5)}, ${p.Longitude.toFixed(5)}` : "não marcada"
-    }</b></div>
-    <div class="btn-linha">
-      <button class="btn btn-secundario" type="button" id="efCapturarLocalizacao">📍 Usar minha localização atual</button>
-    </div>
-    <div id="efMsg"></div>
-    <div class="btn-linha">
-      <button class="btn btn-secundario" type="button" id="efCancelar">Cancelar</button>
-      <button class="btn" type="button" id="efSalvar">Salvar alterações</button>
-    </div>
-  `;
+// Edição de fazenda via bottom sheet (mesmo padrão visual/estrutural da Agenda) — de
+// propósito, em vez de um formulário inline dentro da lista: o overlay fica fora da
+// árvore de #listaFazendas, então nenhum clique nele pode ser "capturado" pelo toggle
+// de abrir/fechar o card (foi exatamente esse bug que fazia a edição "voltar pra trás").
+let fzPropriedadeAtual = null;
+let fzLat = null;
+let fzLon = null;
+let fzAreaDetalheParaAtualizar = null;
 
-  let efLat = p.Latitude != null ? p.Latitude : null;
-  let efLon = p.Longitude != null ? p.Longitude : null;
+async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
+  fzAreaDetalheParaAtualizar = areaDetalheOrigem || null;
+  document.getElementById("folhaFazendaErro").classList.add("oculto");
+  document.getElementById("folhaFazendaTitulo").textContent = "Editar fazenda";
+  document.getElementById("folhaFazendaOverlay").classList.remove("oculto");
 
-  form.querySelector("#efCapturarLocalizacao").addEventListener("click", () => {
-    const texto = form.querySelector("#efLocalizacaoTexto");
-    if (!navigator.geolocation) {
-      texto.textContent = "Este navegador não suporta localização.";
+  const campos = ["ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo"];
+  campos.forEach(id => { document.getElementById(id).value = "Carregando..."; document.getElementById(id).disabled = true; });
+  document.getElementById("ffLocalizacaoTexto").textContent = "—";
+
+  try {
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
+      headers: {
+        "x-api-key": CONFIG.API_KEY,
+        "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+      }
+    });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar os dados da fazenda.");
+    const p = dados.propriedade;
+    fzPropriedadeAtual = p;
+    fzLat = p.Latitude != null ? p.Latitude : null;
+    fzLon = p.Longitude != null ? p.Longitude : null;
+
+    document.getElementById("folhaFazendaTitulo").textContent = p.Propriedade;
+    document.getElementById("ffMunicipio").value = p.Municipio || "";
+    document.getElementById("ffProprietario").value = p.Proprietario || "";
+    document.getElementById("ffDecisor").value = p.Decisor || "";
+    document.getElementById("ffPersonalidade").value = p.Personalidade_Decisor || "";
+    document.getElementById("ffPersonalidadeObs").value = p.Personalidade_Observacao || "";
+    document.getElementById("ffVendedor").value = p.Vendedor_Responsavel || "";
+    document.getElementById("ffTipo").value = p.Tipo_Propriedade || "";
+    document.getElementById("ffLocalizacaoTexto").textContent =
+      fzLat != null && fzLon != null ? `${fzLat.toFixed(5)}, ${fzLon.toFixed(5)}` : "não marcada";
+  } catch (err) {
+    document.getElementById("folhaFazendaErro").textContent = err.message;
+    document.getElementById("folhaFazendaErro").classList.remove("oculto");
+  } finally {
+    campos.forEach(id => { document.getElementById(id).disabled = false; });
+  }
+}
+
+function fecharFolhaEdicaoFazenda() {
+  document.getElementById("folhaFazendaOverlay").classList.add("oculto");
+  fzPropriedadeAtual = null;
+}
+
+document.getElementById("btnFecharFolhaFazenda").addEventListener("click", fecharFolhaEdicaoFazenda);
+document.getElementById("folhaFazendaOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "folhaFazendaOverlay") fecharFolhaEdicaoFazenda();
+});
+
+document.getElementById("ffCapturarLocalizacao").addEventListener("click", () => {
+  const texto = document.getElementById("ffLocalizacaoTexto");
+  if (!navigator.geolocation) {
+    texto.textContent = "Este navegador não suporta localização.";
+    return;
+  }
+  texto.textContent = "Obtendo localização...";
+  navigator.geolocation.getCurrentPosition(
+    (posicao) => {
+      fzLat = posicao.coords.latitude;
+      fzLon = posicao.coords.longitude;
+      texto.textContent = `${fzLat.toFixed(5)}, ${fzLon.toFixed(5)} (capturada agora ✓)`;
+    },
+    () => { texto.textContent = "Não foi possível obter a localização agora."; },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+
+document.getElementById("btnSalvarFazenda").addEventListener("click", async () => {
+  if (!fzPropriedadeAtual) return;
+  const btn = document.getElementById("btnSalvarFazenda");
+  const erroBox = document.getElementById("folhaFazendaErro");
+  erroBox.classList.add("oculto");
+  btn.disabled = true;
+  try {
+    const corpo = {
+      Propriedade: fzPropriedadeAtual.Propriedade,
+      Municipio: document.getElementById("ffMunicipio").value.trim(),
+      Proprietario: document.getElementById("ffProprietario").value.trim(),
+      Decisor: document.getElementById("ffDecisor").value.trim(),
+      Personalidade_Decisor: document.getElementById("ffPersonalidade").value.trim(),
+      Personalidade_Observacao: document.getElementById("ffPersonalidadeObs").value.trim(),
+      Vendedor_Responsavel: document.getElementById("ffVendedor").value.trim(),
+      Tipo_Propriedade: document.getElementById("ffTipo").value.trim(),
+      Latitude: fzLat === null ? "" : fzLat,
+      Longitude: fzLon === null ? "" : fzLon
+    };
+    const resultado = await enviarOuEnfileirar("Edição de fazenda", CONFIG.URL_PROPRIEDADES, "PATCH", corpo);
+    const pAtualizado = { ...fzPropriedadeAtual, ...corpo, Latitude: fzLat, Longitude: fzLon };
+
+    if (resultado.enfileirado) {
+      if (fzAreaDetalheParaAtualizar) renderizarDetalheFazenda(fzAreaDetalheParaAtualizar, pAtualizado);
+      fecharFolhaEdicaoFazenda();
+      mostrarMsgFilaOffline("Fazenda salva neste aparelho — será enviada quando a internet voltar.");
       return;
     }
-    texto.textContent = "Obtendo localização...";
-    navigator.geolocation.getCurrentPosition(
-      (posicao) => {
-        efLat = posicao.coords.latitude;
-        efLon = posicao.coords.longitude;
-        texto.textContent = `${efLat.toFixed(5)}, ${efLon.toFixed(5)} (capturada agora ✓)`;
-      },
-      () => {
-        texto.textContent = "Não foi possível obter a localização agora.";
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  });
+    const dadosResp = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dadosResp && dadosResp.erro) || "Não foi possível salvar.");
 
-  form.querySelector("#efCancelar").addEventListener("click", () => {
-    renderizarDetalheFazenda(areaDetalhe, p);
-  });
-
-  form.querySelector("#efSalvar").addEventListener("click", async () => {
-    const btn = form.querySelector("#efSalvar");
-    btn.disabled = true;
-    form.querySelector("#efMsg").innerHTML = "";
-    try {
-      const corpo = {
-        Propriedade: p.Propriedade,
-        Municipio: form.querySelector("#efMunicipio").value.trim(),
-        Proprietario: form.querySelector("#efProprietario").value.trim(),
-        Decisor: form.querySelector("#efDecisor").value.trim(),
-        Personalidade_Decisor: form.querySelector("#efPersonalidade").value.trim(),
-        Personalidade_Observacao: form.querySelector("#efPersonalidadeObs").value.trim(),
-        Vendedor_Responsavel: form.querySelector("#efVendedor").value.trim(),
-        Tipo_Propriedade: form.querySelector("#efTipo").value.trim(),
-        Latitude: efLat === null ? "" : efLat,
-        Longitude: efLon === null ? "" : efLon
-      };
-      const resultado = await enviarOuEnfileirar("Edição de fazenda", CONFIG.URL_PROPRIEDADES, "PATCH", corpo);
-      if (resultado.enfileirado) {
-        const pAtualizado = { ...p, ...corpo, Latitude: efLat, Longitude: efLon };
-        form.querySelector("#efMsg").innerHTML = '<div class="msg msg-sucesso">Sem conexão — as alterações foram salvas neste aparelho e serão enviadas quando a internet voltar.</div>';
-        setTimeout(() => renderizarDetalheFazenda(areaDetalhe, pAtualizado), 1200);
-        return;
-      }
-      const dadosResp = await resultado.resp.json().catch(() => ({}));
-      if (!resultado.resp.ok) throw new Error((dadosResp && dadosResp.erro) || "Não foi possível salvar.");
-
-      const pAtualizado = { ...p, ...corpo, Latitude: efLat, Longitude: efLon };
-      renderizarDetalheFazenda(areaDetalhe, pAtualizado);
-    } catch (err) {
-      form.querySelector("#efMsg").innerHTML = `<div class="msg msg-erro">${err.message}</div>`;
-    } finally {
-      btn.disabled = false;
-    }
-  });
-}
+    if (fzAreaDetalheParaAtualizar) renderizarDetalheFazenda(fzAreaDetalheParaAtualizar, pAtualizado);
+    fecharFolhaEdicaoFazenda();
+  } catch (err) {
+    erroBox.textContent = err.message;
+    erroBox.classList.remove("oculto");
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
   const termo = e.target.value.toLowerCase().trim();
