@@ -1669,6 +1669,12 @@ function renderizarListaFazendas(lista) {
 }
 
 document.getElementById("listaFazendas").addEventListener("click", async (e) => {
+  // Qualquer clique dentro do painel de detalhe/edição (botão Editar, campos do
+  // formulário, Salvar, Cancelar, Usar minha localização) NÃO deve fechar o painel —
+  // antes da correção, esse clique "borbulhava" até aqui e o toggle abaixo fechava o
+  // painel imediatamente (jaAberto já era true), dando a impressão de que editar "voltava
+  // pra trás" e não salvava nada.
+  if (e.target.closest(".item-catalogo-editar")) return;
   const item = e.target.closest("[data-abrir-fazenda]");
   if (!item) return;
   const nome = item.getAttribute("data-abrir-fazenda");
