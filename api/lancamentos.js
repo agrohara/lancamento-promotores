@@ -27,9 +27,21 @@
 // daquela quinzena) — usados na busca de histórico e no drill-down do relatório
 // (Gerente/Desenvolvedor).
 //
-// Colunas da tabela "lancamentos" no Supabase: nome_promotor, revenda, propriedade,
+// id_envio: identificador único gerado pelo CELULAR, um por LINHA (não por pedido — ver
+// OFFLINE.md, seção 6), usado só pela fila offline. Num reenvio de um pedido que já foi
+// gravado, o índice único recusa TODAS as linhas (mesmo UUID de novo) e esta função
+// devolve 200 com duplicado:true, para o app limpar a fila sem duplicar o pedido.
+//
+// EDIÇÃO COM LOG (novo em 23/09/2026): pedido já lançado pode ser editado depois — pelo
+// próprio promotor que lançou ou por Gerente/Desenvolvedor — via PATCH /api/lancamentos.
+// Cada edição fica registrada em texto na coluna "historico_edicoes" (quem, quando, o que
+// mudou de/para), devolvida pro front como Historico_Edicoes. Por isso o GET agora também
+// devolve o Id (chave da linha no banco), necessário pra apontar qual lançamento editar —
+// PATCH /api/lancamentos              -> { Id, ...campos a alterar }
+//
+// Colunas da tabela "lancamentos" no Supabase: id, nome_promotor, revenda, propriedade,
 // produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
-// observacao_visita, proxima_visita.
+// observacao_visita, proxima_visita, id_envio, historico_edicoes.
 //
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY,
 // AUTH_SECRET.
@@ -42,6 +54,7 @@ const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
 function paraObjeto(l) {
   return {
+    Id: l.id,
     Nome_Promotor: l.nome_promotor || "",
     Revenda: l.revenda || "",
     Propriedade: l.propriedade || "",
@@ -53,7 +66,9 @@ function paraObjeto(l) {
     Dia_Lancamento: l.dia_lancamento || "",
     Quinzena: l.quinzena || "",
     Observacao_Visita: l.observacao_visita || "",
-    Proxima_Visita: l.proxima_visita || ""
+    Proxima_Visita: l.proxima_visita || "",
+    Id_Envio: l.id_envio || "",
+    Historico_Edicoes: l.historico_edicoes || ""
   };
 }
 
@@ -74,6 +89,27 @@ function validarRegistro(r) {
   if (Number.isNaN(volume) || volume <= 0) return false;
 
   return true;
+}
+
+// Campos que o PATCH aceita alterar, e o nome da coluna correspondente. Nome_Promotor,
+// Dia_Lancamento e Quinzena ficam de fora de propósito — trocar o dono ou a data de um
+// pedido já lançado bagunçaria relatórios/metas fechados daquele período; quem lançou
+// errado deve pedir pro gestor cancelar/relançar, não "mover" o registro.
+const CAMPOS_EDITAVEIS_LANCAMENTO = {
+  Revenda: "revenda",
+  Propriedade: "propriedade",
+  Produto: "produto",
+  Unidade: "unidade",
+  Preco_Unitario: "preco_unitario",
+  Volume: "volume",
+  Observacao_Visita: "observacao_visita",
+  Proxima_Visita: "proxima_visita"
+};
+const CAMPOS_NUMERICOS_LANCAMENTO = ["Preco_Unitario", "Volume"];
+
+function formatarValorLog(valor) {
+  if (valor === null || valor === undefined || valor === "") return "(vazio)";
+  return String(valor);
 }
 
 module.exports = async function handler(req, res) {
@@ -147,8 +183,106 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  if (req.method === "PATCH") {
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+
+    const corpo = req.body || {};
+    const id = Number(corpo.Id);
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ erro: "Informe o Id do pedido a editar." });
+      return;
+    }
+
+    try {
+      const { data: existente, error: erroBusca } = await supabase
+        .from("lancamentos")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (!existente) {
+        res.status(404).json({ erro: "Pedido não encontrado." });
+        return;
+      }
+      if (!ehGestor && String(existente.nome_promotor || "").toLowerCase() !== usuario.nome.toLowerCase()) {
+        res.status(403).json({ erro: "Você só pode editar pedidos lançados por você." });
+        return;
+      }
+
+      const atualizacao = {};
+      const mudancas = [];
+      for (const [chaveFront, colunaBanco] of Object.entries(CAMPOS_EDITAVEIS_LANCAMENTO)) {
+        if (!Object.prototype.hasOwnProperty.call(corpo, chaveFront)) continue;
+        let novoValor = corpo[chaveFront];
+        if (CAMPOS_NUMERICOS_LANCAMENTO.includes(chaveFront)) {
+          novoValor = Number(novoValor);
+          if (Number.isNaN(novoValor)) {
+            res.status(400).json({ erro: `Valor inválido para ${chaveFront}.` });
+            return;
+          }
+        } else {
+          novoValor = String(novoValor || "").trim();
+        }
+        const valorAtual = existente[colunaBanco];
+        const mudou = CAMPOS_NUMERICOS_LANCAMENTO.includes(chaveFront)
+          ? Number(valorAtual) !== novoValor
+          : String(valorAtual || "").trim() !== novoValor;
+        if (mudou) {
+          mudancas.push(`${chaveFront}: ${formatarValorLog(valorAtual)} → ${formatarValorLog(novoValor)}`);
+          atualizacao[colunaBanco] = novoValor;
+        }
+      }
+
+      // Um pedido vinculado a fazenda continua exigindo a descrição do que foi tratado —
+      // mesma regra do lançamento novo, agora reaplicada considerando o valor final (já
+      // atualizado ou o que já existia).
+      const propriedadeFinal = atualizacao.propriedade !== undefined ? atualizacao.propriedade : (existente.propriedade || "");
+      const observacaoFinal = atualizacao.observacao_visita !== undefined ? atualizacao.observacao_visita : (existente.observacao_visita || "");
+      if (String(propriedadeFinal).trim() && !String(observacaoFinal).trim()) {
+        res.status(400).json({ erro: "Pedido vinculado a uma fazenda precisa da descrição do que foi tratado na visita." });
+        return;
+      }
+
+      if (Object.keys(atualizacao).length === 0) {
+        res.status(200).json({ status: "ok", semAlteracoes: true });
+        return;
+      }
+
+      // Recalcula o valor total se preço ou volume mudaram.
+      if (atualizacao.preco_unitario !== undefined || atualizacao.volume !== undefined) {
+        const precoFinal = atualizacao.preco_unitario !== undefined ? atualizacao.preco_unitario : Number(existente.preco_unitario) || 0;
+        const volumeFinal = atualizacao.volume !== undefined ? atualizacao.volume : Number(existente.volume) || 0;
+        atualizacao.valor_total = precoFinal * volumeFinal;
+      }
+
+      const agora = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+      const linhaLog = `[${agora}] ${usuario.nome} alterou: ${mudancas.join("; ")}`;
+      const historicoAtual = String(existente.historico_edicoes || "").trim();
+      atualizacao.historico_edicoes = historicoAtual ? `${historicoAtual}\n${linhaLog}` : linhaLog;
+
+      const { error: erroUpdate } = await supabase.from("lancamentos").update(atualizacao).eq("id", id);
+      if (erroUpdate) throw erroUpdate;
+
+      // Se a próxima visita foi alterada e o pedido está vinculado a uma fazenda, atualiza
+      // o lembrete gravado na própria fazenda, igual acontece no lançamento novo.
+      if (atualizacao.proxima_visita !== undefined && String(propriedadeFinal).trim()) {
+        await supabase.from("propriedades").update({ proximo_assunto: atualizacao.proxima_visita }).ilike("propriedade", propriedadeFinal);
+      }
+
+      res.status(200).json({ status: "ok" });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao atualizar o pedido.", detalhe: String(err.message || err) });
+    }
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.status(405).json({ erro: "Use GET ou POST." });
+    res.status(405).json({ erro: "Use GET, POST ou PATCH." });
     return;
   }
 
@@ -188,10 +322,20 @@ module.exports = async function handler(req, res) {
       dia_lancamento: r.Dia_Lancamento,
       quinzena: r.Quinzena,
       observacao_visita: String(r.Observacao_Visita || "").trim(),
-      proxima_visita: String(r.Proxima_Visita || "").trim()
+      proxima_visita: String(r.Proxima_Visita || "").trim(),
+      id_envio: r.Id_Envio ? String(r.Id_Envio).trim() : null
     }));
 
     const { error: erroInsert } = await supabase.from("lancamentos").insert(linhasNovas);
+
+    // Índice único de id_envio recusou pelo menos uma linha: como o insert é uma
+    // transação só, isso significa que o pedido INTEIRO já foi gravado antes (reenvio
+    // da fila offline, mesmos Id_Envio por linha). Devolve sucesso com duplicado:true
+    // pro app limpar a fila sem duplicar o pedido.
+    if (erroInsert && erroInsert.code === "23505") {
+      res.status(200).json({ status: "ok", duplicado: true, inseridos: linhasNovas.length });
+      return;
+    }
     if (erroInsert) throw erroInsert;
 
     // Se alguma nota de "próxima visita" foi preenchida, salva na própria fazenda como

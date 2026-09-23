@@ -10,14 +10,20 @@
 // fazendas cadastradas por outro. Agora o GET passa a exigir também
 // Authorization: Bearer <token>, igual aos outros endpoints protegidos.
 //
+// EDIÇÃO (alterado em 23/09/2026): o PATCH deixou de aceitar só latitude/longitude — agora
+// aceita qualquer um dos campos editáveis do cadastro (útil, por exemplo, quando a fazenda
+// foi cadastrada sem localização e o promotor volta lá depois pra marcar no mapa). E foi
+// corrigida uma falha de segurança: o PATCH não checava QUEM estava editando. Agora exige
+// Authorization: Bearer <token> como o GET, e só permite editar quem cadastrou a fazenda
+// (cadastrada_por) ou Gerente/Desenvolvedor — mesma regra usada em Pedido e Visita.
+//
 // GET   /api/propriedades              -> lista os nomes das propriedades visíveis pro usuário logado
 // GET   /api/propriedades?nome=X       -> devolve os dados completos de UMA propriedade (só se visível pro usuário)
 // GET   /api/propriedades?completo=1   -> devolve os dados completos de TODAS as visíveis (usado na exportação)
 // POST  /api/propriedades              -> cadastra uma propriedade nova, com os dados completos
-// PATCH /api/propriedades              -> atualiza só a latitude/longitude de uma propriedade
-//                                         já cadastrada, pelo nome (Propriedade). Usado quando o
-//                                         promotor não marcou a localização no cadastro original
-//                                         e captura na hora de lançar uma visita/pedido.
+// PATCH /api/propriedades              -> atualiza um ou mais campos de uma propriedade já
+//                                         cadastrada, pelo nome (Propriedade). Só quem cadastrou
+//                                         a fazenda ou Gerente/Desenvolvedor pode editar.
 //
 // Colunas da tabela "propriedades" no Supabase (todas em minúsculo/snake_case, padrão do
 // Postgres): propriedade, municipio, proprietario, decisor, vendedor_responsavel,
@@ -31,7 +37,7 @@
 // Variáveis de ambiente necessárias: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (chave
 // secreta — nunca a "anon"/"publishable" — pois esta função grava dados e ignora RLS de
 // propósito), API_KEY (mesma chave compartilhada com o front-end de sempre), AUTH_SECRET
-// (necessária agora pro GET verificar o token do usuário).
+// (necessária agora pro GET/PATCH verificar o token do usuário).
 
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
@@ -80,6 +86,31 @@ function validarCadastro(p) {
   }
   return true;
 }
+
+// Campos que o PATCH aceita alterar, e o nome da coluna correspondente no banco. A
+// Propriedade (nome) NÃO está aqui de propósito — ela é a chave usada pra localizar o
+// registro; renomear a fazenda por esse endpoint abriria brecha pra duplicidade/perda de
+// histórico vinculado pelo nome.
+const CAMPOS_EDITAVEIS_PROPRIEDADE = {
+  Municipio: "municipio",
+  Proprietario: "proprietario",
+  Decisor: "decisor",
+  Vendedor_Responsavel: "vendedor_responsavel",
+  Tipo_Propriedade: "tipo_propriedade",
+  Matrizes: "matrizes",
+  Primiparas: "primiparas",
+  Novilhas: "novilhas",
+  Bezerros_Machos: "bezerros_machos",
+  Bezerros_Femeas: "bezerros_femeas",
+  Garrotes: "garrotes",
+  Touros: "touros",
+  Equinos: "equinos",
+  Latitude: "latitude",
+  Longitude: "longitude",
+  Personalidade_Decisor: "personalidade_decisor",
+  Personalidade_Observacao: "personalidade_observacao"
+};
+const CAMPOS_NUMERICOS_PROPRIEDADE = ["Matrizes", "Primiparas", "Novilhas", "Bezerros_Machos", "Bezerros_Femeas", "Garrotes", "Touros", "Equinos", "Latitude", "Longitude"];
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
@@ -202,24 +233,24 @@ module.exports = async function handler(req, res) {
   }
 
   if (req.method === "PATCH") {
-    const corpo = req.body || {};
-    const nome = String(corpo.Propriedade || "").trim();
-    const lat = Number(corpo.Latitude);
-    const lon = Number(corpo.Longitude);
-
-    if (!nome) {
-      res.status(400).json({ erro: "Informe a propriedade." });
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
       return;
     }
-    if (Number.isNaN(lat) || Number.isNaN(lon)) {
-      res.status(400).json({ erro: "Latitude/longitude inválidas." });
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+
+    const corpo = req.body || {};
+    const nome = String(corpo.Propriedade || "").trim();
+    if (!nome) {
+      res.status(400).json({ erro: "Informe a propriedade." });
       return;
     }
 
     try {
       const { data: existente, error: erroBusca } = await supabase
         .from("propriedades")
-        .select("propriedade")
+        .select("*")
         .ilike("propriedade", nome)
         .limit(1)
         .maybeSingle();
@@ -228,16 +259,45 @@ module.exports = async function handler(req, res) {
         res.status(404).json({ erro: "Propriedade não encontrada." });
         return;
       }
+      if (!ehGestor && String(existente.cadastrada_por || "").toLowerCase() !== usuario.nome.toLowerCase()) {
+        res.status(403).json({ erro: "Você só pode editar fazendas cadastradas por você." });
+        return;
+      }
+
+      const atualizacao = {};
+      for (const [chaveFront, colunaBanco] of Object.entries(CAMPOS_EDITAVEIS_PROPRIEDADE)) {
+        if (!Object.prototype.hasOwnProperty.call(corpo, chaveFront)) continue;
+        let valor = corpo[chaveFront];
+        if (CAMPOS_NUMERICOS_PROPRIEDADE.includes(chaveFront)) {
+          if (valor === "" || valor === null || valor === undefined) {
+            valor = ["Latitude", "Longitude"].includes(chaveFront) ? null : 0;
+          } else {
+            valor = Number(valor);
+            if (Number.isNaN(valor)) {
+              res.status(400).json({ erro: `Valor inválido para ${chaveFront}.` });
+              return;
+            }
+          }
+        } else {
+          valor = String(valor || "").trim();
+        }
+        atualizacao[colunaBanco] = valor;
+      }
+
+      if (Object.keys(atualizacao).length === 0) {
+        res.status(200).json({ status: "ok", semAlteracoes: true });
+        return;
+      }
 
       const { error: erroUpdate } = await supabase
         .from("propriedades")
-        .update({ latitude: lat, longitude: lon })
+        .update(atualizacao)
         .ilike("propriedade", nome);
       if (erroUpdate) throw erroUpdate;
 
       res.status(200).json({ status: "ok" });
     } catch (err) {
-      res.status(502).json({ erro: "Falha ao salvar a localização.", detalhe: String(err.message || err) });
+      res.status(502).json({ erro: "Falha ao atualizar a propriedade.", detalhe: String(err.message || err) });
     }
     return;
   }
