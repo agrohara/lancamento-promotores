@@ -1915,7 +1915,7 @@ document.getElementById("ffCapturarLocalizacao").addEventListener("click", () =>
       fzLon = posicao.coords.longitude;
       texto.textContent = `${fzLat.toFixed(5)}, ${fzLon.toFixed(5)} (capturada agora ✓)`;
     },
-    () => { texto.textContent = "Não foi possível obter a localização agora."; },
+    (erro) => { texto.textContent = mensagemErroLocalizacao(erro); },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 });
@@ -2251,6 +2251,23 @@ function abrirCadastroFazenda() {
   mostrarPagina("cadastroFazenda");
 }
 
+// Mensagem amigável para erro de geolocalização — usada nos três lugares do app que
+// capturam localização por GPS (cadastro de fazenda, edição de fazenda, e "usar minha
+// localização" ao registrar visita/pedido). PERMISSION_DENIED normalmente significa
+// que o celular/navegador bloqueou o acesso à localização para este site — dá pra
+// resolver nas configurações do aparelho, então a mensagem já indica o caminho (no
+// lugar de só dizer "negada" e deixar a pessoa sem saber o que fazer). Sempre deixa
+// claro que dá pra continuar sem a localização — ela nunca é obrigatória.
+function mensagemErroLocalizacao(erro) {
+  if (erro && erro.code === erro.PERMISSION_DENIED) {
+    return "Permissão de localização negada pelo celular/navegador. Para permitir: no iPhone, Ajustes → Privacidade e Segurança → Serviços de Localização → Safari/Chrome → \"Ao Usar o App\"; no Android, toque no cadeado/ícone ao lado do endereço do site e libere \"Localização\". Depois é só tentar de novo. Por enquanto, você pode continuar sem ela.";
+  }
+  if (erro && erro.code === erro.TIMEOUT) {
+    return "Não deu tempo de obter a localização (sinal de GPS fraco). Tente de novo em local aberto, ou continue sem ela.";
+  }
+  return "Não foi possível obter a localização agora. Você pode continuar sem ela.";
+}
+
 // Captura a localização atual do celular (GPS) para gravar junto com a fazenda —
 // opcional, pedido explicitamente pelo usuário para facilitar achar a fazenda no mapa
 // depois. Exige que o promotor esteja fisicamente na fazenda (ou perto) ao cadastrar.
@@ -2270,9 +2287,7 @@ document.getElementById("btnCapturarLocalizacao").addEventListener("click", () =
     (erro) => {
       cpLatitude = null;
       cpLongitude = null;
-      status.textContent = erro.code === erro.PERMISSION_DENIED
-        ? "Permissão de localização negada. Você pode continuar sem ela."
-        : "Não foi possível obter a localização agora. Você pode continuar sem ela.";
+      status.textContent = mensagemErroLocalizacao(erro);
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -2504,8 +2519,8 @@ document.getElementById("btnCapturarLocalizacaoRegistro").addEventListener("clic
     } catch (err) {
       status.textContent = err.message;
     }
-  }, (err) => {
-    status.textContent = "Não foi possível obter a localização (" + err.message + ").";
+  }, (erro) => {
+    status.textContent = mensagemErroLocalizacao(erro);
   }, { enableHighAccuracy: true, timeout: 10000 });
 });
 
