@@ -267,6 +267,9 @@
   .tipo-cliente-opcao{flex:1;text-align:center;padding:10px;border:1px solid var(--cinza-borda);border-radius:10px;
     cursor:pointer;font-size:13px;font-weight:700;color:#5b6771;}
   .tipo-cliente-opcao.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
+  .btn-excluir-registro{margin-top:10px;background:#fdecea;border-color:#fdecea;color:var(--vermelho);text-transform:none;letter-spacing:0;}
+  .btn-excluir-registro:hover{background:#f8d7d2;border-color:#f8d7d2;}
+  .btn-excluir-registro.confirmando{background:var(--vermelho);border-color:var(--vermelho);color:#fff;}
   .folha-acoes-compromisso{display:flex;flex-direction:column;gap:8px;}
   .folha-acoes-compromisso .btn{text-transform:none;letter-spacing:0;}
   .folha-acoes-compromisso .btn-excluir{background:#fdecea;border-color:#fdecea;color:var(--vermelho);}
@@ -1020,6 +1023,7 @@
     <label for="fpProxima">Assunto da próxima visita (opcional)</label>
     <textarea id="fpProxima" rows="2"></textarea>
     <button class="btn" type="button" id="btnSalvarPedido">Salvar alterações</button>
+    <button class="btn btn-excluir-registro" type="button" id="btnExcluirPedido">🗑️ Excluir este pedido</button>
   </div>
 </div>
 
@@ -1037,6 +1041,7 @@
     <label for="fvObs">O que foi tratado</label>
     <textarea id="fvObs" rows="3"></textarea>
     <button class="btn" type="button" id="btnSalvarVisita">Salvar alterações</button>
+    <button class="btn btn-excluir-registro" type="button" id="btnExcluirVisita">🗑️ Excluir esta visita</button>
   </div>
 </div>
 
@@ -1974,6 +1979,7 @@ document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
    ========================================================================= */
 let pdPedidoAtual = null;
 let pdAoSalvar = null;
+let pdAoExcluir = null;
 let pdUnidadeSelecionada = "";
 
 // Revenda é uma lista fixa por promotor (mesma origem do combo do lançamento novo,
@@ -1992,9 +1998,11 @@ function preencherRevendaEdicaoPedido(promotor, valorAtual) {
   select.value = valorAtual || "";
 }
 
-async function abrirFolhaEdicaoPedido(item, aoSalvar) {
+async function abrirFolhaEdicaoPedido(item, aoSalvar, aoExcluir) {
   pdPedidoAtual = item;
   pdAoSalvar = aoSalvar || null;
+  pdAoExcluir = aoExcluir || null;
+  resetarBotaoExcluir("btnExcluirPedido", "🗑️ Excluir este pedido");
   pdUnidadeSelecionada = item.Unidade || "";
   document.getElementById("folhaPedidoErro").classList.add("oculto");
   document.getElementById("folhaPedidoTitulo").textContent = item.Propriedade ? `Pedido — ${item.Propriedade}` : "Pedido balcão";
@@ -2019,6 +2027,7 @@ function fecharFolhaEdicaoPedido() {
   document.getElementById("fpSugestoesProduto").classList.add("oculto");
   pdPedidoAtual = null;
   pdAoSalvar = null;
+  pdAoExcluir = null;
 }
 
 document.getElementById("btnFecharFolhaPedido").addEventListener("click", fecharFolhaEdicaoPedido);
@@ -2154,12 +2163,85 @@ document.getElementById("btnSalvarPedido").addEventListener("click", async () =>
   }
 });
 
+/* ---------- Exclusão de pedido / visita (06/10/2026) ----------
+   Confirmação em dois toques (sem confirm() nativo, que bloqueia a página e some em
+   alguns navegadores de celular): o 1º toque troca o texto do botão e arma a exclusão
+   por 5 segundos; o 2º toque, dentro desse prazo, exclui de verdade. A exclusão é
+   definitiva no banco — o backup semanal (seção 28) é a rede de segurança. */
+const temporizadoresExcluir = {};
+function resetarBotaoExcluir(idBotao, texto) {
+  const b = document.getElementById(idBotao);
+  clearTimeout(temporizadoresExcluir[idBotao]);
+  b.classList.remove("confirmando");
+  b.textContent = texto;
+  b.disabled = false;
+}
+function configurarBotaoExcluir(idBotao, textoPadrao, textoConfirmar, executar) {
+  const b = document.getElementById(idBotao);
+  b.addEventListener("click", async () => {
+    if (!b.classList.contains("confirmando")) {
+      b.classList.add("confirmando");
+      b.textContent = textoConfirmar;
+      clearTimeout(temporizadoresExcluir[idBotao]);
+      temporizadoresExcluir[idBotao] = setTimeout(() => resetarBotaoExcluir(idBotao, textoPadrao), 5000);
+      return;
+    }
+    clearTimeout(temporizadoresExcluir[idBotao]);
+    b.disabled = true;
+    try { await executar(); }
+    finally { resetarBotaoExcluir(idBotao, textoPadrao); }
+  });
+}
+
+async function excluirRegistro(rotulo, url, id) {
+  const resultado = await enviarOuEnfileirar(rotulo, `${url}?id=${encodeURIComponent(id)}`, "DELETE", { Id: id });
+  if (resultado.enfileirado) return { enfileirado: true };
+  const dados = await resultado.resp.json().catch(() => ({}));
+  if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível excluir.");
+  return { enfileirado: false };
+}
+
+configurarBotaoExcluir("btnExcluirPedido", "🗑️ Excluir este pedido", "Toque de novo para confirmar a exclusão", async () => {
+  if (!pdPedidoAtual) return;
+  const erroBox = document.getElementById("folhaPedidoErro");
+  erroBox.classList.add("oculto");
+  try {
+    const r = await excluirRegistro("Exclusão de pedido", CONFIG.URL_API, pdPedidoAtual.Id);
+    const callback = pdAoExcluir;
+    fecharFolhaEdicaoPedido();
+    if (r.enfileirado) mostrarMsgFilaOffline("Exclusão salva neste aparelho — será enviada quando a internet voltar.");
+    if (callback) callback();
+  } catch (err) {
+    erroBox.textContent = err.message;
+    erroBox.classList.remove("oculto");
+  }
+});
+
+configurarBotaoExcluir("btnExcluirVisita", "🗑️ Excluir esta visita", "Toque de novo para confirmar a exclusão", async () => {
+  if (!vsVisitaAtual) return;
+  const erroBox = document.getElementById("folhaVisitaErro");
+  erroBox.classList.add("oculto");
+  try {
+    const r = await excluirRegistro("Exclusão de visita", CONFIG.URL_VISITAS, vsVisitaAtual.Id);
+    const callback = vsAoExcluir;
+    fecharFolhaEdicaoVisita();
+    if (r.enfileirado) mostrarMsgFilaOffline("Exclusão salva neste aparelho — será enviada quando a internet voltar.");
+    if (callback) callback();
+  } catch (err) {
+    erroBox.textContent = err.message;
+    erroBox.classList.remove("oculto");
+  }
+});
+
 let vsVisitaAtual = null;
 let vsAoSalvar = null;
+let vsAoExcluir = null;
 
-function abrirFolhaEdicaoVisita(v, aoSalvar) {
+function abrirFolhaEdicaoVisita(v, aoSalvar, aoExcluir) {
   vsVisitaAtual = v;
   vsAoSalvar = aoSalvar || null;
+  vsAoExcluir = aoExcluir || null;
+  resetarBotaoExcluir("btnExcluirVisita", "🗑️ Excluir esta visita");
   document.getElementById("folhaVisitaErro").classList.add("oculto");
   document.getElementById("folhaVisitaTitulo").textContent = v.Propriedade ? `Visita — ${v.Propriedade}` : "Visita";
   document.getElementById("fvTipo").value = v.Tipo_Visita || "";
@@ -2171,6 +2253,7 @@ function fecharFolhaEdicaoVisita() {
   document.getElementById("folhaVisitaOverlay").classList.add("oculto");
   vsVisitaAtual = null;
   vsAoSalvar = null;
+  vsAoExcluir = null;
 }
 
 document.getElementById("btnFecharFolhaVisita").addEventListener("click", fecharFolhaEdicaoVisita);
@@ -3026,7 +3109,7 @@ async function renderizarHistoricoAtual() {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const i = Number(btn.getAttribute("data-editar-visita"));
-        abrirFolhaEdicaoVisita(lista[i], () => { cacheHistoricoVisitas = null; renderizarHistoricoAtual(); });
+        abrirFolhaEdicaoVisita(lista[i], () => { cacheHistoricoVisitas = null; renderizarHistoricoAtual(); }, () => { cacheHistoricoVisitas = null; renderizarHistoricoAtual(); });
       });
     });
   } else {
@@ -3035,7 +3118,7 @@ async function renderizarHistoricoAtual() {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const [i, j] = btn.getAttribute("data-editar-pedido").split("_").map(Number);
-        abrirFolhaEdicaoPedido(grupos[i].itens[j], () => { cacheHistoricoPedidos = null; renderizarHistoricoAtual(); });
+        abrirFolhaEdicaoPedido(grupos[i].itens[j], () => { cacheHistoricoPedidos = null; renderizarHistoricoAtual(); }, () => { cacheHistoricoPedidos = null; renderizarHistoricoAtual(); });
       });
     });
   }
@@ -4199,6 +4282,10 @@ document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
           r.proximaVisita = corpo.Proxima_Visita;
           r.valor = r.volume * r.precoUnitario;
           renderPainelDrill();
+        },
+        () => {
+          drillItens = drillItens.filter(x => x !== r);
+          renderPainelDrill();
         }
       );
     }
@@ -4214,6 +4301,10 @@ document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
         (corpo) => {
           r.tipoVisita = corpo.Tipo_Visita;
           r.observacao = corpo.Observacao;
+          renderPainelDrill();
+        },
+        () => {
+          drillItens = drillItens.filter(x => x !== r);
           renderPainelDrill();
         }
       );
@@ -4422,11 +4513,13 @@ document.getElementById("listaBuscaHistoricoRel").addEventListener("click", (e) 
         r.Proxima_Visita = corpo.Proxima_Visita;
         r.Valor_Total = (Number(corpo.Volume) || 0) * (Number(corpo.Preco_Unitario) || 0);
         buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim());
-      }
+      },
+      () => buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim())
     );
   } else {
     abrirFolhaEdicaoVisita(
       { Id: r.Id, Propriedade: r.Propriedade, Tipo_Visita: r.Tipo_Visita, Observacao: r.Observacao },
+      () => buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim()),
       () => buscarHistoricoRel(document.getElementById("buscaHistoricoRel").value.trim())
     );
   }
