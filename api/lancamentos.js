@@ -38,6 +38,7 @@
 // mudou de/para), devolvida pro front como Historico_Edicoes. Por isso o GET agora também
 // devolve o Id (chave da linha no banco), necessário pra apontar qual lançamento editar —
 // PATCH /api/lancamentos              -> { Id, ...campos a alterar }
+// DELETE /api/lancamentos?id=N        -> exclui o pedido (dono ou Gerente/Desenvolvedor; definitivo)
 //
 // Colunas da tabela "lancamentos" no Supabase: id, nome_promotor, revenda, propriedade,
 // produto, unidade, preco_unitario, volume, valor_total, dia_lancamento, quinzena,
@@ -281,8 +282,49 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  if (req.method === "DELETE") {
+    // Exclusão definitiva de um registro (adicionada em 06/10/2026). Mesma regra de
+    // permissão da edição: o próprio dono do registro ou Gerente/Desenvolvedor. O Id
+    // vem na query (?id=) ou no corpo ({Id}) — o front manda os dois, porque a fila
+    // offline reenvia o corpo e alguns ambientes descartam corpo em DELETE.
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+    const id = Number((req.query && req.query.id) || (req.body && req.body.Id));
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ erro: "Informe o Id do pedido a excluir." });
+      return;
+    }
+    try {
+      const { data: existente, error: erroBusca } = await supabase
+        .from("lancamentos")
+        .select("id, nome_promotor")
+        .eq("id", id)
+        .maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (!existente) {
+        // Já não existe (ex.: exclusão reenviada pela fila offline) — objetivo cumprido.
+        res.status(200).json({ status: "ok", jaExcluido: true });
+        return;
+      }
+      if (!ehGestor && String(existente.nome_promotor || "").toLowerCase() !== usuario.nome.toLowerCase()) {
+        res.status(403).json({ erro: "Você só pode excluir pedidos lançados por você." });
+        return;
+      }
+      const { error: erroDelete } = await supabase.from("lancamentos").delete().eq("id", id);
+      if (erroDelete) throw erroDelete;
+      res.status(200).json({ status: "ok" });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao excluir o pedido.", detalhe: String(err.message || err) });
+    }
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.status(405).json({ erro: "Use GET, POST ou PATCH." });
+    res.status(405).json({ erro: "Use GET, POST, PATCH ou DELETE." });
     return;
   }
 

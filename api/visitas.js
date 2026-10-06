@@ -27,6 +27,7 @@
 // devolve o Id (chave da linha no banco) e a Latitude/Longitude (já eram gravadas no POST,
 // mas não vinham de volta no GET) — necessários pra editar.
 // PATCH /api/visitas                  -> { Id, ...campos a alterar }
+// DELETE /api/visitas?id=N            -> exclui a visita (dono ou Gerente/Desenvolvedor; definitivo)
 //
 // Colunas da tabela "visitas" no Supabase: id, nome_promotor, propriedade, tipo_visita,
 // observacao, foto_url, latitude, longitude, dia_visita, quinzena, id_envio,
@@ -231,8 +232,49 @@ module.exports = async function handler(req, res) {
     return;
   }
 
+  if (req.method === "DELETE") {
+    // Exclusão definitiva de um registro (adicionada em 06/10/2026). Mesma regra de
+    // permissão da edição: o próprio dono do registro ou Gerente/Desenvolvedor. O Id
+    // vem na query (?id=) ou no corpo ({Id}) — o front manda os dois, porque a fila
+    // offline reenvia o corpo e alguns ambientes descartam corpo em DELETE.
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
+    const id = Number((req.query && req.query.id) || (req.body && req.body.Id));
+    if (!id || Number.isNaN(id)) {
+      res.status(400).json({ erro: "Informe o Id da visita a excluir." });
+      return;
+    }
+    try {
+      const { data: existente, error: erroBusca } = await supabase
+        .from("visitas")
+        .select("id, nome_promotor")
+        .eq("id", id)
+        .maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (!existente) {
+        // Já não existe (ex.: exclusão reenviada pela fila offline) — objetivo cumprido.
+        res.status(200).json({ status: "ok", jaExcluido: true });
+        return;
+      }
+      if (!ehGestor && String(existente.nome_promotor || "").toLowerCase() !== usuario.nome.toLowerCase()) {
+        res.status(403).json({ erro: "Você só pode excluir visitas registradas por você." });
+        return;
+      }
+      const { error: erroDelete } = await supabase.from("visitas").delete().eq("id", id);
+      if (erroDelete) throw erroDelete;
+      res.status(200).json({ status: "ok" });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao excluir a visita.", detalhe: String(err.message || err) });
+    }
+    return;
+  }
+
   if (req.method !== "POST") {
-    res.status(405).json({ erro: "Use GET, POST ou PATCH." });
+    res.status(405).json({ erro: "Use GET, POST, PATCH ou DELETE." });
     return;
   }
 
