@@ -267,6 +267,8 @@
   .tipo-cliente-opcao{flex:1;text-align:center;padding:10px;border:1px solid var(--cinza-borda);border-radius:10px;
     cursor:pointer;font-size:13px;font-weight:700;color:#5b6771;}
   .tipo-cliente-opcao.ativo{background:var(--azul);border-color:var(--azul);color:#fff;}
+  .coord-par{display:flex;gap:8px;}
+  .coord-par input{flex:1;min-width:0;}
   .btn-excluir-registro{margin-top:10px;background:#fdecea;border-color:#fdecea;color:var(--vermelho);text-transform:none;letter-spacing:0;}
   .btn-excluir-registro:hover{background:#f8d7d2;border-color:#f8d7d2;}
   .btn-excluir-registro.confirmando{background:var(--vermelho);border-color:var(--vermelho);color:#fff;}
@@ -438,6 +440,11 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
             Capturar localização atual
           </button>
+          <div class="coord-par" style="margin-top:10px;">
+            <input type="text" inputmode="decimal" id="cpLatInput" placeholder="Latitude (ex: -23.31234)" autocomplete="off">
+            <input type="text" inputmode="decimal" id="cpLonInput" placeholder="Longitude (ex: -51.16789)" autocomplete="off">
+          </div>
+          <div class="item-ranking-detalhe" style="margin:4px 0 0;">Ou digite/cole as coordenadas à mão (pode colar "lat, long" de uma vez).</div>
           <div id="statusLocalizacaoFazenda" class="item-ranking-detalhe" style="margin:6px 0 14px;"></div>
           <button class="btn" id="btnCadAvancar1" type="button">Avançar</button>
           <button class="btn btn-secundario" id="btnCadCancelar1" type="button" style="margin-top:10px;">Cancelar</button>
@@ -986,7 +993,13 @@
     <input type="text" id="ffVendedor">
     <label for="ffTipo">Tipo</label>
     <input type="text" id="ffTipo">
-    <div class="campo-detalhe"><span>Localização atual</span><b id="ffLocalizacaoTexto">—</b></div>
+    <label>Localização (latitude e longitude)</label>
+    <div class="coord-par">
+      <input type="text" inputmode="decimal" id="ffLat" placeholder="Latitude (ex: -23.31234)" autocomplete="off">
+      <input type="text" inputmode="decimal" id="ffLon" placeholder="Longitude (ex: -51.16789)" autocomplete="off">
+    </div>
+    <div class="item-ranking-detalhe" style="margin:4px 0 0;">Digite ou cole as coordenadas (pode colar "lat, long" de uma vez, como o Google Maps copia). Deixe os dois vazios para não ter localização.</div>
+    <div class="item-ranking-detalhe" id="ffLocalizacaoTexto" style="margin:4px 0 0;"></div>
     <button class="btn btn-secundario" type="button" id="ffCapturarLocalizacao" style="margin:10px 0 16px;">📍 Usar minha localização atual</button>
     <button class="btn" type="button" id="btnSalvarFazenda">Salvar alterações</button>
   </div>
@@ -1855,6 +1868,34 @@ let fzLat = null;
 let fzLon = null;
 let fzAreaDetalheParaAtualizar = null;
 
+/* ---------- Latitude/longitude digitadas à mão (07/10/2026) ----------
+   Nem sempre dá pra capturar por GPS (a pessoa não está na fazenda, GPS bloqueado) —
+   então os dois campos ficam sempre editáveis. Aceita vírgula decimal ("-23,31") e
+   colar "lat, long" inteiro no campo de latitude (formato que o Google Maps copia). */
+function ligarColagemCoordenadas(idLat, idLon) {
+  const campoLat = document.getElementById(idLat);
+  const campoLon = document.getElementById(idLon);
+  campoLat.addEventListener("input", () => {
+    // Cuidado: "-23,31" é UMA latitude com vírgula decimal, não "lat, long". Por isso a
+    // vírgula só separa se vier com espaço depois (ou se os dois números usam ponto).
+    const t = campoLat.value.trim();
+    const m = t.match(/^(-?\d+(?:[.,]\d+)?)\s*(?:;|,\s+|\s+)\s*(-?\d+(?:[.,]\d+)?)$/) || t.match(/^(-?\d+\.\d+),(-?\d+\.\d+)$/);
+    if (m) { campoLat.value = m[1]; campoLon.value = m[2]; }
+  });
+}
+// Devolve { lat, lon } (ambos null se vazios) ou { erro } com a mensagem pro usuário.
+function lerCoordenadas(textoLat, textoLon) {
+  const tl = String(textoLat || "").trim().replace(",", ".");
+  const tn = String(textoLon || "").trim().replace(",", ".");
+  if (!tl && !tn) return { lat: null, lon: null };
+  if (!tl || !tn) return { erro: "Preencha latitude E longitude (ou deixe as duas vazias)." };
+  const lat = Number(tl), lon = Number(tn);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { erro: "Latitude/longitude inválidas — use só números, ex: -23.31234 e -51.16789." };
+  if (lat < -90 || lat > 90) return { erro: "Latitude deve estar entre -90 e 90." };
+  if (lon < -180 || lon > 180) return { erro: "Longitude deve estar entre -180 e 180." };
+  return { lat, lon };
+}
+
 async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
   fzAreaDetalheParaAtualizar = areaDetalheOrigem || null;
   document.getElementById("folhaFazendaErro").classList.add("oculto");
@@ -1863,7 +1904,9 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
 
   const campos = ["ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo"];
   campos.forEach(id => { document.getElementById(id).value = "Carregando..."; document.getElementById(id).disabled = true; });
-  document.getElementById("ffLocalizacaoTexto").textContent = "—";
+  document.getElementById("ffLat").value = "";
+  document.getElementById("ffLon").value = "";
+  document.getElementById("ffLocalizacaoTexto").textContent = "";
 
   try {
     const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
@@ -1887,13 +1930,18 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
     document.getElementById("ffPersonalidadeObs").value = p.Personalidade_Observacao || "";
     document.getElementById("ffVendedor").value = p.Vendedor_Responsavel || "";
     document.getElementById("ffTipo").value = p.Tipo_Propriedade || "";
-    document.getElementById("ffLocalizacaoTexto").textContent =
-      fzLat != null && fzLon != null ? `${fzLat.toFixed(5)}, ${fzLon.toFixed(5)}` : "não marcada";
+    document.getElementById("ffLat").value = fzLat != null ? fzLat : "";
+    document.getElementById("ffLon").value = fzLon != null ? fzLon : "";
+    document.getElementById("ffLocalizacaoTexto").textContent = fzLat != null && fzLon != null ? "" : "Esta fazenda ainda não tem localização marcada.";
   } catch (err) {
     document.getElementById("folhaFazendaErro").textContent = err.message;
     document.getElementById("folhaFazendaErro").classList.remove("oculto");
   } finally {
-    campos.forEach(id => { document.getElementById(id).disabled = false; });
+    campos.forEach(id => {
+      const el = document.getElementById(id);
+      if (el.value === "Carregando...") el.value = "";
+      el.disabled = false;
+    });
   }
 }
 
@@ -1916,9 +1964,9 @@ document.getElementById("ffCapturarLocalizacao").addEventListener("click", () =>
   texto.textContent = "Obtendo localização...";
   navigator.geolocation.getCurrentPosition(
     (posicao) => {
-      fzLat = posicao.coords.latitude;
-      fzLon = posicao.coords.longitude;
-      texto.textContent = `${fzLat.toFixed(5)}, ${fzLon.toFixed(5)} (capturada agora ✓)`;
+      document.getElementById("ffLat").value = posicao.coords.latitude.toFixed(6);
+      document.getElementById("ffLon").value = posicao.coords.longitude.toFixed(6);
+      texto.textContent = "Localização capturada agora ✓ (você ainda pode ajustar os números).";
     },
     (erro) => { texto.textContent = mensagemErroLocalizacao(erro); },
     { enableHighAccuracy: true, timeout: 10000 }
@@ -1930,6 +1978,14 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
   const btn = document.getElementById("btnSalvarFazenda");
   const erroBox = document.getElementById("folhaFazendaErro");
   erroBox.classList.add("oculto");
+  const coord = lerCoordenadas(document.getElementById("ffLat").value, document.getElementById("ffLon").value);
+  if (coord.erro) {
+    erroBox.textContent = coord.erro;
+    erroBox.classList.remove("oculto");
+    return;
+  }
+  fzLat = coord.lat;
+  fzLon = coord.lon;
   btn.disabled = true;
   try {
     const corpo = {
@@ -1965,6 +2021,9 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
     btn.disabled = false;
   }
 });
+
+ligarColagemCoordenadas("ffLat", "ffLon");
+ligarColagemCoordenadas("cpLatInput", "cpLonInput");
 
 document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
   const termo = e.target.value.toLowerCase().trim();
@@ -2328,6 +2387,8 @@ function abrirCadastroFazenda() {
     .forEach(id => document.getElementById(id).value = "0");
   cpLatitude = null;
   cpLongitude = null;
+  document.getElementById("cpLatInput").value = "";
+  document.getElementById("cpLonInput").value = "";
   document.getElementById("statusLocalizacaoFazenda").textContent = "";
   limparMsg("msgCadastroPropriedade");
   mostrarEtapaCadastro(1);
@@ -2365,11 +2426,11 @@ document.getElementById("btnCapturarLocalizacao").addEventListener("click", () =
     (posicao) => {
       cpLatitude = posicao.coords.latitude;
       cpLongitude = posicao.coords.longitude;
-      status.textContent = `Localização capturada ✓ (${cpLatitude.toFixed(5)}, ${cpLongitude.toFixed(5)})`;
+      document.getElementById("cpLatInput").value = cpLatitude.toFixed(6);
+      document.getElementById("cpLonInput").value = cpLongitude.toFixed(6);
+      status.textContent = "Localização capturada ✓ (você ainda pode ajustar os números).";
     },
     (erro) => {
-      cpLatitude = null;
-      cpLongitude = null;
       status.textContent = mensagemErroLocalizacao(erro);
     },
     { enableHighAccuracy: true, timeout: 10000 }
@@ -2407,6 +2468,13 @@ document.getElementById("btnCadAvancar1").addEventListener("click", () => {
     mostrarMsg("msgCadastroPropriedade", "Preencha nome, município, proprietário e vendedor responsável.", "erro");
     return;
   }
+  const coordCad = lerCoordenadas(document.getElementById("cpLatInput").value, document.getElementById("cpLonInput").value);
+  if (coordCad.erro) {
+    mostrarMsg("msgCadastroPropriedade", coordCad.erro, "erro");
+    return;
+  }
+  cpLatitude = coordCad.lat;
+  cpLongitude = coordCad.lon;
   if (!personalidade) {
     mostrarMsg("msgCadastroPropriedade", "Selecione a personalidade do decisor.", "erro");
     return;
