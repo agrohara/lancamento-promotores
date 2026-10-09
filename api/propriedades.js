@@ -25,9 +25,13 @@
 //                                         cadastrada, pelo nome (Propriedade). Só quem cadastrou
 //                                         a fazenda ou Gerente/Desenvolvedor pode editar.
 //
+// (09/10/2026) Perfil da fazenda ganhou 3 campos de classificação: Tipo_Propriedade passou
+// a ser a "Atividade principal" (lista nova), e foram criadas as colunas fase_produtiva e
+// sistema_producao — SQL em CONTEXTO_PROJETO.md, seção 32. Os dois novos são opcionais.
+//
 // Colunas da tabela "propriedades" no Supabase (todas em minúsculo/snake_case, padrão do
 // Postgres): propriedade, municipio, proprietario, decisor, vendedor_responsavel,
-// tipo_propriedade, matrizes, primiparas, novilhas, bezerros_machos, bezerros_femeas,
+// tipo_propriedade, fase_produtiva, sistema_producao, matrizes, primiparas, novilhas, bezerros_machos, bezerros_femeas,
 // garrotes, touros, equinos, cadastrada_por, data_cadastro, latitude, longitude,
 // personalidade_decisor, personalidade_observacao, proximo_assunto (o que o promotor
 // combinou tratar na próxima visita — preenchido no Novo Pedido, ver api/lancamentos.js).
@@ -52,6 +56,8 @@ function paraObjeto(l) {
     Decisor: l.decisor || "",
     Vendedor_Responsavel: l.vendedor_responsavel || "",
     Tipo_Propriedade: l.tipo_propriedade || "",
+    Fase_Produtiva: l.fase_produtiva || "",
+    Sistema_Producao: l.sistema_producao || "",
     Matrizes: Number(l.matrizes) || 0,
     Primiparas: Number(l.primiparas) || 0,
     Novilhas: Number(l.novilhas) || 0,
@@ -97,6 +103,8 @@ const CAMPOS_EDITAVEIS_PROPRIEDADE = {
   Decisor: "decisor",
   Vendedor_Responsavel: "vendedor_responsavel",
   Tipo_Propriedade: "tipo_propriedade",
+  Fase_Produtiva: "fase_produtiva",
+  Sistema_Producao: "sistema_producao",
   Matrizes: "matrizes",
   Primiparas: "primiparas",
   Novilhas: "novilhas",
@@ -206,6 +214,8 @@ module.exports = async function handler(req, res) {
         decisor: String(dadosBody.Decisor || "").trim(),
         vendedor_responsavel: String(dadosBody.Vendedor_Responsavel).trim(),
         tipo_propriedade: String(dadosBody.Tipo_Propriedade).trim(),
+        fase_produtiva: String(dadosBody.Fase_Produtiva || "").trim(),
+        sistema_producao: String(dadosBody.Sistema_Producao || "").trim(),
         matrizes: Number(dadosBody.Matrizes) || 0,
         primiparas: Number(dadosBody.Primiparas) || 0,
         novilhas: Number(dadosBody.Novilhas) || 0,
