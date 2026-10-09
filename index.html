@@ -452,22 +452,12 @@
 
         <div id="etapaCad2" class="oculto">
           <p class="subtitulo">Etapa 2 de 3 · Perfil da fazenda</p>
-          <label for="cpTipoPropriedade">Classificação da atividade principal</label>
-          <select id="cpTipoPropriedade">
-            <option value="">Selecione...</option>
-            <option value="Pecuária de corte">Pecuária de corte</option>
-            <option value="Pecuária de leite">Pecuária de leite</option>
-            <option value="Cria">Cria</option>
-            <option value="Recria">Recria</option>
-            <option value="Engorda">Engorda</option>
-            <option value="Ciclo completo">Ciclo completo</option>
-            <option value="Confinamento">Confinamento</option>
-            <option value="Semiconfinamento">Semiconfinamento</option>
-            <option value="Reprodução">Reprodução</option>
-            <option value="Equinocultura">Equinocultura</option>
-            <option value="Atividade mista">Atividade mista</option>
-            <option value="Outra">Outra</option>
-          </select>
+          <label for="cpTipoPropriedade">Atividade principal</label>
+          <select id="cpTipoPropriedade"></select>
+          <label for="cpFaseProdutiva">Fase produtiva</label>
+          <select id="cpFaseProdutiva"></select>
+          <label for="cpSistemaProducao">Sistema de produção</label>
+          <select id="cpSistemaProducao"></select>
           <div class="btn-linha">
             <button class="btn btn-secundario" id="btnCadVoltar2" type="button">Voltar</button>
             <button class="btn" id="btnCadAvancar2" type="button">Avançar</button>
@@ -991,8 +981,12 @@
     <input type="text" id="ffPersonalidadeObs">
     <label for="ffVendedor">Vendedor responsável</label>
     <input type="text" id="ffVendedor">
-    <label for="ffTipo">Tipo</label>
-    <input type="text" id="ffTipo">
+    <label for="ffTipo">Atividade principal</label>
+    <select id="ffTipo"></select>
+    <label for="ffFase">Fase produtiva</label>
+    <select id="ffFase"></select>
+    <label for="ffSistema">Sistema de produção</label>
+    <select id="ffSistema"></select>
     <label>Localização (latitude e longitude)</label>
     <div class="coord-par">
       <input type="text" inputmode="decimal" id="ffLat" placeholder="Latitude (ex: -23.31234)" autocomplete="off">
@@ -1828,7 +1822,9 @@ function renderizarDetalheFazenda(areaDetalhe, p) {
     <div class="campo-detalhe"><span>Personalidade do decisor</span><b>${p.Personalidade_Decisor || "—"}</b></div>
     ${p.Personalidade_Observacao ? `<div class="campo-detalhe"><span>Observação (personalidade)</span><b>${p.Personalidade_Observacao}</b></div>` : ""}
     <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
-    <div class="campo-detalhe"><span>Tipo</span><b>${p.Tipo_Propriedade || "—"}</b></div>
+    <div class="campo-detalhe"><span>Atividade principal</span><b>${p.Tipo_Propriedade || "—"}</b></div>
+    <div class="campo-detalhe"><span>Fase produtiva</span><b>${p.Fase_Produtiva || "—"}</b></div>
+    <div class="campo-detalhe"><span>Sistema de produção</span><b>${p.Sistema_Producao || "—"}</b></div>
     <div class="campo-detalhe"><span>Matrizes</span><b>${p.Matrizes}</b></div>
     <div class="campo-detalhe"><span>Primíparas</span><b>${p.Primiparas}</b></div>
     <div class="campo-detalhe"><span>Novilhas</span><b>${p.Novilhas}</b></div>
@@ -1868,6 +1864,29 @@ let fzLat = null;
 let fzLon = null;
 let fzAreaDetalheParaAtualizar = null;
 
+/* ---------- Perfil da fazenda: listas de classificação (09/10/2026) ----------
+   Atividade principal grava em Tipo_Propriedade (coluna que já existia); Fase produtiva
+   e Sistema de produção são colunas novas (opcionais). Os <select> do cadastro e da
+   edição são preenchidos por aqui, pra as listas ficarem num lugar só. */
+const OPCOES_ATIVIDADE = ["Pecuária de corte", "Pecuária de leite", "Pecuária mista (corte e leite)", "Equinocultura", "Outra"];
+const OPCOES_FASE = ["Cria", "Recria", "Engorda", "Cria e recria", "Recria e engorda", "Ciclo completo (cria, recria e engorda)", "Reprodução / genética"];
+const OPCOES_SISTEMA = ["Extensivo (a pasto)", "Semi-intensivo", "Intensivo", "Confinamento", "Semiconfinamento", "Misto"];
+
+// Preenche um <select> com "Selecione..." + a lista. Se `valorAtual` não está na lista
+// (fazenda cadastrada antes da lista nova, ex.: "Confinamento" como atividade), mantém
+// esse valor como opção extra pra ele não sumir nem ser apagado sem querer ao editar.
+function preencherOpcoesSelect(idSelect, lista, valorAtual) {
+  const sel = document.getElementById(idSelect);
+  const opcoes = [...lista];
+  if (valorAtual && !opcoes.includes(valorAtual)) opcoes.push(valorAtual);
+  sel.innerHTML = '<option value="">Selecione...</option>' +
+    opcoes.map(o => `<option value="${o.replace(/"/g, "&quot;")}">${o}</option>`).join("");
+  sel.value = valorAtual || "";
+}
+preencherOpcoesSelect("cpTipoPropriedade", OPCOES_ATIVIDADE);
+preencherOpcoesSelect("cpFaseProdutiva", OPCOES_FASE);
+preencherOpcoesSelect("cpSistemaProducao", OPCOES_SISTEMA);
+
 /* ---------- Latitude/longitude digitadas à mão (07/10/2026) ----------
    Nem sempre dá pra capturar por GPS (a pessoa não está na fazenda, GPS bloqueado) —
    então os dois campos ficam sempre editáveis. Aceita vírgula decimal ("-23,31") e
@@ -1902,7 +1921,7 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
   document.getElementById("folhaFazendaTitulo").textContent = "Editar fazenda";
   document.getElementById("folhaFazendaOverlay").classList.remove("oculto");
 
-  const campos = ["ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo"];
+  const campos = ["ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo","ffFase","ffSistema"];
   campos.forEach(id => { document.getElementById(id).value = "Carregando..."; document.getElementById(id).disabled = true; });
   document.getElementById("ffLat").value = "";
   document.getElementById("ffLon").value = "";
@@ -1929,7 +1948,9 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
     document.getElementById("ffPersonalidade").value = p.Personalidade_Decisor || "";
     document.getElementById("ffPersonalidadeObs").value = p.Personalidade_Observacao || "";
     document.getElementById("ffVendedor").value = p.Vendedor_Responsavel || "";
-    document.getElementById("ffTipo").value = p.Tipo_Propriedade || "";
+    preencherOpcoesSelect("ffTipo", OPCOES_ATIVIDADE, p.Tipo_Propriedade || "");
+    preencherOpcoesSelect("ffFase", OPCOES_FASE, p.Fase_Produtiva || "");
+    preencherOpcoesSelect("ffSistema", OPCOES_SISTEMA, p.Sistema_Producao || "");
     document.getElementById("ffLat").value = fzLat != null ? fzLat : "";
     document.getElementById("ffLon").value = fzLon != null ? fzLon : "";
     document.getElementById("ffLocalizacaoTexto").textContent = fzLat != null && fzLon != null ? "" : "Esta fazenda ainda não tem localização marcada.";
@@ -1997,6 +2018,8 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
       Personalidade_Observacao: document.getElementById("ffPersonalidadeObs").value.trim(),
       Vendedor_Responsavel: document.getElementById("ffVendedor").value.trim(),
       Tipo_Propriedade: document.getElementById("ffTipo").value.trim(),
+      Fase_Produtiva: document.getElementById("ffFase").value.trim(),
+      Sistema_Producao: document.getElementById("ffSistema").value.trim(),
       Latitude: fzLat === null ? "" : fzLat,
       Longitude: fzLon === null ? "" : fzLon
     };
@@ -2383,6 +2406,8 @@ function abrirCadastroFazenda() {
   document.getElementById("cpPersonalidadeObs").value = "";
   preencherVendedoresCadastro();
   document.getElementById("cpTipoPropriedade").value = "";
+  document.getElementById("cpFaseProdutiva").value = "";
+  document.getElementById("cpSistemaProducao").value = "";
   ["cpMatrizes","cpPrimiparas","cpNovilhas","cpBezerrosMachos","cpBezerrosFemeas","cpGarrotes","cpTouros","cpEquinos"]
     .forEach(id => document.getElementById(id).value = "0");
   cpLatitude = null;
@@ -2488,7 +2513,7 @@ document.getElementById("btnCadAvancar2").addEventListener("click", () => {
   limparMsg("msgCadastroPropriedade");
   const tipo = document.getElementById("cpTipoPropriedade").value;
   if (!tipo) {
-    mostrarMsg("msgCadastroPropriedade", "Selecione a classificação da atividade principal.", "erro");
+    mostrarMsg("msgCadastroPropriedade", "Selecione a atividade principal.", "erro");
     return;
   }
   mostrarEtapaCadastro(3);
@@ -2507,6 +2532,8 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
     Personalidade_Observacao: document.getElementById("cpPersonalidadeObs").value.trim(),
     Vendedor_Responsavel: document.getElementById("cpVendedor").value,
     Tipo_Propriedade: document.getElementById("cpTipoPropriedade").value,
+    Fase_Produtiva: document.getElementById("cpFaseProdutiva").value,
+    Sistema_Producao: document.getElementById("cpSistemaProducao").value,
     Matrizes: document.getElementById("cpMatrizes").value,
     Primiparas: document.getElementById("cpPrimiparas").value,
     Novilhas: document.getElementById("cpNovilhas").value,
@@ -4724,7 +4751,9 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Personalidade_Decisor: p.Personalidade_Decisor,
       Personalidade_Observacao: p.Personalidade_Observacao,
       Vendedor_Responsavel: p.Vendedor_Responsavel,
-      Tipo: p.Tipo_Propriedade,
+      Atividade_Principal: p.Tipo_Propriedade,
+      Fase_Produtiva: p.Fase_Produtiva,
+      Sistema_Producao: p.Sistema_Producao,
       Matrizes: p.Matrizes,
       Primiparas: p.Primiparas,
       Novilhas: p.Novilhas,
