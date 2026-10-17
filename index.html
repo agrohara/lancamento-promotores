@@ -336,6 +336,22 @@
     border:1px solid var(--cinza-borda);border-radius:10px;resize:vertical;margin:6px 0 14px;}
   .folha-realizar-resumo{background:#f7faf7;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#5b6771;margin-bottom:14px;}
   .folha-realizar-resumo b{color:var(--verde-escuro);}
+
+  /* Fotos nos registros + botão PDF (Etapa 1) */
+  .campo-fotos { margin: 14px 0 6px; }
+  .fotos-titulo { font-weight:600; color:var(--verde-escuro); margin-bottom:8px; }
+  .fotos-opcional { font-weight:400; color:#6b7a70; font-size:12px; }
+  .fotos-botoes { display:flex; gap:8px; flex-wrap:wrap; }
+  .fotos-botoes .btn { flex:1 1 140px; margin:0; }
+  .fotos-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+  .foto-mini { position:relative; aspect-ratio:1/1; border-radius:10px; overflow:hidden; border:1px solid var(--cinza-borda); background:#eee; }
+  .foto-mini img { width:100%; height:100%; object-fit:cover; display:block; }
+  .foto-remover { position:absolute; top:4px; right:4px; width:24px; height:24px; border-radius:50%; border:0; background:rgba(0,0,0,.65); color:#fff; font-size:16px; line-height:24px; padding:0; cursor:pointer; }
+  .fotos-aviso { color:var(--vermelho); font-size:12px; margin-top:6px; }
+  .fotos-hist { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:10px; }
+  .fotos-hist img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:1px solid var(--cinza-borda); display:block; }
+  .btn-pdf { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:8px 14px; border-radius:10px; border:1px solid var(--verde-escuro); background:#fff; color:var(--verde-escuro); font-weight:600; font-size:13px; cursor:pointer; }
+  .btn-pdf:active { background:var(--cinza-fundo); }
 </style>
 </head>
 <body>
@@ -574,6 +590,7 @@
         <select id="selectTipoVisita">
           <option value="">Selecione...</option>
           <option value="Visita técnica">Visita técnica</option>
+          <option value="Manejo de Gado">Manejo de Gado</option>
           <option value="Prospecção">Prospecção</option>
           <option value="Pós-venda">Pós-venda</option>
           <option value="Relacionamento">Relacionamento</option>
@@ -585,6 +602,7 @@
         <p class="subtitulo">Observação da visita</p>
         <label for="inputObservacaoVisita">Descreva como foi a visita (obrigatório)</label>
         <textarea id="inputObservacaoVisita" rows="4" placeholder="Ex: cliente satisfeito, negociação em andamento, pontos de atenção..."></textarea>
+        <div id="fotosVisita"></div>
         <button class="btn" id="btnEnviarVisita">Enviar visita</button>
       </div>
     </section>
@@ -639,6 +657,7 @@
         <textarea id="inputObservacaoPedido" rows="3" placeholder="Ex: cliente satisfeito, negociação em andamento, pontos de atenção..."></textarea>
         <label for="inputProximaVisitaPedido">O que tratar na próxima visita (opcional)</label>
         <textarea id="inputProximaVisitaPedido" rows="2" placeholder="Ex: levar tabela de preços, acompanhar resultado do tratamento..."></textarea>
+        <div id="fotosPedido"></div>
         <button class="btn" id="btnEnviar" style="margin-top:14px;">Enviar pedido</button>
       </div>
     </section>
@@ -2753,6 +2772,421 @@ function iniciarRegistroBalcao() {
 }
 
 /* =========================================================================
+   FOTOS (captura + compressão + envio) e PDF DE VISITA / PEDIDO   [Etapa 1 — 17/10/2026]
+   - Fotos vão para o Supabase Storage via /api/upload-foto (bucket público "fotos").
+   - Visita: URLs guardadas em visitas.foto_url como lista JSON (valores antigos, com uma
+     única URL, continuam válidos — ver parseFotos). Pedido: lancamentos.fotos (mesmo formato).
+   - PDF gerado no próprio navegador com jsPDF (carregado sob demanda do cdnjs): não usa
+     função serverless, então não pesa no limite de 12 funções da Vercel.
+   ========================================================================= */
+const MAX_FOTOS_REGISTRO = 6;
+
+function escHtml(s) {
+  return String(s === undefined || s === null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function parseFotos(valor) {
+  if (!valor) return [];
+  const t = String(valor).trim();
+  if (!t) return [];
+  if (t.startsWith("[")) {
+    try {
+      const a = JSON.parse(t);
+      return Array.isArray(a) ? a.filter(u => typeof u === "string" && /^https?:\/\//i.test(u)) : [];
+    } catch (e) { return []; }
+  }
+  return /^https?:\/\//i.test(t) ? [t] : [];
+}
+
+async function comprimirFoto(file, maxLado = 1280, qualidade = 0.72) {
+  let fonte = null, w = 0, h = 0;
+  try {
+    fonte = await createImageBitmap(file, { imageOrientation: "from-image" });
+    w = fonte.width; h = fonte.height;
+  } catch (e) {
+    fonte = await new Promise((ok, erro) => {
+      const im = new Image();
+      im.onload = () => ok(im);
+      im.onerror = () => erro(new Error("Não foi possível ler a imagem."));
+      im.src = URL.createObjectURL(file);
+    });
+    w = fonte.naturalWidth; h = fonte.naturalHeight;
+  }
+  const escala = Math.min(1, maxLado / Math.max(w, h));
+  const cw = Math.max(1, Math.round(w * escala));
+  const ch = Math.max(1, Math.round(h * escala));
+  const canvas = document.createElement("canvas");
+  canvas.width = cw; canvas.height = ch;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(fonte, 0, 0, cw, ch);
+  return canvas.toDataURL("image/jpeg", qualidade);
+}
+
+function criarCampoFotos(idContainer, pasta) {
+  const el = document.getElementById(idContainer);
+  const itens = []; // { dataUrl, url }
+  el.classList.add("campo-fotos");
+  el.innerHTML = `
+    <div class="fotos-titulo">Fotos <span class="fotos-opcional">(opcional · até ${MAX_FOTOS_REGISTRO})</span></div>
+    <div class="fotos-botoes">
+      <button type="button" class="btn btn-secundario" data-acao="camera">📷 Tirar foto</button>
+      <button type="button" class="btn btn-secundario" data-acao="galeria">🖼️ Da galeria</button>
+    </div>
+    <input type="file" accept="image/*" capture="environment" class="oculto" data-in="camera">
+    <input type="file" accept="image/*" multiple class="oculto" data-in="galeria">
+    <div class="fotos-grid"></div>
+    <div class="fotos-aviso"></div>`;
+  const grid = el.querySelector(".fotos-grid");
+  const aviso = el.querySelector(".fotos-aviso");
+
+  function desenhar() {
+    grid.innerHTML = itens.map((f, i) => `
+      <div class="foto-mini"><img src="${f.dataUrl}" alt="Foto ${i + 1}"><button type="button" class="foto-remover" data-i="${i}" aria-label="Remover foto">×</button></div>`).join("");
+  }
+
+  async function adicionar(arquivos) {
+    aviso.textContent = "";
+    for (const arq of arquivos) {
+      if (itens.length >= MAX_FOTOS_REGISTRO) { aviso.textContent = `Limite de ${MAX_FOTOS_REGISTRO} fotos por registro.`; break; }
+      try {
+        itens.push({ dataUrl: await comprimirFoto(arq), url: null });
+      } catch (e) {
+        aviso.textContent = "Não foi possível ler uma das imagens.";
+      }
+    }
+    desenhar();
+  }
+
+  el.querySelector('[data-acao="camera"]').addEventListener("click", () => el.querySelector('[data-in="camera"]').click());
+  el.querySelector('[data-acao="galeria"]').addEventListener("click", () => el.querySelector('[data-in="galeria"]').click());
+  el.querySelectorAll("input[type=file]").forEach(inp => {
+    inp.addEventListener("change", async () => {
+      const arquivos = [...inp.files];
+      inp.value = "";
+      await adicionar(arquivos);
+    });
+  });
+  grid.addEventListener("click", (e) => {
+    const b = e.target.closest(".foto-remover");
+    if (!b) return;
+    itens.splice(Number(b.getAttribute("data-i")), 1);
+    desenhar();
+  });
+
+  return {
+    limpar() { itens.length = 0; aviso.textContent = ""; desenhar(); },
+    quantidade() { return itens.length; },
+    // Sobe as fotos ainda não enviadas e devolve a lista de URLs. Fotos já enviadas numa
+    // tentativa anterior não são reenviadas (ex.: o envio do registro falhou depois).
+    async enviar() {
+      const urls = [];
+      for (let i = 0; i < itens.length; i++) {
+        const f = itens[i];
+        if (!f.url) {
+          let resp, dados;
+          try {
+            resp = await fetch(CONFIG.URL_UPLOAD_FOTO, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": CONFIG.API_KEY,
+                "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : ""
+              },
+              body: JSON.stringify({ nomeArquivo: `foto${i + 1}.jpg`, base64: f.dataUrl.split(",")[1], pasta })
+            });
+            dados = await resp.json().catch(() => ({}));
+          } catch (e) {
+            throw new Error("Sem conexão para enviar as fotos. Conecte-se à internet ou remova as fotos para enviar só o texto.");
+          }
+          if (!resp.ok || !dados.url) throw new Error((dados && dados.erro) || "Não foi possível enviar as fotos.");
+          f.url = dados.url;
+        }
+        urls.push(f.url);
+      }
+      return urls;
+    }
+  };
+}
+
+let campoFotosVisita = null;
+let campoFotosPedido = null;
+function iniciarCamposFotos() {
+  if (!campoFotosVisita) campoFotosVisita = criarCampoFotos("fotosVisita", "visitas");
+  if (!campoFotosPedido) campoFotosPedido = criarCampoFotos("fotosPedido", "pedidos");
+}
+
+function blocoFotosHistorico(valor) {
+  const urls = parseFotos(valor);
+  if (urls.length === 0) return "";
+  return `<div class="fotos-hist">${urls.map(u => `<a href="${escHtml(u)}" target="_blank" rel="noopener"><img src="${escHtml(u)}" alt="Foto" loading="lazy"></a>`).join("")}</div>`;
+}
+
+/* ---------- PDF ---------- */
+let promessaJsPdf = null;
+function carregarJsPdf() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (promessaJsPdf) return promessaJsPdf;
+  promessaJsPdf = new Promise((ok, erro) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+    s.onload = () => ok();
+    s.onerror = () => { promessaJsPdf = null; erro(new Error("Não foi possível carregar o gerador de PDF. Verifique a conexão com a internet.")); };
+    document.head.appendChild(s);
+  });
+  return promessaJsPdf;
+}
+
+async function imagemParaPdf(url) {
+  try {
+    const r = await fetch(url, { mode: "cors" });
+    if (!r.ok) return null;
+    const blob = await r.blob();
+    const dataUrl = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(blob); });
+    const dim = await new Promise(ok => { const im = new Image(); im.onload = () => ok({ w: im.naturalWidth, h: im.naturalHeight }); im.onerror = () => ok(null); im.src = dataUrl; });
+    if (!dim) return null;
+    const formato = /^data:image\/png/i.test(dataUrl) ? "PNG" : "JPEG";
+    return { dataUrl, w: dim.w, h: dim.h, formato };
+  } catch (e) { return null; }
+}
+
+async function dadosFazendaParaPdf(nome) {
+  try {
+    const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
+      headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
+    });
+    const dados = await resp.json();
+    return resp.ok && dados.propriedade ? dados.propriedade : {};
+  } catch (e) { return {}; }
+}
+
+const PDF_COR = {
+  verde: [26, 100, 54], vivo: [126, 205, 38], claro: [234, 243, 236],
+  texto: [34, 48, 31], cinza: [92, 107, 96], linha: [217, 227, 217], terracota: [193, 80, 46]
+};
+
+// Cabeçalho institucional (faixa verde escura, marca em texto, três pontos em verde vivo).
+function pdfCabecalho(doc, titulo, subtitulo) {
+  const [r, g, b] = PDF_COR.verde;
+  doc.setFillColor(r, g, b); doc.rect(0, 0, 210, 30, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text("AGRO HARA", 15, 14);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.text("GESTÃO DE CAMPO", 15, 20);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(titulo, 195, 13, { align: "right" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(subtitulo || "", 195, 19.5, { align: "right" });
+  doc.setFillColor(...PDF_COR.vivo);
+  [15, 19.5, 24].forEach(x => doc.circle(x, 26, 0.9, "F"));
+}
+
+function pdfRodape(doc) {
+  const total = doc.getNumberOfPages();
+  const emissao = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(...PDF_COR.linha); doc.line(15, 285, 195, 285);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...PDF_COR.cinza);
+    doc.text(`Agro Hara · Gestão de Campo · emitido em ${emissao}`, 15, 290);
+    doc.text(`Página ${i} de ${total}`, 195, 290, { align: "right" });
+  }
+}
+
+function pdfSecao(doc, y, titulo) {
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...PDF_COR.verde);
+  doc.text(titulo.toUpperCase(), 15, y);
+  doc.setDrawColor(...PDF_COR.vivo); doc.setLineWidth(0.6); doc.line(15, y + 1.8, 33, y + 1.8);
+  doc.setLineWidth(0.2);
+  return y + 8;
+}
+
+async function gerarPdfRegistro(reg) {
+  // reg: { tipoDoc: "visita"|"pedido", fazenda, promotor, data (AAAA-MM-DD), tipoVisita,
+  //        observacao, proxima, itens: [{Produto, Revenda, Volume, Unidade, Preco_Unitario}], fotos: [urls] }
+  await carregarJsPdf();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const ehPedido = reg.tipoDoc === "pedido";
+  const faz = await dadosFazendaParaPdf(reg.fazenda);
+
+  pdfCabecalho(doc, ehPedido ? "Resumo do pedido" : "Relatório de visita técnica", formatarDataBR(reg.data));
+  let y = 40;
+
+  // Bloco de identificação
+  const campos = [
+    ["Proprietário", faz.Proprietario || "—"],
+    ["Fazenda", reg.fazenda || "—"],
+    ["Município", faz.Municipio || "—"],
+    ["Data", formatarDataBR(reg.data)],
+    ["Responsável Agro Hara", reg.promotor || "—"],
+    [ehPedido ? "Tipo" : "Tipo de visita", ehPedido ? "Pedido" : (reg.tipoVisita || "—")]
+  ];
+  doc.setFillColor(...PDF_COR.claro); doc.roundedRect(15, y - 4, 180, 38, 2, 2, "F");
+  campos.forEach((c, i) => {
+    const col = i % 2, lin = Math.floor(i / 2);
+    const x = 20 + col * 90, yy = y + 3 + lin * 12;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...PDF_COR.cinza);
+    doc.text(c[0].toUpperCase(), x, yy);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.setTextColor(...PDF_COR.texto);
+    doc.text(doc.splitTextToSize(String(c[1]), 80)[0], x, yy + 5);
+  });
+  y += 44;
+
+  function garantirEspaco(altura) {
+    if (y + altura > 280) { doc.addPage(); pdfCabecalho(doc, ehPedido ? "Resumo do pedido" : "Relatório de visita técnica", reg.fazenda); y = 40; }
+  }
+
+  // Produtos trabalhados
+  const itens = reg.itens || [];
+  if (itens.length > 0) {
+    garantirEspaco(30);
+    y = pdfSecao(doc, y, "Produtos trabalhados");
+    const cols = ehPedido
+      ? [["Produto", 15, 64, "left"], ["Revenda", 79, 44, "left"], ["Qtd.", 123, 20, "right"], ["Preço unit.", 143, 25, "right"], ["Total", 168, 27, "right"]]
+      : [["Produto", 15, 90, "left"], ["Revenda", 105, 60, "left"], ["Quantidade", 165, 30, "right"]];
+    doc.setFillColor(...PDF_COR.verde); doc.rect(15, y - 4.5, 180, 7, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(255, 255, 255);
+    cols.forEach(c => doc.text(c[0], c[3] === "right" ? c[1] + c[2] - 2 : c[1] + 2, y, { align: c[3] === "right" ? "right" : "left" }));
+    y += 5;
+    let total = 0;
+    itens.forEach((it, idx) => {
+      const nomeL = doc.splitTextToSize(String(it.Produto || ""), cols[0][2] - 4);
+      const revL = doc.splitTextToSize(String(it.Revenda || ""), cols[1][2] - 4);
+      const linhas = Math.max(nomeL.length, revL.length);
+      const alt = linhas * 4.2 + 3;
+      garantirEspaco(alt + 2);
+      if (idx % 2 === 0) { doc.setFillColor(247, 250, 246); doc.rect(15, y - 3.5, 180, alt, "F"); }
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(...PDF_COR.texto);
+      doc.text(nomeL, cols[0][1] + 2, y);
+      doc.text(revL, cols[1][1] + 2, y);
+      const qtd = `${String(it.Volume).replace(".", ",")} ${it.Unidade || ""}`.trim();
+      if (ehPedido) {
+        const sub = Number(it.Preco_Unitario) * Number(it.Volume);
+        total += sub;
+        doc.text(qtd, cols[2][1] + cols[2][2] - 2, y, { align: "right" });
+        doc.text(formatarMoeda(Number(it.Preco_Unitario)), cols[3][1] + cols[3][2] - 2, y, { align: "right" });
+        doc.text(formatarMoeda(sub), cols[4][1] + cols[4][2] - 2, y, { align: "right" });
+      } else {
+        doc.text(qtd, cols[2][1] + cols[2][2] - 2, y, { align: "right" });
+      }
+      y += alt;
+    });
+    if (ehPedido) {
+      garantirEspaco(12);
+      doc.setDrawColor(...PDF_COR.verde); doc.line(15, y - 1, 195, y - 1);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...PDF_COR.verde);
+      doc.text("Total do pedido", 143, y + 5, { align: "right" });
+      doc.text(formatarMoeda(total), 195 - 2, y + 5, { align: "right" });
+      y += 17;
+    } else { y += 4; }
+  }
+
+  // Atividades realizadas / observações
+  if (reg.observacao) {
+    const linhas = doc.splitTextToSize(String(reg.observacao), 176);
+    garantirEspaco(20);
+    y = pdfSecao(doc, y, ehPedido ? "O que foi tratado" : "Atividades realizadas");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...PDF_COR.texto);
+    for (const l of linhas) { garantirEspaco(6); doc.text(l, 17, y); y += 5; }
+    y += 4;
+  }
+  if (reg.proxima) {
+    const linhas = doc.splitTextToSize(String(reg.proxima), 176);
+    garantirEspaco(20);
+    y = pdfSecao(doc, y, "Próximos passos");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(...PDF_COR.texto);
+    for (const l of linhas) { garantirEspaco(6); doc.text(l, 17, y); y += 5; }
+    y += 4;
+  }
+
+  // Fotos (duas por linha)
+  const imagens = (await Promise.all((reg.fotos || []).map(imagemParaPdf))).filter(Boolean);
+  if (imagens.length > 0) {
+    garantirEspaco(70);
+    y = pdfSecao(doc, y, "Registro fotográfico");
+    const larg = 87, altMax = 66;
+    for (let i = 0; i < imagens.length; i += 2) {
+      garantirEspaco(altMax + 6);
+      for (let k = 0; k < 2 && i + k < imagens.length; k++) {
+        const im = imagens[i + k];
+        let w = larg, h = (im.h / im.w) * w;
+        if (h > altMax) { h = altMax; w = (im.w / im.h) * h; }
+        const x = 15 + k * (larg + 6) + (larg - w) / 2;
+        doc.addImage(im.dataUrl, im.formato, x, y, w, h);
+        doc.setDrawColor(...PDF_COR.linha); doc.rect(x, y, w, h);
+      }
+      y += altMax + 6;
+    }
+  }
+
+  // Assinatura do responsável
+  garantirEspaco(30);
+  y = Math.max(y + 6, 250);
+  if (y > 270) { doc.addPage(); pdfCabecalho(doc, ehPedido ? "Resumo do pedido" : "Relatório de visita técnica", reg.fazenda); y = 60; }
+  doc.setDrawColor(...PDF_COR.cinza); doc.line(15, y, 90, y); doc.line(120, y, 195, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...PDF_COR.cinza);
+  doc.text(reg.promotor ? `${reg.promotor} · Agro Hara` : "Responsável Agro Hara", 15, y + 4.5);
+  doc.text(faz.Proprietario ? `${faz.Proprietario} · Produtor` : "Produtor", 120, y + 4.5);
+
+  pdfRodape(doc);
+  const nomeSeguro = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
+  const nomeArquivo = `${ehPedido ? "Pedido" : "Visita"}_${nomeSeguro(reg.fazenda)}_${reg.data}.pdf`;
+  await entregarPdf(doc, nomeArquivo);
+}
+
+async function entregarPdf(doc, nomeArquivo) {
+  const blob = doc.output("blob");
+  try {
+    const arquivo = new File([blob], nomeArquivo, { type: "application/pdf" });
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      await navigator.share({ files: [arquivo], title: nomeArquivo });
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // usuário fechou o menu de compartilhar
+  }
+  doc.save(nomeArquivo);
+}
+
+async function executarComCarregando(fn, idMsg) {
+  document.getElementById("overlayCarregando").classList.remove("oculto");
+  try { await fn(); }
+  catch (err) { alert(err.message || "Não foi possível gerar o PDF."); }
+  finally { document.getElementById("overlayCarregando").classList.add("oculto"); }
+}
+
+async function pdfDaVisita(v) {
+  await executarComCarregando(async () => {
+    // Produtos trabalhados = pedidos do mesmo promotor, fazenda e dia da visita.
+    let pedidos = cacheHistoricoPedidos;
+    if (pedidos === null) {
+      try {
+        const resp = await fetch(CONFIG.URL_API, { headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" } });
+        const dados = await resp.json();
+        pedidos = resp.ok ? (dados.lancamentos || []) : [];
+      } catch (e) { pedidos = []; }
+    }
+    const itens = pedidos.filter(l => l.Propriedade === v.Propriedade && l.Dia_Lancamento === v.Dia_Visita && String(l.Nome_Promotor).toLowerCase() === String(v.Nome_Promotor).toLowerCase());
+    await gerarPdfRegistro({
+      tipoDoc: "visita", fazenda: v.Propriedade, promotor: v.Nome_Promotor, data: v.Dia_Visita,
+      tipoVisita: v.Tipo_Visita, observacao: v.Observacao, itens, fotos: parseFotos(v.Foto_URL)
+    });
+  });
+}
+
+async function pdfDoPedido(g) {
+  await executarComCarregando(async () => {
+    const primeiraObs = (g.itens.find(i => i.Observacao_Visita) || {}).Observacao_Visita || "";
+    const proxima = (g.itens.find(i => i.Proxima_Visita) || {}).Proxima_Visita || "";
+    const fotos = [];
+    g.itens.forEach(i => parseFotos(i.Fotos).forEach(u => { if (!fotos.includes(u)) fotos.push(u); }));
+    await gerarPdfRegistro({
+      tipoDoc: "pedido", fazenda: g.Propriedade, promotor: g.Nome_Promotor, data: g.Dia_Lancamento,
+      observacao: primeiraObs, proxima, itens: g.itens, fotos
+    });
+  });
+}
+
+/* =========================================================================
    NOVA VISITA (tipo, observação, foto, GPS)
    ========================================================================= */
 function prepararVisitaCorpo(fazenda) {
@@ -2761,6 +3195,8 @@ function prepararVisitaCorpo(fazenda) {
   document.getElementById("resumoQuinzenaVisita").textContent = quinzenaAtual;
   document.getElementById("selectTipoVisita").value = "";
   document.getElementById("inputObservacaoVisita").value = "";
+  iniciarCamposFotos();
+  campoFotosVisita.limpar();
   limparMsg("msgVisita");
 }
 
@@ -2788,12 +3224,14 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
   btn.disabled = true;
   document.getElementById("overlayCarregando").classList.remove("oculto");
   try {
+    // Fotos sobem primeiro (precisam de internet); o registro em si ainda pode ir pra fila offline.
+    const urlsFotos = await campoFotosVisita.enviar();
     const corpo = {
       Nome_Promotor: promotorAtual,
       Propriedade: propriedadeAtual,
       Tipo_Visita: tipo,
       Observacao: observacao,
-      Foto_URL: "",
+      Foto_URL: urlsFotos.length ? JSON.stringify(urlsFotos) : "",
       Dia_Visita: dataAtual,
       Quinzena: quinzenaAtual,
       Id_Envio: novoIdEnvio()
@@ -2804,6 +3242,7 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
       mostrarMsg("msgVisita", "Sem conexão — a visita foi salva neste aparelho e será enviada quando a internet voltar.", "sucesso");
       document.getElementById("inputObservacaoVisita").value = "";
       document.getElementById("selectTipoVisita").value = "";
+      campoFotosVisita.limpar();
       return;
     }
     const dados = await resultado.resp.json().catch(() => ({}));
@@ -2812,6 +3251,7 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
     mostrarMsg("msgVisita", "Visita registrada com sucesso!", "sucesso");
     document.getElementById("inputObservacaoVisita").value = "";
     document.getElementById("selectTipoVisita").value = "";
+    campoFotosVisita.limpar();
   } catch (err) {
     mostrarMsg("msgVisita", err.message, "erro");
   } finally {
@@ -2848,6 +3288,8 @@ async function prepararPedidoCorpo(fazenda) {
   atualizarCarrinho();
   document.getElementById("inputObservacaoPedido").value = "";
   document.getElementById("inputProximaVisitaPedido").value = "";
+  iniciarCamposFotos();
+  campoFotosPedido.limpar();
   limparMsg("msgPedido");
 }
 
@@ -3002,6 +3444,19 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   // Id_Envio é por LINHA, não por pedido — o índice único no banco é por linha, então
   // um pedido com vários produtos compartilhando o mesmo UUID seria recusado já no
   // primeiro envio (ver OFFLINE.md, seção 6).
+  let urlsFotosPedido = [];
+  const btnEnv = document.getElementById("btnEnviar");
+  btnEnv.disabled = true;
+  document.getElementById("overlayCarregando").classList.remove("oculto");
+  try {
+    urlsFotosPedido = await campoFotosPedido.enviar();
+  } catch (err) {
+    mostrarMsg("msgPedido", err.message, "erro");
+    btnEnv.disabled = false;
+    document.getElementById("overlayCarregando").classList.add("oculto");
+    return;
+  }
+  const fotosJson = urlsFotosPedido.length ? JSON.stringify(urlsFotosPedido) : "";
   const lancamentos = carrinho.map(item => ({
     Nome_Promotor: promotorAtual,
     Revenda: item.Revenda,
@@ -3014,6 +3469,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     Quinzena: quinzenaAtual,
     Observacao_Visita: observacaoPedido,
     Proxima_Visita: proximaVisitaPedido,
+    Fotos: fotosJson,
     Id_Envio: novoIdEnvio()
   }));
 
@@ -3028,6 +3484,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
       document.getElementById("inputObservacaoPedido").value = "";
       document.getElementById("inputProximaVisitaPedido").value = "";
       document.getElementById("avisoProximoAssunto").classList.add("oculto");
+      campoFotosPedido.limpar();
       mostrarMsg("msgPedido", "Sem conexão — o pedido foi salvo neste aparelho e será enviado quando a internet voltar.", "sucesso");
       return;
     }
@@ -3039,6 +3496,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
     document.getElementById("inputObservacaoPedido").value = "";
     document.getElementById("inputProximaVisitaPedido").value = "";
     document.getElementById("avisoProximoAssunto").classList.add("oculto");
+    campoFotosPedido.limpar();
     mostrarMsg("msgPedido", "Pedido enviado com sucesso!", "sucesso");
   } catch (err) {
     mostrarMsg("msgPedido", err.message, "erro");
@@ -3151,7 +3609,8 @@ async function renderizarHistoricoAtual() {
         </div>
         <div class="item-historico-detalhe oculto" id="hv${i}">
           <div id="hvTexto${i}">${v.Observacao || "Sem observação."}</div>
-          ${v.Foto_URL ? `<div style="margin-top:8px;"><a href="${v.Foto_URL}" target="_blank" rel="noopener">Ver foto</a></div>` : ""}
+          ${blocoFotosHistorico(v.Foto_URL)}
+          <button class="btn-pdf" type="button" data-pdf-visita="${i}">📄 Gerar PDF</button>
           ${blocoHistoricoEdicoes(v.Historico_Edicoes)}
         </div>
       </div>
@@ -3172,6 +3631,8 @@ async function renderizarHistoricoAtual() {
           <div class="item-historico-valor">${formatarMoeda(g.valorTotal)}</div>
         </div>
         <div class="item-historico-detalhe oculto" id="hp${i}">
+          ${blocoFotosHistorico((g.itens.find(x => x.Fotos) || {}).Fotos)}
+          <button class="btn-pdf" type="button" data-pdf-pedido="${i}" style="margin:0 0 10px;">📄 Gerar PDF</button>
           ${g.itens.map((item, j) => `
             <div class="linha-produto-editavel" id="linhaPedido${i}_${j}">
               <div class="linha-produto" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -3200,6 +3661,9 @@ async function renderizarHistoricoAtual() {
 
   if (modoHistorico === "visitas") {
     const lista = cacheHistoricoVisitas || [];
+    container.querySelectorAll("[data-pdf-visita]").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); pdfDaVisita(lista[Number(btn.getAttribute("data-pdf-visita"))]); });
+    });
     container.querySelectorAll("[data-editar-visita]").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -3209,6 +3673,9 @@ async function renderizarHistoricoAtual() {
     });
   } else {
     const grupos = agruparPedidos(cacheHistoricoPedidos || []);
+    container.querySelectorAll("[data-pdf-pedido]").forEach(btn => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); pdfDoPedido(grupos[Number(btn.getAttribute("data-pdf-pedido"))]); });
+    });
     container.querySelectorAll("[data-editar-pedido]").forEach(btn => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
