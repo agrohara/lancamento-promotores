@@ -159,6 +159,11 @@ self.addEventListener("fetch", (evento) => {
     return;
   }
 
+  // --- Fotos do Supabase Storage ---
+  // Não passam pelo cache do service worker: ele guardava uma cópia "opaca" (de quando a foto
+  // é exibida numa <img>) que depois quebrava a leitura da mesma foto para o PDF (fetch CORS).
+  if (url.hostname.endsWith(".supabase.co")) return;
+
   // --- Estáticos e bibliotecas ---
   // Cache primeiro (não mudam), com a rede como reserva e atualização em segundo plano.
   evento.respondWith((async () => {
