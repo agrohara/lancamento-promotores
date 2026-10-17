@@ -2799,20 +2799,19 @@ function parseFotos(valor) {
   return /^https?:\/\//i.test(t) ? [t] : [];
 }
 
-async function comprimirFoto(file, maxLado = 1280, qualidade = 0.72) {
-  let fonte = null, w = 0, h = 0;
+async function carregarImagemDeArquivo(file) {
+  const url = URL.createObjectURL(file);
   try {
-    fonte = await createImageBitmap(file, { imageOrientation: "from-image" });
-    w = fonte.width; h = fonte.height;
-  } catch (e) {
-    fonte = await new Promise((ok, erro) => {
+    return await new Promise((ok, erro) => {
       const im = new Image();
       im.onload = () => ok(im);
       im.onerror = () => erro(new Error("Não foi possível ler a imagem."));
-      im.src = URL.createObjectURL(file);
+      im.src = url;
     });
-    w = fonte.naturalWidth; h = fonte.naturalHeight;
-  }
+  } finally { /* o objeto é liberado pelo navegador ao fechar a página; revogar antes quebraria o decode em alguns aparelhos */ }
+}
+
+function desenharReduzida(fonte, w, h, maxLado, qualidade) {
   const escala = Math.min(1, maxLado / Math.max(w, h));
   const cw = Math.max(1, Math.round(w * escala));
   const ch = Math.max(1, Math.round(h * escala));
@@ -2821,7 +2820,37 @@ async function comprimirFoto(file, maxLado = 1280, qualidade = 0.72) {
   const ctx = canvas.getContext("2d");
   ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cw, ch);
   ctx.drawImage(fonte, 0, 0, cw, ch);
-  return canvas.toDataURL("image/jpeg", qualidade);
+  return { dataUrl: canvas.toDataURL("image/jpeg", qualidade), cw, ch };
+}
+
+async function comprimirFoto(file, maxLado = 1280, qualidade = 0.72) {
+  // Tentativa 1: createImageBitmap (respeita a orientação EXIF). Tentativa 2: <img>.
+  // Valida o resultado: se sair minúsculo (ex.: 1x1 px), tenta o próximo método e, por
+  // último, usa o arquivo original (se couber no limite de envio).
+  const valido = (r) => r && r.cw > 50 && r.ch > 50 && r.dataUrl.length > 3000;
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    if (bmp.width > 0 && bmp.height > 0) {
+      const r = desenharReduzida(bmp, bmp.width, bmp.height, maxLado, qualidade);
+      if (valido(r)) return r.dataUrl;
+    }
+  } catch (e) { /* segue para a tentativa 2 */ }
+  try {
+    const im = await carregarImagemDeArquivo(file);
+    if (im.naturalWidth > 0 && im.naturalHeight > 0) {
+      const r = desenharReduzida(im, im.naturalWidth, im.naturalHeight, maxLado, qualidade);
+      if (valido(r)) return r.dataUrl;
+    }
+  } catch (e) { /* segue para a tentativa 3 */ }
+  if (file.size <= 3 * 1024 * 1024 && /^image\/(jpeg|png)$/i.test(file.type)) {
+    return await new Promise((ok, erro) => {
+      const fr = new FileReader();
+      fr.onload = () => ok(fr.result);
+      fr.onerror = () => erro(new Error("Não foi possível ler a imagem."));
+      fr.readAsDataURL(file);
+    });
+  }
+  throw new Error("Não foi possível processar esta foto.");
 }
 
 function criarCampoFotos(idContainer, pasta) {
@@ -2920,7 +2949,7 @@ function iniciarCamposFotos() {
 function blocoFotosHistorico(valor) {
   const urls = parseFotos(valor);
   if (urls.length === 0) return "";
-  return `<div class="fotos-hist">${urls.map(u => `<a href="${escHtml(u)}" target="_blank" rel="noopener"><img src="${escHtml(u)}" alt="Foto" loading="lazy"></a>`).join("")}</div>`;
+  return `<div class="fotos-hist">${urls.map(u => `<a href="${escHtml(u)}" target="_blank" rel="noopener"><img src="${escHtml(u)}" alt="Foto"></a>`).join("")}</div>`;
 }
 
 /* ---------- PDF ---------- */
@@ -2940,7 +2969,10 @@ function carregarJsPdf() {
 
 async function imagemParaPdf(url) {
   try {
-    const r = await fetch(url, { mode: "cors" });
+    // O parâmetro extra evita casar com a cópia "opaca" que o service worker guarda quando a
+    // mesma foto é exibida numa <img> (essa cópia não pode ser lida por fetch em modo CORS).
+    const urlCors = url + (url.includes("?") ? "&" : "?") + "pdf=1";
+    const r = await fetch(urlCors, { mode: "cors", cache: "no-store" });
     if (!r.ok) return null;
     const blob = await r.blob();
     const dataUrl = await new Promise(ok => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.readAsDataURL(blob); });
@@ -3100,6 +3132,7 @@ async function gerarPdfRegistro(reg) {
 
   // Fotos (duas por linha)
   const imagens = (await Promise.all((reg.fotos || []).map(imagemParaPdf))).filter(Boolean);
+  const fotosFalhas = (reg.fotos || []).length - imagens.length;
   if (imagens.length > 0) {
     garantirEspaco(70);
     y = pdfSecao(doc, y, "Registro fotográfico");
@@ -3128,6 +3161,10 @@ async function gerarPdfRegistro(reg) {
   doc.text(faz.Proprietario ? `${faz.Proprietario} · Produtor` : "Produtor", 120, y + 4.5);
 
   pdfRodape(doc);
+  if (fotosFalhas > 0) {
+    // Avisa (sem impedir o PDF) quando alguma foto não pôde ser incluída.
+    setTimeout(() => alert(`${fotosFalhas} foto(s) não puderam ser incluídas no PDF (não foi possível baixá-las). O restante do PDF foi gerado normalmente.`), 300);
+  }
   const nomeSeguro = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
   const nomeArquivo = `${ehPedido ? "Pedido" : "Visita"}_${nomeSeguro(reg.fazenda)}_${reg.data}.pdf`;
   await entregarPdf(doc, nomeArquivo);
