@@ -68,6 +68,7 @@ function paraObjeto(l) {
     Quinzena: l.quinzena || "",
     Observacao_Visita: l.observacao_visita || "",
     Proxima_Visita: l.proxima_visita || "",
+    Fotos: l.fotos || "",
     Id_Envio: l.id_envio || "",
     Historico_Edicoes: l.historico_edicoes || ""
   };
@@ -365,6 +366,9 @@ module.exports = async function handler(req, res) {
       quinzena: r.Quinzena,
       observacao_visita: String(r.Observacao_Visita || "").trim(),
       proxima_visita: String(r.Proxima_Visita || "").trim(),
+      // Só inclui "fotos" quando há foto: assim o envio sem foto continua funcionando
+      // mesmo antes de a coluna ser criada (sql_fotos_pedido.sql).
+      ...(String(r.Fotos || "").trim() ? { fotos: String(r.Fotos).trim() } : {}),
       id_envio: r.Id_Envio ? String(r.Id_Envio).trim() : null
     }));
 

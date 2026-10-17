@@ -1,128 +1,74 @@
 // Vercel Serverless Function — recebe uma foto (já reduzida/comprimida no navegador)
-// em base64 e sobe para uma pasta "Fotos Visitas" no mesmo Drive do SharePoint onde
-// fica a planilha, via Microsoft Graph API. Devolve o link do arquivo para ser
-// guardado na coluna Foto_URL da tabela "Visitas".
+// em base64 e grava no Supabase Storage (bucket PÚBLICO "fotos"). Devolve a URL pública,
+// que o app guarda junto da visita/pedido e embute nos PDFs.
+//
+// (Reescrita em 17/10/2026: antes subia para uma pasta do SharePoint via Microsoft Graph,
+// cujo link exige login da Microsoft e não pode ser usado dentro de um PDF.)
 //
 // POST /api/upload-foto
-// Corpo esperado: { nomeArquivo: "visita.jpg", base64: "<...sem o prefixo data:...>" }
+// Corpo: { nomeArquivo: "visita.jpg", base64: "<...>", pasta: "visitas" | "pedidos" | "calendarios" }
+// Cabeçalhos: x-api-key + Authorization: Bearer <token da sessão>
+// Resposta: { status: "ok", url: "https://<projeto>.supabase.co/storage/v1/object/public/fotos/..." }
 //
-// Variáveis de ambiente: as mesmas de propriedades.js (TENANT_ID, CLIENT_ID,
-// CLIENT_SECRET, API_KEY). Opcionais: DRIVE_ID, PASTA_FOTOS (padrão "Fotos Visitas")
+// Pré-requisito (uma vez): criar no Supabase o bucket "fotos" marcado como Public.
+// Variáveis de ambiente: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, API_KEY, AUTH_SECRET.
 //
-// Limite: uploads simples via Graph (PUT direto) só funcionam até ~4MB. Por isso o
-// navegador deve comprimir a foto (redimensionar + JPEG qualidade média) antes de
-// enviar — ver função comprimirFoto() no index.html.
+// Limite: o corpo de uma função Vercel é limitado a ~4,5 MB; o navegador comprime a foto
+// (lado maior 1280 px, JPEG ~0,72 ≈ 150–400 KB) antes de enviar.
 
-const DRIVE_ID_PADRAO = "b!239ib2QZ802QpEwVD6oJsGCs3VafFl1DpVud7XH4EwnllXBIIGjKQLlfWeBP3ZEo";
-const PASTA_FOTOS_PADRAO = "Fotos Visitas";
+const crypto = require("crypto");
+const { usuarioDaRequisicao } = require("./_lib/auth");
+const { obterSupabase } = require("./_lib/supabase");
 
-async function obterToken() {
-  const url = `https://login.microsoftonline.com/${process.env.TENANT_ID}/oauth2/v2.0/token`;
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: process.env.CLIENT_ID,
-    client_secret: process.env.CLIENT_SECRET,
-    scope: "https://graph.microsoft.com/.default"
-  });
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body
-  });
-  const dados = await resp.json();
-  if (!resp.ok) {
-    throw new Error("Falha ao obter token: " + JSON.stringify(dados));
-  }
-  return dados.access_token;
-}
-
-async function garantirPasta(token, driveId, nomePasta) {
-  const urlCheck = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${encodeURIComponent(nomePasta)}`;
-  const respCheck = await fetch(urlCheck, { headers: { "Authorization": `Bearer ${token}` } });
-  if (respCheck.ok) return;
-
-  const urlCreate = `https://graph.microsoft.com/v1.0/drives/${driveId}/root/children`;
-  await fetch(urlCreate, {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: nomePasta,
-      folder: {},
-      "@microsoft.graph.conflictBehavior": "fail"
-    })
-  });
-}
-
-function nomeSeguro(nome) {
-  return String(nome || "foto")
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .slice(0, 80);
-}
+const BUCKET = "fotos";
+const PASTAS_VALIDAS = ["visitas", "pedidos", "calendarios"];
 
 module.exports = async function handler(req, res) {
-  if (req.method === "OPTIONS") {
-    res.status(204).end();
-    return;
-  }
+  if (req.method === "OPTIONS") { res.status(204).end(); return; }
+  if (req.method !== "POST") { res.status(405).json({ erro: "Use POST." }); return; }
 
-  if (req.method !== "POST") {
-    res.status(405).json({ erro: "Use POST." });
-    return;
-  }
-
-  const chaveEnviada = req.headers["x-api-key"];
-  if (!process.env.API_KEY || chaveEnviada !== process.env.API_KEY) {
+  if (!process.env.API_KEY || req.headers["x-api-key"] !== process.env.API_KEY) {
     res.status(401).json({ erro: "Não autorizado." });
     return;
   }
+  const usuario = usuarioDaRequisicao(req);
+  if (!usuario) {
+    res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+    return;
+  }
 
-  const { nomeArquivo, base64 } = req.body || {};
+  const { nomeArquivo, base64, pasta } = req.body || {};
   if (!base64 || typeof base64 !== "string") {
-    res.status(400).json({ erro: "Envie a foto em base64 no campo 'base64'." });
+    res.status(400).json({ erro: "Envie o arquivo em base64 no campo 'base64'." });
+    return;
+  }
+  const limpo = base64.includes(",") ? base64.split(",").pop() : base64;
+  const buffer = Buffer.from(limpo, "base64");
+  if (buffer.length === 0) { res.status(400).json({ erro: "Arquivo vazio." }); return; }
+  if (buffer.length > 4 * 1024 * 1024) {
+    res.status(413).json({ erro: "Arquivo muito grande (limite ~4MB)." });
     return;
   }
 
-  const base64Limpo = base64.includes(",") ? base64.split(",").pop() : base64;
-  const buffer = Buffer.from(base64Limpo, "base64");
-
-  const LIMITE_BYTES = 4 * 1024 * 1024;
-  if (buffer.length > LIMITE_BYTES) {
-    res.status(413).json({ erro: "Foto muito grande. Reduza a qualidade/tamanho antes de enviar (limite ~4MB)." });
-    return;
-  }
+  const ehPng = /\.png$/i.test(String(nomeArquivo || ""));
+  const extensao = ehPng ? "png" : "jpg";
+  const tipoConteudo = ehPng ? "image/png" : "image/jpeg";
+  const pastaFinal = PASTAS_VALIDAS.includes(pasta) ? pasta : "visitas";
+  const agora = new Date();
+  const mes = `${agora.getUTCFullYear()}-${String(agora.getUTCMonth() + 1).padStart(2, "0")}`;
+  // Nome aleatório: a URL pública não é adivinhável.
+  const caminho = `${pastaFinal}/${mes}/${crypto.randomUUID()}.${extensao}`;
 
   try {
-    const token = await obterToken();
-    const driveId = process.env.DRIVE_ID || DRIVE_ID_PADRAO;
-    const pasta = process.env.PASTA_FOTOS || PASTA_FOTOS_PADRAO;
-
-    await garantirPasta(token, driveId, pasta);
-
-    const arquivo = `${Date.now()}_${nomeSeguro(nomeArquivo)}`;
-    if (!/\.(jpg|jpeg|png)$/i.test(arquivo)) {
-      res.status(400).json({ erro: "Formato de arquivo não suportado (use jpg ou png)." });
-      return;
-    }
-
-    const urlUpload = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${encodeURIComponent(pasta)}/${encodeURIComponent(arquivo)}:/content`;
-    const respUpload = await fetch(urlUpload, {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": /\.png$/i.test(arquivo) ? "image/png" : "image/jpeg"
-      },
-      body: buffer
+    const supabase = obterSupabase();
+    const { error } = await supabase.storage.from(BUCKET).upload(caminho, buffer, {
+      contentType: tipoConteudo,
+      upsert: false
     });
-    const dadosUpload = await respUpload.json().catch(() => ({}));
-
-    if (!respUpload.ok) {
-      res.status(502).json({ erro: "Falha ao subir a foto via Graph API.", detalhe: dadosUpload });
-      return;
-    }
-
-    res.status(200).json({ status: "ok", url: dadosUpload.webUrl || "" });
+    if (error) throw error;
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(caminho);
+    res.status(200).json({ status: "ok", url: data.publicUrl });
   } catch (err) {
-    res.status(500).json({ erro: "Erro interno.", detalhe: String(err.message || err) });
+    res.status(502).json({ erro: "Falha ao gravar a foto no armazenamento.", detalhe: String(err.message || err) });
   }
 };
