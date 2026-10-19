@@ -27,6 +27,7 @@
 // POST /api/agenda                             -> cria um compromisso novo
 // PATCH /api/agenda                            -> edita um compromisso existente (por Id)
 // DELETE /api/agenda?id=N                      -> exclui um compromisso
+// ANY  /api/agenda?recurso=calendario...       -> Calendário Sanitário (ver api/_lib/calendario.js)
 //
 // Colunas da tabela "agenda_compromissos" no Supabase: nome_promotor, tipo_cliente
 // ('revenda' ou 'propriedade'), cliente_nome, data, hora_inicio, duracao_minutos, assunto,
@@ -46,6 +47,7 @@
 const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase } = require("./_lib/supabase");
 const { segundaFeira, somarDias, statusSemana } = require("./_lib/agenda_prazo");
+const { tratarCalendario } = require("./_lib/calendario");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 const TIPOS_CLIENTE_VALIDOS = ["revenda", "propriedade"];
@@ -106,6 +108,13 @@ module.exports = async function handler(req, res) {
   const ehGestor = CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase());
 
   const supabase = obterSupabase();
+
+  // Calendário Sanitário (Corte/Leite): mesmo endpoint para não estourar o limite de 12
+  // funções da Vercel. Lógica em api/_lib/calendario.js.
+  if (req.query && req.query.recurso === "calendario") {
+    await tratarCalendario(req, res, { usuario, ehGestor, supabase });
+    return;
+  }
 
   if (req.method === "GET") {
     try {
