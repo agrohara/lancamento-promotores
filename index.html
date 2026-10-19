@@ -395,6 +395,20 @@
   .cal-obs-cel{background:#f5f9f4;padding:4px !important;}
   .cal-obs-cel textarea{width:100%;height:100%;min-height:100px;border:none;background:transparent;resize:none;font-size:11px;box-sizing:border-box;}
   .cal-cat-inicio td{border-top:3px solid var(--verde-escuro);}
+  .cal-visao-bar{display:flex;gap:0;margin-bottom:12px;border:2px solid var(--verde-escuro);border-radius:10px;overflow:hidden;}
+  .cal-visao-bar.oculto{display:none;}
+  .cal-visao-bar button{flex:1;border:none;background:#fff;color:var(--verde-escuro);font-weight:700;font-size:13px;padding:10px 6px;cursor:pointer;}
+  .cal-visao-bar button.ativo{background:var(--verde-escuro);color:#fff;}
+  /* Planilha no celular: rolagem lateral, categoria e ação fixas à esquerda */
+  .cal-matriz-wrap.movel{-webkit-overflow-scrolling:touch;max-height:75vh;overflow:auto;}
+  .cal-matriz-wrap.movel .cal-matriz{width:1080px;min-width:1080px;font-size:10px;}
+  .cal-matriz-wrap.movel .cal-cat-cel,.cal-matriz-wrap.movel .cal-acao-cel,.cal-matriz-wrap.movel .cal-ctx-rotulo,.cal-matriz-wrap.movel .cal-leg-rotulo{position:sticky;z-index:2;}
+  .cal-matriz-wrap.movel .cal-ctx-rotulo,.cal-matriz-wrap.movel .cal-leg-rotulo{left:0;}
+  .cal-matriz-wrap.movel .cal-cat-cel{left:0;font-size:11px;}
+  .cal-matriz-wrap.movel .cal-acao-cel{left:119px;font-size:8.5px;}
+  .cal-matriz-wrap.movel .cal-cab th:nth-child(-n+2){position:sticky;z-index:2;left:0;}
+  .cal-matriz-wrap.movel .cal-cab th:nth-child(2){left:119px;}
+  .cal-matriz-wrap.movel .cal-cel{height:48px;}
 </style>
 </head>
 <body>
@@ -965,6 +979,10 @@
           <input type="text" id="calEdProprietario">
         </div>
         <div class="cal-aviso" id="calAviso"></div>
+        <div id="calVisaoBar" class="cal-visao-bar oculto">
+          <button type="button" data-cal-visao="lista">Preencher por lista</button>
+          <button type="button" data-cal-visao="planilha">Ver planilha completa</button>
+        </div>
         <div id="calCategorias"></div>
         <div class="card">
           <p class="subtitulo">Médico-veterinário responsável</p>
@@ -3633,16 +3651,32 @@ function calCelulasFaixa(faixas) {
 
 function calRenderizarCategorias() {
   const cont = document.getElementById("calCategorias");
-  const matriz = window.matchMedia("(min-width:900px)").matches;
-  document.getElementById("pagCalendario").classList.toggle("cal-largo", matriz && !document.getElementById("calEditor").classList.contains("oculto"));
-  cont.innerHTML = matriz ? calHtmlMatriz() : calHtmlAcordeao();
+  const desktop = window.matchMedia("(min-width:900px)").matches;
+  const matriz = desktop || calModoVisao === "planilha";
+  document.getElementById("pagCalendario").classList.toggle("cal-largo", desktop && !document.getElementById("calEditor").classList.contains("oculto"));
+  const bar = document.getElementById("calVisaoBar");
+  if (bar) {
+    bar.classList.toggle("oculto", desktop);
+    bar.querySelectorAll("[data-cal-visao]").forEach(b => b.classList.toggle("ativo", b.getAttribute("data-cal-visao") === (matriz ? "planilha" : "lista")));
+  }
+  cont.innerHTML = matriz ? calHtmlMatriz(!desktop) : calHtmlAcordeao();
 }
 
+let calModoVisao = "lista";
+try { calModoVisao = localStorage.getItem("calModoVisao") === "planilha" ? "planilha" : "lista"; } catch (e) {}
+document.getElementById("calVisaoBar").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cal-visao]");
+  if (!b) return;
+  calModoVisao = b.getAttribute("data-cal-visao");
+  try { localStorage.setItem("calModoVisao", calModoVisao); } catch (e2) {}
+  calRenderizarCategorias();
+});
+
 // Desktop: planilha idêntica ao modelo (categorias × tipo de ação × 12 meses + observações).
-function calHtmlMatriz() {
+function calHtmlMatriz(movel) {
   const est = CAL_ESTRUTURA[calEstado.tipo];
   const legenda = CAL_LEGENDA.map(l => `<th colspan="${l.ate - l.de + 1}" style="background:${CAL_ACOES[l.acao].cor};">${escHtml(CAL_ACOES[l.acao].rotulo.toUpperCase())}</th>`).join("");
-  let html = `<div class="cal-matriz-wrap"><table class="cal-matriz">
+  let html = `<div class="cal-matriz-wrap ${movel ? "movel" : ""}"><table class="cal-matriz">
     <colgroup><col style="width:11%"><col style="width:10%">${'<col style="width:6.3%">'.repeat(12)}<col style="width:12%"></colgroup>
     <thead>
       <tr class="cal-leg"><th colspan="2" class="cal-leg-rotulo">LEGENDA — cor = tipo de ação</th>${legenda}<th colspan="3" style="background:#fff;"></th></tr>
