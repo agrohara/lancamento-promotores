@@ -352,6 +352,29 @@
   .fotos-hist img { width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; border:1px solid var(--cinza-borda); display:block; }
   .btn-pdf { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:8px 14px; border-radius:10px; border:1px solid var(--verde-escuro); background:#fff; color:var(--verde-escuro); font-weight:600; font-size:13px; cursor:pointer; }
   .btn-pdf:active { background:var(--cinza-fundo); }
+
+  /* Calendário sanitário (Etapa 3) */
+  .cal-status{font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;align-self:center;}
+  .cal-status.ok{background:#e3f3e7;color:#1e8e3e;}
+  .cal-status.sujo{background:#fff4cc;color:#8a6a00;}
+  .cal-aviso{background:#fff4c2;border:1px solid #f0deae;border-left:4px solid #d4a017;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#7a1f1f;line-height:1.5;}
+  .cal-cat{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:12px;padding:0 14px 14px;}
+  .cal-cat > summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:14px 0;font-weight:800;color:var(--verde-escuro);}
+  .cal-cat > summary::-webkit-details-marker{display:none;}
+  .cal-cat-qtd{font-size:11px;font-weight:700;color:#8a9690;background:var(--cinza-fundo);padding:3px 10px;border-radius:12px;white-space:nowrap;}
+  .cal-cat-qtd.tem{background:#e3f3e7;color:#1e8e3e;}
+  .cal-acao{border-left:4px solid var(--cor);background:#fcfdfc;border-radius:0 10px 10px 0;padding:8px 10px 10px;margin-bottom:10px;}
+  .cal-acao-rotulo{font-size:12px;font-weight:800;color:var(--cor);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;}
+  .cal-meses{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
+  .cal-mes{border:1px solid var(--cinza-borda);background:#fff;border-radius:8px;padding:9px 0;font-size:11px;font-weight:700;color:#6b7a70;cursor:pointer;}
+  .cal-acao .cal-mes.cheio{background:var(--cor);border-color:var(--cor);color:#fff;}
+  .folha .cal-mes{--cor:var(--verde);--fundo:#e3f3e7;}
+  .folha .cal-mes.cheio{background:var(--fundo);border-color:var(--cor);color:var(--cor);}
+  .folha .cal-mes.sel{background:var(--cor);border-color:var(--cor);color:#fff;}
+  .cal-entradas{margin-top:8px;display:flex;flex-direction:column;gap:5px;}
+  .cal-entrada{background:var(--fundo);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--texto);cursor:pointer;line-height:1.4;}
+  .cal-entrada b{color:var(--cor);margin-right:6px;font-size:11px;}
+  .cal-obs-label{margin-top:10px;}
 </style>
 </head>
 <body>
@@ -401,6 +424,7 @@
         <button class="acao-rapida" data-acao="novaFazenda" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 9-9h5v5c0 5-4 9-9 9z"/><path d="M9 15c3-3 6-6 9-9"/></svg></span>Nova Fazenda</button>
         <button class="acao-rapida" data-acao="catalogo" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Catálogo</button>
         <button class="acao-rapida" data-acao="relatorios" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Relatórios</button>
+        <button class="acao-rapida" data-acao="calendario" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg></span>Calendário Sanitário</button>
         <button class="acao-rapida oculto" id="acaoMetas" data-acao="metas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>Metas</button>
       </div>
     </section>
@@ -878,6 +902,68 @@
     <button class="agenda-fab oculto" id="btnAgendaFab" type="button">+</button>
 
     <!-- PERFIL -->
+    <!-- CALENDÁRIO SANITÁRIO -->
+    <section id="pagCalendario" class="pagina oculto">
+      <h2 class="titulo-pagina">Calendário Sanitário</h2>
+      <div id="calPainelInicio">
+        <div class="card">
+          <div id="msgCalInicio"></div>
+          <p class="subtitulo">Novo calendário</p>
+          <label>Tipo de rebanho</label>
+          <div class="tipo-cliente-toggle">
+            <div class="tipo-cliente-opcao" data-cal-tipo="corte">Gado de Corte</div>
+            <div class="tipo-cliente-opcao" data-cal-tipo="leite">Gado de Leite</div>
+          </div>
+          <label for="calBuscaFazenda">Fazenda</label>
+          <div class="input-combo">
+            <input type="text" id="calBuscaFazenda" placeholder="Toque para ver a lista ou digite para buscar..." autocomplete="off">
+            <div id="calSugestoesFazenda" class="sugestoes oculto"></div>
+          </div>
+          <label for="calProprietario">Proprietário</label>
+          <input type="text" id="calProprietario" placeholder="Preenchido pela fazenda; pode ajustar">
+          <label for="calAno">Ano</label>
+          <select id="calAno"></select>
+          <button class="btn" id="btnCalAbrir" type="button" style="margin-top:14px;">Abrir calendário</button>
+        </div>
+        <div class="card oculto" id="calListaCard">
+          <p class="subtitulo">Calendários desta fazenda</p>
+          <div id="calLista"></div>
+        </div>
+      </div>
+
+      <div id="calEditor" class="oculto">
+        <div class="resumo">
+          <span><b id="calEdTitulo"></b> · <span id="calEdFazenda"></span></span>
+          <div class="resumo-botoes">
+            <span class="cal-status" id="calStatusSalvo"></span>
+            <button class="btn btn-secundario" id="btnCalVoltar" type="button">Voltar</button>
+          </div>
+        </div>
+        <div id="msgCalEditor"></div>
+        <div class="card">
+          <label for="calEdProprietario" style="margin-top:0;">Proprietário</label>
+          <input type="text" id="calEdProprietario">
+        </div>
+        <div class="cal-aviso" id="calAviso"></div>
+        <div id="calCategorias"></div>
+        <div class="card">
+          <p class="subtitulo">Médico-veterinário responsável</p>
+          <label for="calVetNome">Nome</label>
+          <input type="text" id="calVetNome">
+          <label for="calVetCrmv">CRMV-UF Nº</label>
+          <input type="text" id="calVetCrmv">
+          <label for="calVetContato">Telefone / e-mail</label>
+          <input type="text" id="calVetContato">
+        </div>
+        <div class="card oculto" id="calHistoricoCard">
+          <p class="subtitulo">Histórico de alterações</p>
+          <div id="calHistorico"></div>
+        </div>
+        <button class="btn" id="btnCalSalvar" type="button">Salvar calendário</button>
+        <button class="btn btn-secundario" id="btnCalPdf" type="button" style="margin-top:10px;">📄 Gerar PDF</button>
+      </div>
+    </section>
+
     <section id="pagPerfil" class="pagina oculto">
       <h2 class="titulo-pagina">Perfil</h2>
       <div class="perfil-avatar" id="perfilAvatar"></div>
@@ -1020,6 +1106,23 @@
 
 <!-- Bottom sheet: editar um Pedido já lançado. Global — chamada tanto da aba
      Histórico quanto do drill-down e da busca em Relatórios, com a mesma folha. -->
+<div id="folhaCalOverlay" class="folha-overlay oculto">
+  <div class="folha">
+    <div class="folha-alca"></div>
+    <div class="folha-titulo">
+      <span id="folhaCalTitulo"></span>
+      <button class="folha-fechar" id="btnFecharFolhaCal" type="button">✕</button>
+    </div>
+    <div class="item-historico-sub" id="folhaCalSub" style="margin:-10px 0 12px;"></div>
+    <label>Mês (toque para trocar)</label>
+    <div class="cal-meses" id="folhaCalMeses"></div>
+    <label for="folhaCalTexto">Atividade em <b id="folhaCalMesNome"></b></label>
+    <textarea id="folhaCalTexto" rows="4" placeholder="Ex: 3ª IATF ou repasse com touro"></textarea>
+    <button class="btn" id="btnFolhaCalAplicar" type="button" style="margin-top:12px;">Aplicar</button>
+    <button class="btn btn-secundario" id="btnFolhaCalLimpar" type="button" style="margin-top:10px;">Limpar este mês</button>
+  </div>
+</div>
+
 <div id="folhaPedidoOverlay" class="folha-overlay oculto">
   <div class="folha">
     <div class="folha-alca"></div>
@@ -1703,6 +1806,8 @@ document.querySelectorAll(".acao-rapida").forEach(btn => {
     } else if (acao === "relatorios") {
       mostrarPagina("relatorios");
       carregarRelatorios();
+    } else if (acao === "calendario") {
+      abrirCalendario();
     } else if (acao === "metas") {
       mostrarPagina("metas");
       carregarPaginaMetas();
@@ -2993,6 +3098,22 @@ async function dadosFazendaParaPdf(nome) {
   } catch (e) { return {}; }
 }
 
+// Fontes padrão do PDF só têm o alfabeto Latin-1/WinAnsi: troca símbolos comuns e remove o
+// que não existe (emoji etc.) para não sair texto quebrado.
+function pdfTxt(t) {
+  return String(t === undefined || t === null ? "" : t)
+    .replace(/≥/g, ">=").replace(/≤/g, "<=").replace(/→|➜|➔|⇒/g, "->").replace(/←/g, "<-")
+    .replace(/[−]/g, "-").replace(/[\u2009\u202f\u00a0]/g, " ")
+    .replace(/[^\u0009\u000A\u0020-\u007E\u00A1-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026\u20AC]/g, "");
+}
+function pdfProteger(doc) {
+  const texto = doc.text.bind(doc);
+  doc.text = (t, ...r) => texto(Array.isArray(t) ? t.map(pdfTxt) : pdfTxt(t), ...r);
+  const quebra = doc.splitTextToSize.bind(doc);
+  doc.splitTextToSize = (t, w, o) => quebra(pdfTxt(t), w, o);
+  return doc;
+}
+
 const PDF_COR = {
   verde: [26, 100, 54], vivo: [126, 205, 38], claro: [234, 243, 236],
   texto: [34, 48, 31], cinza: [92, 107, 96], linha: [217, 227, 217], terracota: [193, 80, 46]
@@ -3015,15 +3136,16 @@ function pdfCabecalho(doc, titulo, subtitulo) {
   [40, 44.5, 49].forEach(x => doc.circle(x, 25, 0.9, "F"));
 }
 
-function pdfRodape(doc) {
+function pdfRodape(doc, ml = 15) {
   const total = doc.getNumberOfPages();
+  const w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight();
   const emissao = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
-    doc.setDrawColor(...PDF_COR.linha); doc.line(15, 285, 195, 285);
+    doc.setDrawColor(...PDF_COR.linha); doc.setLineWidth(0.2); doc.line(ml, h - 12, w - ml, h - 12);
     doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...PDF_COR.cinza);
-    doc.text(`Agro Hara · Gestão de Campo · emitido em ${emissao}`, 15, 290);
-    doc.text(`Página ${i} de ${total}`, 195, 290, { align: "right" });
+    doc.text(`Agro Hara · Gestão de Campo · emitido em ${emissao}`, ml, h - 7);
+    doc.text(`Página ${i} de ${total}`, w - ml, h - 7, { align: "right" });
   }
 }
 
@@ -3040,7 +3162,7 @@ async function gerarPdfRegistro(reg) {
   //        observacao, proxima, itens: [{Produto, Revenda, Volume, Unidade, Preco_Unitario}], fotos: [urls] }
   await carregarJsPdf();
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const doc = pdfProteger(new jsPDF({ unit: "mm", format: "a4" }));
   const ehPedido = reg.tipoDoc === "pedido";
   const faz = await dadosFazendaParaPdf(reg.fazenda);
 
@@ -3225,6 +3347,613 @@ async function pdfDoPedido(g) {
       observacao: primeiraObs, proxima, itens: g.itens, fotos
     });
   });
+}
+
+/* =========================================================================
+   CALENDÁRIO SANITÁRIO — Corte / Leite   [Etapa 3 — 17/10/2026]
+   Modelo: planilha "Calendário Sanitário HARA MSD". Meses e categorias FIXOS; o promotor
+   preenche livremente o texto de cada mês (começa em branco). Salvo em
+   /api/agenda?recurso=calendario (tabela calendarios_sanitarios), com histórico por fazenda.
+   ========================================================================= */
+const CAL_MESES = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+const CAL_MESES_LONGO = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+const CAL_ACOES = {
+  ciclo:     { rotulo: "Ciclo do rebanho",                  cor: "#5C6B60", fundo: "#EAF3EC" },
+  iatf:      { rotulo: "IATF / Reprodução",                 cor: "#7B3FA0", fundo: "#EFE4F7" },
+  vacinas:   { rotulo: "Vacinas",                           cor: "#1E8E3E", fundo: "#E3F3E7" },
+  endo:      { rotulo: "Endoparasitas (vermes)",            cor: "#1F6FB5", fundo: "#DDEBF8" },
+  ecto:      { rotulo: "Ectoparasitas (carrapato · mosca)", cor: "#D9730D", fundo: "#FCE9D4" },
+  manejos:   { rotulo: "Manejos",                           cor: "#B8860B", fundo: "#FFF4CC" },
+  monit:     { rotulo: "Monitoramento",                     cor: "#B8860B", fundo: "#FFF4CC" },
+  registros: { rotulo: "Registros e exigências",            cor: "#B8860B", fundo: "#FFF4CC" }
+};
+
+const CAL_ESTRUTURA = {
+  corte: {
+    titulo: "Gado de Corte",
+    avisos: [
+      "Bovilis RB-51: PROIBIDO USO NOS MACHOS E BUBALINOS",
+      "Brucelina B-19: PROIBIDO USO NOS MACHOS",
+      "Respeitar as CARÊNCIAS antes do abate · EXZOLT 5%: não usar em fêmeas p/ leite"
+    ],
+    categorias: [
+      { id: "ciclo",         rotulo: "Ciclo do rebanho",                 acoes: ["ciclo"] },
+      { id: "touros_vacas",  rotulo: "Touros e Vacas",                   acoes: ["iatf", "vacinas", "endo", "ecto"] },
+      { id: "bez_0_6",       rotulo: "Bezerros 0 a 6 meses",             acoes: ["manejos", "vacinas", "endo", "ecto"] },
+      { id: "bez_6_12",      rotulo: "Bezerros 6 a 12 meses · Desmama",  acoes: ["manejos", "vacinas", "endo", "ecto"] },
+      { id: "recria",        rotulo: "Recria 12 a 24 meses",             acoes: ["iatf", "vacinas", "endo", "ecto"] },
+      { id: "engorda",       rotulo: "Engorda a pasto",                  acoes: ["vacinas", "endo", "ecto"] },
+      { id: "confinamento",  rotulo: "Confinamento",                     acoes: ["vacinas", "endo", "ecto", "manejos"] },
+      { id: "gerais",        rotulo: "Manejos gerais",                   acoes: ["monit", "registros"] }
+    ]
+  },
+  leite: {
+    titulo: "Gado de Leite",
+    avisos: [
+      "Bovilis RB-51: PROIBIDO USO NOS MACHOS E BUBALINOS",
+      "Brucelina B-19: PROIBIDO USO NOS MACHOS",
+      "EXZOLT 5% e BOVGUARD: PROIBIDOS em fêmeas em lactação (leite p/ consumo)"
+    ],
+    categorias: [
+      { id: "ciclo",      rotulo: "Ciclo do rebanho",                   acoes: ["ciclo"] },
+      { id: "lactentes",  rotulo: "Bezerras lactentes (0 a 3 meses)",   acoes: ["manejos", "vacinas", "endo"] },
+      { id: "bez_3_6",    rotulo: "Bezerras 3 a 6 meses",               acoes: ["manejos", "vacinas", "endo", "ecto"] },
+      { id: "novilhas",   rotulo: "Novilhas acima de 6 meses",          acoes: ["iatf", "vacinas", "endo", "ecto"] },
+      { id: "secas_pre",  rotulo: "Vacas secas e pré-parto",            acoes: ["vacinas", "endo", "manejos"] },
+      { id: "pos_parto",  rotulo: "Vacas no pós-parto",                 acoes: ["iatf", "vacinas", "endo"] },
+      { id: "lactacao",   rotulo: "Vacas em lactação",                  acoes: ["vacinas", "endo", "ecto"] },
+      { id: "gerais",     rotulo: "Manejos gerais",                     acoes: ["monit", "registros"] }
+    ]
+  }
+};
+
+let calTipoSelecionado = null;
+let calFazendaSelecionada = "";
+let calEstado = null; // { id, tipo, fazenda, ano, proprietario, dados, historico, original }
+let calCategoriasAbertas = new Set();
+let calFolha = null;  // { cat, acao, mes, buffer }
+
+function calDadosVazios() { return { celulas: {}, obs: {}, vet: {} }; }
+function calChave(cat, acao, mes) { return `${cat}|${acao}|${mes}`; }
+function calSnapshot() {
+  return JSON.stringify({ d: calEstado.dados, p: (calEstado.proprietario || "").trim() });
+}
+function calEstaSujo() { return !!calEstado && calSnapshot() !== calEstado.original; }
+function calTextoData(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }); } catch (e) { return iso; }
+}
+function calContarPreenchidos(dados) { return Object.keys((dados && dados.celulas) || {}).length; }
+
+/* ---------- Painel inicial ---------- */
+function abrirCalendario() {
+  calTipoSelecionado = null;
+  calFazendaSelecionada = "";
+  calEstado = null;
+  document.getElementById("calEditor").classList.add("oculto");
+  document.getElementById("calPainelInicio").classList.remove("oculto");
+  document.getElementById("calBuscaFazenda").value = "";
+  document.getElementById("calProprietario").value = "";
+  document.getElementById("calListaCard").classList.add("oculto");
+  document.querySelectorAll("[data-cal-tipo]").forEach(b => b.classList.remove("ativo"));
+  const anoAtual = new Date().getFullYear();
+  document.getElementById("calAno").innerHTML = [anoAtual - 1, anoAtual, anoAtual + 1]
+    .map(a => `<option value="${a}" ${a === anoAtual ? "selected" : ""}>${a}</option>`).join("");
+  limparMsg("msgCalInicio");
+  if (!todasPropriedades || todasPropriedades.length === 0) carregarTodasPropriedades();
+  mostrarPagina("calendario");
+}
+
+document.querySelectorAll("[data-cal-tipo]").forEach(el => {
+  el.addEventListener("click", () => {
+    calTipoSelecionado = el.getAttribute("data-cal-tipo");
+    document.querySelectorAll("[data-cal-tipo]").forEach(b => b.classList.toggle("ativo", b === el));
+  });
+});
+
+function calRenderizarSugestoesFazenda() {
+  const termo = document.getElementById("calBuscaFazenda").value.trim().toLowerCase();
+  const lista = termo ? todasPropriedades.filter(p => p.toLowerCase().includes(termo)) : todasPropriedades;
+  const box = document.getElementById("calSugestoesFazenda");
+  box.innerHTML = lista.length === 0
+    ? '<div class="sugestao-vazia">Nenhuma fazenda encontrada.</div>'
+    : lista.slice(0, 40).map(p => `<div class="sugestao-item" data-cal-fazenda="${escHtml(p)}">${escHtml(p)}</div>`).join("");
+  box.classList.remove("oculto");
+}
+document.getElementById("calBuscaFazenda").addEventListener("input", () => { calFazendaSelecionada = ""; calRenderizarSugestoesFazenda(); });
+document.getElementById("calBuscaFazenda").addEventListener("focus", calRenderizarSugestoesFazenda);
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#calBuscaFazenda") && !e.target.closest("#calSugestoesFazenda")) document.getElementById("calSugestoesFazenda").classList.add("oculto");
+});
+document.getElementById("calSugestoesFazenda").addEventListener("click", async (e) => {
+  const item = e.target.closest("[data-cal-fazenda]");
+  if (!item) return;
+  calFazendaSelecionada = item.getAttribute("data-cal-fazenda");
+  document.getElementById("calBuscaFazenda").value = calFazendaSelecionada;
+  document.getElementById("calSugestoesFazenda").classList.add("oculto");
+  const faz = await dadosFazendaParaPdf(calFazendaSelecionada);
+  document.getElementById("calProprietario").value = faz.Proprietario || "";
+  calCarregarListaDaFazenda();
+});
+
+function calCabecalhosAuth() {
+  return { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
+}
+const CAL_URL = () => `${CONFIG.URL_AGENDA}?recurso=calendario`;
+
+let calListaFazenda = [];
+async function calCarregarListaDaFazenda() {
+  const card = document.getElementById("calListaCard");
+  const lista = document.getElementById("calLista");
+  card.classList.remove("oculto");
+  lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const resp = await fetch(`${CAL_URL()}&propriedade=${encodeURIComponent(calFazendaSelecionada)}`, { headers: calCabecalhosAuth() });
+    const dados = await resp.json();
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar.");
+    calListaFazenda = dados.calendarios || [];
+  } catch (err) {
+    calListaFazenda = [];
+    lista.innerHTML = `<div class="carregando-lista">${escHtml(err.message)}</div>`;
+    return;
+  }
+  if (calListaFazenda.length === 0) {
+    lista.innerHTML = '<div class="carregando-lista">Nenhum calendário salvo para esta fazenda ainda.</div>';
+    return;
+  }
+  lista.innerHTML = calListaFazenda.map((c, i) => `
+    <div class="item-historico">
+      <div class="item-historico-topo" style="cursor:default;">
+        <div>
+          <div class="item-historico-titulo">${escHtml(CAL_ESTRUTURA[c.Tipo] ? CAL_ESTRUTURA[c.Tipo].titulo : c.Tipo)} · ${c.Ano}</div>
+          <div class="item-historico-sub">${calContarPreenchidos(c.Dados)} lançamento(s) · atualizado ${calTextoData(c.Atualizado_Em)} por ${escHtml(c.Atualizado_Por || c.Nome_Promotor)}</div>
+        </div>
+      </div>
+      <div class="btn-linha" style="margin:8px 0 2px;display:flex;gap:8px;">
+        <button class="btn-editar-linha" type="button" data-cal-abrir="${i}">Abrir / editar</button>
+        <button class="btn-pdf" type="button" data-cal-pdf-lista="${i}" style="margin-top:0;">📄 PDF</button>
+      </div>
+    </div>`).join("");
+}
+
+document.getElementById("calLista").addEventListener("click", (e) => {
+  const a = e.target.closest("[data-cal-abrir]");
+  if (a) { calAbrirExistente(calListaFazenda[Number(a.getAttribute("data-cal-abrir"))]); return; }
+  const p = e.target.closest("[data-cal-pdf-lista]");
+  if (p) {
+    const c = calListaFazenda[Number(p.getAttribute("data-cal-pdf-lista"))];
+    executarComCarregando(() => gerarPdfCalendario({ tipo: c.Tipo, fazenda: c.Propriedade, ano: c.Ano, proprietario: c.Proprietario, dados: c.Dados, responsavel: c.Atualizado_Por || c.Nome_Promotor, atualizadoEm: c.Atualizado_Em }));
+  }
+});
+
+function calAbrirExistente(c) {
+  calEstado = {
+    id: c.Id, tipo: c.Tipo, fazenda: c.Propriedade, ano: c.Ano, proprietario: c.Proprietario || "",
+    dados: { celulas: { ...(c.Dados.celulas || {}) }, obs: { ...(c.Dados.obs || {}) }, vet: { ...(c.Dados.vet || {}) } },
+    historico: c.Historico || "", original: ""
+  };
+  calEstado.original = calSnapshot();
+  calMostrarEditor();
+}
+
+document.getElementById("btnCalAbrir").addEventListener("click", () => {
+  limparMsg("msgCalInicio");
+  if (!calTipoSelecionado) { mostrarMsg("msgCalInicio", "Escolha Gado de Corte ou Gado de Leite.", "erro"); return; }
+  if (!calFazendaSelecionada) { mostrarMsg("msgCalInicio", "Escolha a fazenda na lista.", "erro"); return; }
+  const ano = Number(document.getElementById("calAno").value);
+  const existente = calListaFazenda.find(c => c.Tipo === calTipoSelecionado && Number(c.Ano) === ano);
+  if (existente) { calAbrirExistente(existente); return; }
+  calEstado = {
+    id: null, tipo: calTipoSelecionado, fazenda: calFazendaSelecionada, ano,
+    proprietario: document.getElementById("calProprietario").value.trim(),
+    dados: calDadosVazios(), historico: "", original: ""
+  };
+  calEstado.original = ""; // novo: já "sujo" até salvar pela primeira vez
+  calMostrarEditor();
+});
+
+/* ---------- Editor ---------- */
+function calMostrarEditor() {
+  document.getElementById("calPainelInicio").classList.add("oculto");
+  document.getElementById("calEditor").classList.remove("oculto");
+  limparMsg("msgCalEditor");
+  const est = CAL_ESTRUTURA[calEstado.tipo];
+  document.getElementById("calEdTitulo").textContent = `${est.titulo} · ${calEstado.ano}`;
+  document.getElementById("calEdFazenda").textContent = calEstado.fazenda;
+  document.getElementById("calEdProprietario").value = calEstado.proprietario || "";
+  document.getElementById("calVetNome").value = calEstado.dados.vet.nome || "";
+  document.getElementById("calVetCrmv").value = calEstado.dados.vet.crmv || "";
+  document.getElementById("calVetContato").value = calEstado.dados.vet.contato || "";
+  document.getElementById("calAviso").innerHTML = '<b>Atenção</b><br>' + est.avisos.map(escHtml).join("<br>");
+  calCategoriasAbertas = new Set(["ciclo"]);
+  calRenderizarCategorias();
+  calRenderizarHistorico();
+  calAtualizarStatusSalvo();
+  window.scrollTo(0, 0);
+}
+
+function calAtualizarStatusSalvo() {
+  const el = document.getElementById("calStatusSalvo");
+  if (!calEstado) return;
+  if (!calEstado.id) { el.textContent = "Ainda não salvo"; el.className = "cal-status sujo"; }
+  else if (calEstaSujo()) { el.textContent = "Alterações não salvas"; el.className = "cal-status sujo"; }
+  else { el.textContent = "Salvo"; el.className = "cal-status ok"; }
+}
+
+function calRenderizarCategorias() {
+  const est = CAL_ESTRUTURA[calEstado.tipo];
+  const cont = document.getElementById("calCategorias");
+  cont.innerHTML = est.categorias.map(cat => {
+    let qtd = 0;
+    const blocos = cat.acoes.map(acaoId => {
+      const a = CAL_ACOES[acaoId];
+      const botoes = CAL_MESES.map((m, i) => {
+        const k = calChave(cat.id, acaoId, i + 1);
+        const cheio = !!calEstado.dados.celulas[k];
+        if (cheio) qtd++;
+        return `<button type="button" class="cal-mes ${cheio ? "cheio" : ""}" data-cal-cel="${k}" aria-label="${CAL_MESES_LONGO[i]}">${m}</button>`;
+      }).join("");
+      const entradas = CAL_MESES.map((m, i) => {
+        const t = calEstado.dados.celulas[calChave(cat.id, acaoId, i + 1)];
+        return t ? `<div class="cal-entrada" data-cal-cel="${calChave(cat.id, acaoId, i + 1)}"><b>${m}</b> ${escHtml(t)}</div>` : "";
+      }).join("");
+      return `<div class="cal-acao" style="--cor:${a.cor};--fundo:${a.fundo};">
+        <div class="cal-acao-rotulo">${a.rotulo}</div>
+        <div class="cal-meses">${botoes}</div>
+        ${entradas ? `<div class="cal-entradas">${entradas}</div>` : ""}
+      </div>`;
+    }).join("");
+    return `<details class="cal-cat" data-cal-cat="${cat.id}" ${calCategoriasAbertas.has(cat.id) ? "open" : ""}>
+      <summary><span class="cal-cat-nome">${escHtml(cat.rotulo)}</span><span class="cal-cat-qtd ${qtd ? "tem" : ""}">${qtd ? qtd + (qtd === 1 ? " lançamento" : " lançamentos") : "vazio"}</span></summary>
+      ${blocos}
+      <label class="cal-obs-label">Observações e evidências</label>
+      <textarea rows="2" data-cal-obs="${cat.id}" placeholder="Opcional">${escHtml(calEstado.dados.obs[cat.id] || "")}</textarea>
+    </details>`;
+  }).join("");
+}
+
+document.getElementById("calCategorias").addEventListener("toggle", (e) => {
+  const d = e.target.closest && e.target.closest("details[data-cal-cat]");
+  if (!d) return;
+  const id = d.getAttribute("data-cal-cat");
+  if (d.open) calCategoriasAbertas.add(id); else calCategoriasAbertas.delete(id);
+}, true);
+
+document.getElementById("calCategorias").addEventListener("click", (e) => {
+  const cel = e.target.closest("[data-cal-cel]");
+  if (!cel) return;
+  const [cat, acao, mes] = cel.getAttribute("data-cal-cel").split("|");
+  calAbrirFolha(cat, acao, Number(mes));
+});
+document.getElementById("calCategorias").addEventListener("input", (e) => {
+  const t = e.target.closest("[data-cal-obs]");
+  if (!t) return;
+  const v = t.value.trim();
+  const id = t.getAttribute("data-cal-obs");
+  if (v) calEstado.dados.obs[id] = v; else delete calEstado.dados.obs[id];
+  calAtualizarStatusSalvo();
+});
+["calEdProprietario", "calVetNome", "calVetCrmv", "calVetContato"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => {
+    calEstado.proprietario = document.getElementById("calEdProprietario").value;
+    const vet = {};
+    [["nome", "calVetNome"], ["crmv", "calVetCrmv"], ["contato", "calVetContato"]].forEach(([k, i]) => {
+      const v = document.getElementById(i).value.trim();
+      if (v) vet[k] = v;
+    });
+    calEstado.dados.vet = vet;
+    calAtualizarStatusSalvo();
+  });
+});
+
+/* ---------- Folha de edição de um mês ---------- */
+function calAbrirFolha(cat, acao, mes) {
+  const est = CAL_ESTRUTURA[calEstado.tipo];
+  const c = est.categorias.find(x => x.id === cat);
+  const buffer = {};
+  for (let m = 1; m <= 12; m++) buffer[m] = calEstado.dados.celulas[calChave(cat, acao, m)] || "";
+  calFolha = { cat, acao, mes, buffer };
+  document.getElementById("folhaCalTitulo").textContent = CAL_ACOES[acao].rotulo;
+  document.getElementById("folhaCalSub").textContent = c ? c.rotulo : "";
+  calFolhaRenderizar();
+  document.getElementById("folhaCalOverlay").classList.remove("oculto");
+  setTimeout(() => document.getElementById("folhaCalTexto").focus(), 50);
+}
+function calFolhaRenderizar() {
+  const a = CAL_ACOES[calFolha.acao];
+  document.getElementById("folhaCalMeses").innerHTML = CAL_MESES.map((m, i) => {
+    const mes = i + 1;
+    return `<button type="button" class="cal-mes ${calFolha.buffer[mes] ? "cheio" : ""} ${mes === calFolha.mes ? "sel" : ""}" data-cal-folha-mes="${mes}" style="--cor:${a.cor};--fundo:${a.fundo};">${m}</button>`;
+  }).join("");
+  document.getElementById("folhaCalTexto").value = calFolha.buffer[calFolha.mes] || "";
+  document.getElementById("folhaCalMesNome").textContent = CAL_MESES_LONGO[calFolha.mes - 1];
+}
+document.getElementById("folhaCalMeses").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cal-folha-mes]");
+  if (!b) return;
+  calFolha.buffer[calFolha.mes] = document.getElementById("folhaCalTexto").value.trim();
+  calFolha.mes = Number(b.getAttribute("data-cal-folha-mes"));
+  calFolhaRenderizar();
+  document.getElementById("folhaCalTexto").focus();
+});
+function calFecharFolha() {
+  document.getElementById("folhaCalOverlay").classList.add("oculto");
+  calFolha = null;
+}
+document.getElementById("btnFecharFolhaCal").addEventListener("click", calFecharFolha);
+document.getElementById("btnFolhaCalLimpar").addEventListener("click", () => {
+  calFolha.buffer[calFolha.mes] = "";
+  document.getElementById("folhaCalTexto").value = "";
+  calFolhaRenderizar();
+});
+document.getElementById("btnFolhaCalAplicar").addEventListener("click", () => {
+  calFolha.buffer[calFolha.mes] = document.getElementById("folhaCalTexto").value.trim();
+  for (let m = 1; m <= 12; m++) {
+    const k = calChave(calFolha.cat, calFolha.acao, m);
+    const t = (calFolha.buffer[m] || "").slice(0, 600);
+    if (t) calEstado.dados.celulas[k] = t; else delete calEstado.dados.celulas[k];
+  }
+  calFecharFolha();
+  calRenderizarCategorias();
+  calAtualizarStatusSalvo();
+});
+
+/* ---------- Salvar ---------- */
+function calResumoAlteracoes() {
+  // Compara com o último estado salvo (calEstado.original) e descreve o que mudou.
+  const est = CAL_ESTRUTURA[calEstado.tipo];
+  let antes;
+  try { antes = JSON.parse(calEstado.original || "{}").d || calDadosVazios(); } catch (e) { antes = calDadosVazios(); }
+  const cortar = (t) => { t = String(t || ""); return t.length > 70 ? t.slice(0, 67) + "..." : t; };
+  const linhas = [];
+  est.categorias.forEach(cat => cat.acoes.forEach(acaoId => {
+    for (let m = 1; m <= 12; m++) {
+      const k = calChave(cat.id, acaoId, m);
+      const a = (antes.celulas || {})[k] || "";
+      const d = calEstado.dados.celulas[k] || "";
+      if (a !== d) linhas.push(`${cat.rotulo} · ${CAL_ACOES[acaoId].rotulo} · ${CAL_MESES[m - 1]}: "${cortar(a)}" → "${cortar(d)}"`);
+    }
+  }));
+  est.categorias.forEach(cat => {
+    if (((antes.obs || {})[cat.id] || "") !== (calEstado.dados.obs[cat.id] || "")) linhas.push(`Observações (${cat.rotulo}) alteradas`);
+  });
+  if (JSON.stringify(antes.vet || {}) !== JSON.stringify(calEstado.dados.vet || {})) linhas.push("Médico-veterinário responsável alterado");
+  return linhas.join("\n");
+}
+
+document.getElementById("btnCalSalvar").addEventListener("click", async () => {
+  limparMsg("msgCalEditor");
+  const btn = document.getElementById("btnCalSalvar");
+  btn.disabled = true;
+  document.getElementById("overlayCarregando").classList.remove("oculto");
+  try {
+    const resumo = calEstado.id ? calResumoAlteracoes() : "";
+    const corpo = calEstado.id
+      ? { Id: calEstado.id, Proprietario: calEstado.proprietario || "", Dados: calEstado.dados, Resumo_Alteracoes: resumo }
+      : { Propriedade: calEstado.fazenda, Tipo: calEstado.tipo, Ano: calEstado.ano, Proprietario: calEstado.proprietario || "", Dados: calEstado.dados, Id_Envio: novoIdEnvio() };
+    const resultado = await enviarOuEnfileirar("Calendário sanitário", CAL_URL(), calEstado.id ? "PATCH" : "POST", corpo);
+    if (resultado.enfileirado) {
+      mostrarMsg("msgCalEditor", "Sem conexão — o calendário foi guardado neste aparelho e será enviado quando a internet voltar. (Não feche esta tela até lá se for um calendário novo.)", "sucesso");
+      return;
+    }
+    const dados = await resultado.resp.json().catch(() => ({}));
+    if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível salvar o calendário.");
+    if (dados.calendario) {
+      calEstado.id = dados.calendario.Id;
+      calEstado.historico = dados.calendario.Historico || calEstado.historico;
+    }
+    calEstado.original = calSnapshot();
+    calRenderizarHistorico();
+    calAtualizarStatusSalvo();
+    mostrarMsg("msgCalEditor", dados.semAlteracoes ? "Nada mudou desde o último salvamento." : "Calendário salvo!", "sucesso");
+  } catch (err) {
+    mostrarMsg("msgCalEditor", err.message, "erro");
+  } finally {
+    btn.disabled = false;
+    document.getElementById("overlayCarregando").classList.add("oculto");
+  }
+});
+
+function calRenderizarHistorico() {
+  const card = document.getElementById("calHistoricoCard");
+  const linhas = String(calEstado.historico || "").split("\n").filter(Boolean);
+  if (linhas.length === 0) { card.classList.add("oculto"); return; }
+  card.classList.remove("oculto");
+  document.getElementById("calHistorico").innerHTML = linhas.map(l => {
+    const cabecalho = /^\[\d/.test(l);
+    return `<div class="historico-edicoes-linha" style="${cabecalho ? "font-weight:700;margin-top:6px;" : "padding-left:8px;"}">${escHtml(l)}</div>`;
+  }).join("");
+}
+
+document.getElementById("btnCalVoltar").addEventListener("click", () => {
+  if (calEstaSujo() || (calEstado && !calEstado.id)) {
+    if (!confirm("Há alterações não salvas. Sair mesmo assim?")) return;
+  }
+  document.getElementById("calEditor").classList.add("oculto");
+  document.getElementById("calPainelInicio").classList.remove("oculto");
+  if (calFazendaSelecionada) calCarregarListaDaFazenda();
+  window.scrollTo(0, 0);
+});
+
+document.getElementById("btnCalPdf").addEventListener("click", () => {
+  executarComCarregando(() => gerarPdfCalendario({
+    tipo: calEstado.tipo, fazenda: calEstado.fazenda, ano: calEstado.ano,
+    proprietario: calEstado.proprietario, dados: calEstado.dados,
+    responsavel: promotorAtual, atualizadoEm: new Date().toISOString()
+  }));
+});
+
+/* ---------- PDF do calendário (A4 paisagem) ---------- */
+function calHex(h) { return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]; }
+
+async function gerarPdfCalendario(cal) {
+  await carregarJsPdf();
+  const { jsPDF } = window.jspdf;
+  const doc = pdfProteger(new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" }));
+  const W = 297, H = 210, M = 10, LIMITE = H - 16;
+  const est = CAL_ESTRUTURA[cal.tipo];
+  const titulo = `PROGRAMA SANITÁRIO — ${est.titulo.toUpperCase()}`;
+  const dados = cal.dados || calDadosVazios();
+
+  function cabecalhoPagina(primeira) {
+    doc.setFillColor(...PDF_COR.verde); doc.rect(0, 0, W, primeira ? 22 : 14, "F");
+    const lado = primeira ? 15 : 10;
+    try { doc.addImage(LOGO_AGROHARA_PDF, "PNG", M, primeira ? 3.5 : 2, lado, lado); } catch (e) { /* sem logo */ }
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(primeira ? 15 : 11); doc.text("AGRO HARA", M + lado + 4, primeira ? 11 : 8.2);
+    if (primeira) { doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.text("GESTÃO DE CAMPO", M + lado + 4, 16); }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(primeira ? 13 : 10.5);
+    doc.text(titulo, W - M, primeira ? 10.5 : 8.2, { align: "right" });
+    if (primeira) { doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(`Ano ${cal.ano}`, W - M, 16.5, { align: "right" }); }
+    return primeira ? 27 : 19;
+  }
+
+  let y = cabecalhoPagina(true);
+
+  // Identificação
+  doc.setFillColor(...PDF_COR.claro); doc.roundedRect(M, y, W - 2 * M, 13, 2, 2, "F");
+  const idCampos = [["PROPRIETÁRIO", cal.proprietario || "—", 10], ["FAZENDA", cal.fazenda || "—", 100], ["RESPONSÁVEL AGRO HARA", cal.responsavel || "—", 190], ["ATUALIZADO EM", calTextoData(cal.atualizadoEm).split(",")[0], 245]];
+  idCampos.forEach(([rot, val, x]) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...PDF_COR.cinza); doc.text(rot, x + 3, y + 4.2);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...PDF_COR.texto);
+    doc.text(doc.splitTextToSize(String(val), (x === 10 || x === 100) ? 82 : 52)[0], x + 3, y + 9.5);
+  });
+  y += 17;
+
+  // Legenda
+  let lx = M;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(...PDF_COR.cinza); doc.text("LEGENDA", lx, y + 3); lx += 14;
+  ["iatf", "vacinas", "endo", "ecto", "manejos"].forEach(id => {
+    const a = CAL_ACOES[id];
+    doc.setFillColor(...calHex(a.cor)); doc.roundedRect(lx, y, 3.6, 3.6, 0.8, 0.8, "F");
+    doc.setFont("helvetica", "normal"); doc.setFontSize(7); doc.setTextColor(...PDF_COR.texto);
+    doc.text(a.rotulo, lx + 5, y + 3);
+    lx += 8 + doc.getTextWidth(a.rotulo);
+  });
+  y += 8;
+
+  // Tabela
+  const CW = { cat: 26, acao: 24 };
+  const MW = (W - 2 * M - CW.cat - CW.acao) / 12;
+  function cabecalhoTabela() {
+    doc.setFillColor(...PDF_COR.verde); doc.rect(M, y, W - 2 * M, 6, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(6.5); doc.setTextColor(255, 255, 255);
+    doc.text("CATEGORIA", M + 2, y + 4); doc.text("AÇÃO", M + CW.cat + 2, y + 4);
+    CAL_MESES_LONGO.forEach((m, i) => doc.text(m.toUpperCase(), M + CW.cat + CW.acao + i * MW + MW / 2, y + 4, { align: "center" }));
+    y += 6;
+  }
+  function novaPagina() { doc.addPage(); y = cabecalhoPagina(false); cabecalhoTabela(); }
+  cabecalhoTabela();
+
+  let algumaLinha = false;
+  const FS = 6, LH = 2.55;
+  doc.setFontSize(FS);
+  est.categorias.forEach(cat => {
+    // linhas (ações) que têm algum lançamento
+    const linhas = cat.acoes.map(acaoId => {
+      const textos = [];
+      let maxL = 1;
+      for (let m = 1; m <= 12; m++) {
+        const t = dados.celulas[calChave(cat.id, acaoId, m)] || "";
+        doc.setFont("helvetica", "normal"); doc.setFontSize(FS);
+        const l = t ? doc.splitTextToSize(t, MW - 1.8) : [];
+        textos.push(l);
+        maxL = Math.max(maxL, l.length);
+      }
+      const tem = textos.some(l => l.length > 0);
+      return { acaoId, textos, tem, h: Math.max(7, maxL * LH + 2.6) };
+    }).filter(r => r.tem);
+    if (linhas.length === 0) return;
+    algumaLinha = true;
+
+    let i = 0;
+    while (i < linhas.length) {
+      const seg = []; let hSeg = 0;
+      while (i < linhas.length && (y + hSeg + linhas[i].h <= LIMITE || (seg.length === 0 && y <= 40))) { seg.push(linhas[i]); hSeg += linhas[i].h; i++; }
+      if (seg.length === 0) { novaPagina(); continue; }
+      // célula da categoria (um bloco por página)
+      doc.setFillColor(...PDF_COR.verde); doc.rect(M, y, CW.cat, hSeg, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(6.8); doc.setTextColor(255, 255, 255);
+      doc.text(doc.splitTextToSize(cat.rotulo, CW.cat - 3).slice(0, Math.max(1, Math.floor((hSeg - 2) / 3))), M + 1.5, y + 4);
+      let yy = y;
+      seg.forEach(r => {
+        const a = CAL_ACOES[r.acaoId];
+        doc.setFillColor(...calHex(a.cor)); doc.rect(M + CW.cat, yy, CW.acao, r.h, "F");
+        doc.setFont("helvetica", "bold"); doc.setFontSize(6); doc.setTextColor(255, 255, 255);
+        doc.text(doc.splitTextToSize(a.rotulo.toUpperCase(), CW.acao - 3), M + CW.cat + 1.5, yy + 3.4);
+        for (let m = 0; m < 12; m++) {
+          const x = M + CW.cat + CW.acao + m * MW;
+          if (r.textos[m].length) { doc.setFillColor(...calHex(a.fundo)); doc.rect(x, yy, MW, r.h, "F"); }
+          doc.setDrawColor(...PDF_COR.linha); doc.setLineWidth(0.15); doc.rect(x, yy, MW, r.h);
+          if (r.textos[m].length) {
+            doc.setFont("helvetica", "normal"); doc.setFontSize(FS); doc.setTextColor(...PDF_COR.texto);
+            doc.text(r.textos[m], x + 0.9, yy + 3);
+          }
+        }
+        doc.setDrawColor(...PDF_COR.linha); doc.rect(M, yy, CW.cat + CW.acao, r.h);
+        yy += r.h;
+      });
+      y += hSeg;
+      if (i < linhas.length) novaPagina();
+    }
+  });
+
+  if (!algumaLinha) {
+    doc.setFont("helvetica", "italic"); doc.setFontSize(10); doc.setTextColor(...PDF_COR.cinza);
+    doc.text("Nenhuma atividade lançada neste calendário ainda.", M, y + 8);
+    y += 14;
+  }
+
+  // Observações e evidências
+  const obsCats = est.categorias.filter(c => dados.obs[c.id]);
+  function garantir(h) { if (y + h > LIMITE) { doc.addPage(); y = cabecalhoPagina(false); } }
+  if (obsCats.length) {
+    y += 6; garantir(14);
+    y = pdfSecaoPaisagem(doc, y, "Observações e evidências", M);
+    obsCats.forEach(c => {
+      const linhas = doc.splitTextToSize(dados.obs[c.id], W - 2 * M - 4);
+      garantir(6 + linhas.length * 4);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(...PDF_COR.verde); doc.text(c.rotulo, M, y); y += 4;
+      doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); doc.setTextColor(...PDF_COR.texto);
+      linhas.forEach(l => { doc.text(l, M + 2, y); y += 4; });
+      y += 2;
+    });
+  }
+
+  // Atenção
+  y += 4; garantir(24);
+  doc.setFillColor(255, 244, 194); doc.roundedRect(M, y, W - 2 * M, 6 + est.avisos.length * 4.6, 2, 2, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(176, 0, 32); doc.text("ATENÇÃO", M + 3, y + 4.4);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(122, 31, 31);
+  est.avisos.forEach((a, i) => doc.text(a, M + 26, y + 4.4 + i * 4.6));
+  y += 6 + est.avisos.length * 4.6 + 6;
+
+  // Médico-veterinário responsável
+  garantir(24);
+  const vet = dados.vet || {};
+  doc.setFillColor(...PDF_COR.verde); doc.rect(M, y, 34, 22, "F");
+  doc.setFont("helvetica", "bold"); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);
+  doc.text(["MÉDICO-VETERINÁRIO", "RESPONSÁVEL"], M + 2, y + 9);
+  const campos = [["NOME", vet.nome || "", M + 38, y, 110], ["CRMV-UF Nº", vet.crmv || "", M + 152, y, 60], ["DATA", "", M + 216, y, 31],
+                  ["ASSINATURA / CARIMBO", "", M + 38, y + 12, 110], ["TELEFONE / E-MAIL", vet.contato || "", M + 152, y + 12, 95]];
+  campos.forEach(([rot, val, x, yy, w]) => {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(6.5); doc.setTextColor(...PDF_COR.cinza); doc.text(rot, x, yy + 3.5);
+    doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(...PDF_COR.texto);
+    if (val) doc.text(doc.splitTextToSize(val, w - 2)[0], x, yy + 8.5);
+    doc.setDrawColor(...PDF_COR.cinza); doc.setLineWidth(0.2); doc.line(x, yy + 10, x + w, yy + 10);
+  });
+
+  pdfRodape(doc, M);
+  const nomeSeguro = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40);
+  await entregarPdf(doc, `Calendario_Sanitario_${cal.tipo === "corte" ? "Corte" : "Leite"}_${nomeSeguro(cal.fazenda)}_${cal.ano}.pdf`);
+}
+
+function pdfSecaoPaisagem(doc, y, titulo, x) {
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...PDF_COR.verde);
+  doc.text(titulo.toUpperCase(), x, y);
+  doc.setDrawColor(...PDF_COR.vivo); doc.setLineWidth(0.6); doc.line(x, y + 1.8, x + 18, y + 1.8); doc.setLineWidth(0.2);
+  return y + 8;
 }
 
 /* =========================================================================
