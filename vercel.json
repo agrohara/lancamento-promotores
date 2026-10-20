@@ -4,5 +4,10 @@
       "path": "/api/backup",
       "schedule": "0 2 * * 6"
     }
-  ]
+  ],
+  "functions": {
+    "api/agenda.js": {
+      "maxDuration": 60
+    }
+  }
 }

@@ -677,6 +677,42 @@
   .resumo{font-weight:600;color:var(--texto-suave);}
   .resumo b{font-weight:800;}
   @media (min-width:600px){ .cartao{padding:14px 16px 14px 18px;} .cartao-numero{font-size:28px;} }
+
+  /* ===== Despesas (RDV / CI) ===== */
+  .dsp-novo{display:grid;grid-template-columns:1fr;gap:10px;}
+  @media (min-width:600px){.dsp-novo{grid-template-columns:1fr 1fr;}}
+  .dsp-topo{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+  .dsp-voltar{width:auto;padding:8px 14px;margin:0;}
+  .dsp-item{background:#fff;border:1px solid var(--borda,#dfe5ea);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;gap:12px;align-items:center;cursor:pointer;}
+  .dsp-item:active{background:#f4f7fa;}
+  .dsp-item b{color:var(--texto-forte,#1f2937);}
+  .dsp-item small{display:block;color:var(--texto-suave,#6b7280);margin-top:2px;}
+  .dsp-item .dsp-valor{font-weight:700;white-space:nowrap;text-align:right;}
+  .dsp-pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;margin-top:6px;}
+  .dsp-pill.pendente{background:var(--c-atencao-fundo,#fef3e2);color:var(--c-atencao,#b45309);}
+  .dsp-pill.recusada{background:var(--c-erro-fundo,#fdecec);color:var(--c-erro,#b91c1c);}
+  .dsp-pill.ok{background:var(--c-ok-fundo,#e6f4ea);color:var(--c-ok,#1e8e3e);}
+  .dsp-motivo{background:var(--c-erro-fundo,#fdecec);color:var(--c-erro,#b91c1c);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;}
+  .dsp-semana{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;}
+  .dsp-semana button{width:44px;height:44px;border-radius:50%;border:1px solid var(--borda-forte,#c6ced6);background:#fff;font-size:22px;line-height:1;}
+  .dsp-semana span{font-weight:700;min-width:150px;text-align:center;}
+  .dsp-grade{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .dsp-grade label{margin-top:0;}
+  .dsp-dia{background:#fff;border:1px solid var(--borda,#dfe5ea);border-radius:12px;margin-bottom:10px;overflow:hidden;}
+  .dsp-dia>summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700;min-height:48px;}
+  .dsp-dia>summary::-webkit-details-marker{display:none;}
+  .dsp-dia>summary small{font-weight:500;color:var(--texto-suave,#6b7280);}
+  .dsp-dia[open]>summary{background:#f4f7fa;border-bottom:1px solid var(--borda,#dfe5ea);}
+  .dsp-dia .dsp-corpo{padding:14px 16px 16px;}
+  .dsp-kmini{font-size:13px;color:var(--texto-suave,#6b7280);margin-bottom:8px;}
+  .dsp-total{background:var(--marca,#1f4d2e);color:#fff;border-radius:12px;padding:16px;margin-bottom:16px;}
+  .dsp-total .linha{display:flex;justify-content:space-between;padding:3px 0;font-size:14px;opacity:.95;}
+  .dsp-total .linha.forte{font-size:18px;font-weight:800;border-top:1px solid rgba(255,255,255,.35);margin-top:6px;padding-top:8px;opacity:1;}
+  .dsp-opcional{font-weight:400;color:var(--texto-suave,#6b7280);font-size:13px;}
+  .dsp-sim-nao{display:flex;gap:10px;}
+  .dsp-sim-nao button{flex:1;margin:0;}
+  .dsp-sim-nao button.ativo{background:var(--marca,#1f4d2e);border-color:var(--marca,#1f4d2e);color:#fff;}
+  details.dsp-mais>summary{cursor:pointer;font-weight:600;padding:8px 0;color:var(--marca,#1f4d2e);}
 </style>
 </head>
 <body>
@@ -727,6 +763,7 @@
         <button class="acao-rapida" data-acao="catalogo" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>Catálogo</button>
         <button class="acao-rapida" data-acao="relatorios" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></span>Relatórios</button>
         <button class="acao-rapida" data-acao="calendario" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg></span>Calendário Sanitário</button>
+        <button class="acao-rapida" data-acao="despesas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Despesas</button>
         <button class="acao-rapida oculto" id="acaoMetas" data-acao="metas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>Metas</button>
         <button class="acao-rapida oculto" id="acaoGestorDesktop" data-acao="gestorDesktop" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></span>Visão gerencial</button>
       </div>
@@ -1282,6 +1319,28 @@
       </div>
       <div class="aviso-em-breve" id="perfilAvisoAcesso" style="margin-bottom:20px;"></div>
       <button class="btn btn-sair" id="btnSair">Sair</button>
+    </section>
+
+    <!-- DESPESAS (RDV semanal e CI) -->
+    <section id="pagDespesas" class="pagina oculto">
+      <h2 class="titulo-pagina">Despesas</h2>
+      <div class="dsp-novo">
+        <button class="btn" id="btnNovoRdv" type="button">🧾 RDV da semana</button>
+        <button class="btn btn-secundario" id="btnNovaCi" type="button">📄 CI – Comunicação Interna</button>
+      </div>
+      <p class="subtitulo" style="margin-top:18px;">Minhas solicitações</p>
+      <div id="msgDespesas"></div>
+      <div id="listaDespesas"><div class="carregando-lista">Carregando...</div></div>
+    </section>
+
+    <section id="pagDespesaForm" class="pagina oculto">
+      <div class="dsp-topo">
+        <button class="btn btn-secundario dsp-voltar" id="btnDspVoltar" type="button">‹ Voltar</button>
+        <h2 class="titulo-pagina" id="dspTitulo" style="margin:0;">RDV</h2>
+      </div>
+      <div id="dspAviso"></div>
+      <div id="dspConteudo"></div>
+      <div id="msgDespesaForm"></div>
     </section>
 
   </div>
@@ -2189,6 +2248,8 @@ document.querySelectorAll(".acao-rapida").forEach(btn => {
     } else if (acao === "metas") {
       mostrarPagina("metas");
       carregarPaginaMetas();
+    } else if (acao === "despesas") {
+      abrirDespesas();
     }
   });
 });
@@ -3336,12 +3397,14 @@ async function comprimirFoto(file, maxLado = 1280, qualidade = 0.72) {
   throw new Error("Não foi possível processar esta foto.");
 }
 
-function criarCampoFotos(idContainer, pasta) {
+function criarCampoFotos(idContainer, pasta, opcoes) {
+  const op = opcoes || {};
+  const limite = op.max || MAX_FOTOS_REGISTRO;
   const el = document.getElementById(idContainer);
   const itens = []; // { dataUrl, url }
   el.classList.add("campo-fotos");
   el.innerHTML = `
-    <div class="fotos-titulo">Fotos <span class="fotos-opcional">(opcional · até ${MAX_FOTOS_REGISTRO})</span></div>
+    <div class="fotos-titulo">${op.titulo ? escHtml(op.titulo) : `Fotos <span class="fotos-opcional">(opcional · até ${limite})</span>`}</div>
     <div class="fotos-botoes">
       <button type="button" class="btn btn-secundario" data-acao="camera">📷 Tirar foto</button>
       <button type="button" class="btn btn-secundario" data-acao="galeria">🖼️ Da galeria</button>
@@ -3361,7 +3424,7 @@ function criarCampoFotos(idContainer, pasta) {
   async function adicionar(arquivos) {
     aviso.textContent = "";
     for (const arq of arquivos) {
-      if (itens.length >= MAX_FOTOS_REGISTRO) { aviso.textContent = `Limite de ${MAX_FOTOS_REGISTRO} fotos por registro.`; break; }
+      if (itens.length >= limite) { aviso.textContent = `Limite de ${limite} foto(s) neste campo.`; break; }
       try {
         itens.push({ dataUrl: await comprimirFoto(arq), url: null });
       } catch (e) {
@@ -3389,6 +3452,8 @@ function criarCampoFotos(idContainer, pasta) {
 
   return {
     limpar() { itens.length = 0; aviso.textContent = ""; desenhar(); },
+    // Carrega fotos já enviadas (edição de um registro salvo): mostra a URL e não reenvia.
+    definirUrls(urls) { itens.length = 0; (urls || []).forEach(u => { if (u) itens.push({ dataUrl: u, url: u }); }); desenhar(); },
     quantidade() { return itens.length; },
     // Sobe as fotos ainda não enviadas e devolve a lista de URLs. Fotos já enviadas numa
     // tentativa anterior não são reenviadas (ex.: o envio do registro falhou depois).
@@ -7101,6 +7166,372 @@ async function carregarAgendaGestor() {
   } catch (err) {
     container.innerHTML = `<div class="msg msg-erro">${agendaEsc(err.message)}</div>`;
   }
+}
+
+
+/* =========================================================================
+   DESPESAS — RDV semanal e CI (Comunicação Interna)
+   Promotor preenche -> gestor aprova (gestor.html) -> sistema envia ao Kanban.
+   Regras e cálculo definitivos ficam no servidor (api/_lib/rdv.js); aqui é só tela.
+   ========================================================================= */
+const DSP_VALOR_KM = 1.33; // apenas para o total exibido; o servidor recalcula
+const DSP_DIAS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+const DSP_CENTROS = ["Pecuária", "PET", "PPD", "Endoecto", "Leite", "Outro"];
+let dsp = null; // estado do formulário aberto
+
+function dspUrl(extra) { return `${CONFIG.URL_AGENDA}?recurso=rdv${extra || ""}`; }
+async function dspApi(metodo, extra, corpo) {
+  const resp = await fetch(dspUrl(extra), {
+    method: metodo, headers: cabecalhosEnvio(), body: corpo ? JSON.stringify(corpo) : undefined
+  });
+  const dados = await resp.json().catch(() => ({}));
+  if (!resp.ok) { const e = new Error(dados.erro || "Não foi possível concluir."); e.dados = dados; throw e; }
+  return dados;
+}
+function dspNum(v) {
+  if (v === null || v === undefined || v === "") return 0;
+  let s = String(v).trim();
+  s = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s;
+  const n = Number(s);
+  return isFinite(n) ? n : 0;
+}
+function dspBr(iso) { return iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : ""; }
+function dspIso(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function dspSomar(iso, n) { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return dspIso(d); }
+function dspSegundaAtual() {
+  const d = new Date(); d.setHours(12, 0, 0, 0);
+  const dow = d.getDay(); // 0 dom
+  d.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+  return dspIso(d);
+}
+
+/* ---------- lista ---------- */
+function dspStatusTexto(l) {
+  if (l.status === "pendente") return { t: "Aguardando aprovação", c: "pendente" };
+  if (l.status === "recusada") return { t: "Recusada · corrigir", c: "recusada" };
+  if (l.status === "erro_kanban") return { t: "Aprovada · enviando ao Kanban", c: "ok" };
+  return { t: "Aprovada · enviada ao Kanban", c: "ok" };
+}
+
+async function abrirDespesas() {
+  mostrarPagina("despesas");
+  document.getElementById("msgDespesas").innerHTML = "";
+  const lista = document.getElementById("listaDespesas");
+  lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const r = await dspApi("GET", "");
+    const itens = r.itens || [];
+    lista.innerHTML = itens.length === 0
+      ? '<div class="carregando-lista">Nenhuma solicitação ainda. Use os botões acima para começar.</div>'
+      : itens.map(l => {
+        const s = dspStatusTexto(l);
+        const titulo = l.tipo === "RDV" ? `RDV · ${dspBr(l.periodo_ini)} a ${dspBr(l.periodo_fim)}` : `CI`;
+        return `<div class="dsp-item" data-id="${l.id}">
+          <div><b>${escHtml(titulo)}</b><small>Enviada em ${dspBr(String(l.criado_em).slice(0, 10))}</small>
+            <span class="dsp-pill ${s.c}">${s.t}</span></div>
+          <div class="dsp-valor">${formatarMoeda(l.valor_promotor)}</div></div>`;
+      }).join("");
+  } catch (e) {
+    lista.innerHTML = "";
+    mostrarMsg("msgDespesas", escHtml(e.message || "Não foi possível carregar."), "erro");
+  }
+}
+
+document.getElementById("listaDespesas").addEventListener("click", (e) => {
+  const it = e.target.closest(".dsp-item"); if (!it) return;
+  dspAbrirExistente(Number(it.getAttribute("data-id")));
+});
+document.getElementById("btnNovoRdv").addEventListener("click", () => dspNovo("RDV"));
+document.getElementById("btnNovaCi").addEventListener("click", () => dspNovo("CI"));
+document.getElementById("btnDspVoltar").addEventListener("click", () => abrirDespesas());
+
+async function dspAbrirExistente(id) {
+  try {
+    const l = await dspApi("GET", `&id=${id}`);
+    dsp = { tipo: l.tipo, id: l.id, status: l.status, motivo: l.motivo_recusa, dados: l.dados, somenteLeitura: !["pendente", "recusada"].includes(l.status), resumo: l };
+    dspDesenhar();
+  } catch (e) {
+    mostrarMsg("msgDespesas", escHtml(e.message), "erro");
+  }
+}
+function dspNovo(tipo) {
+  dsp = { tipo, id: null, status: null, motivo: "", dados: null, somenteLeitura: false };
+  if (tipo === "RDV") dsp.semana = dspSegundaAtual();
+  dspDesenhar();
+}
+
+function dspDesenhar() {
+  mostrarPagina("despesaForm");
+  window.scrollTo(0, 0);
+  document.getElementById("msgDespesaForm").innerHTML = "";
+  const av = document.getElementById("dspAviso");
+  av.innerHTML = dsp.status === "recusada" && dsp.motivo
+    ? `<div class="dsp-motivo"><b>Recusada pelo gestor:</b> ${escHtml(dsp.motivo)}. Corrija e envie de novo.</div>`
+    : dsp.somenteLeitura
+      ? `<div class="msg msg-sucesso">Esta solicitação já foi aprovada e não pode mais ser alterada.</div>` : "";
+  document.getElementById("dspTitulo").textContent = dsp.tipo === "RDV" ? "RDV da semana" : "CI – Comunicação Interna";
+  if (dsp.tipo === "RDV") dspRdvMontar(); else dspCiMontar();
+}
+
+/* ---------- RDV ---------- */
+function dspRdvMontar() {
+  const d = dsp.dados;
+  if (d) dsp.semana = d.semana;
+  const c = document.getElementById("dspConteudo");
+  const ro = dsp.somenteLeitura ? "disabled" : "";
+  let vei = "", pla = "";
+  try { vei = (d && d.veiculo) || localStorage.getItem("dspVeiculo") || ""; pla = (d && d.placa) || localStorage.getItem("dspPlaca") || ""; } catch (e) {}
+  const dias = DSP_DIAS.map((nome, i) => {
+    const x = d && d.dias && d.dias[i] ? d.dias[i] : {};
+    const v = (n) => (x[n] ? String(x[n]).replace(".", ",") : "");
+    return `<details class="dsp-dia" data-i="${i}">
+      <summary><span>${nome} <small data-r="data"></small></span><small data-r="resumo">—</small></summary>
+      <div class="dsp-corpo">
+        <div class="dsp-kmini">KM inicial do dia: <b data-r="kmini">—</b></div>
+        <label>KM final do dia</label>
+        <input type="number" inputmode="numeric" min="0" step="1" data-f="kmFim" value="${x.kmRodado > 0 ? x.kmFim : ""}" ${ro} placeholder="Deixe vazio se não rodou">
+        <div class="dsp-grade" style="margin-top:12px;">
+          <div><label>Hotel (R$)</label><input type="text" inputmode="decimal" data-f="hotel" value="${v("hotel")}" ${ro} placeholder="0,00"></div>
+          <div><label>Almoço (R$)</label><input type="text" inputmode="decimal" data-f="almoco" value="${v("almoco")}" ${ro} placeholder="0,00"></div>
+          <div><label>Jantar (R$)</label><input type="text" inputmode="decimal" data-f="jantar" value="${v("jantar")}" ${ro} placeholder="0,00"></div>
+          <div><label>Aviso prévio (R$)</label><input type="text" inputmode="decimal" data-f="aviso" value="${v("aviso")}" ${ro} placeholder="0,00"></div>
+        </div>
+        <label style="margin-top:12px;">O que foi feito (cidades, clientes)</label>
+        <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Loanda a Santa Isabel do Ivaí – visita ao cliente X">
+        <div id="dspFotosD${i}" style="margin-top:12px;"></div>
+      </div></details>`;
+  }).join("");
+
+  c.innerHTML = `
+    <div class="dsp-semana">
+      <button type="button" id="dspSemAnt" aria-label="Semana anterior" ${dsp.id ? "disabled" : ""}>‹</button>
+      <span id="dspSemLabel"></span>
+      <button type="button" id="dspSemProx" aria-label="Próxima semana" ${dsp.id ? "disabled" : ""}>›</button>
+    </div>
+    <div class="card">
+      <p class="subtitulo">Hodômetro inicial</p>
+      <label for="dspKmInicial">KM inicial da semana</label>
+      <input type="number" inputmode="numeric" min="0" step="1" id="dspKmInicial" value="${d ? d.kmInicial : ""}" ${ro} placeholder="Ex.: 16099">
+      <div id="dspFotoIni" style="margin-top:12px;"></div>
+    </div>
+    <p class="subtitulo">Dia a dia</p>
+    ${dias}
+    <div class="card">
+      <p class="subtitulo">Hodômetro final</p>
+      <div id="dspFotoFim"></div>
+    </div>
+    <div class="card">
+      <label>Observações da semana <span class="dsp-opcional">(opcional)</span></label>
+      <textarea id="dspObs" rows="2" ${ro}>${escHtml((d && d.observacao) || "")}</textarea>
+      <details class="dsp-mais"><summary>Veículo e placa (opcional)</summary>
+        <label for="dspVeiculo">Veículo – modelo/ano</label><input type="text" id="dspVeiculo" maxlength="60" value="${escHtml(vei)}" ${ro}>
+        <label for="dspPlaca">Placa</label><input type="text" id="dspPlaca" maxlength="12" value="${escHtml(pla)}" ${ro}>
+      </details>
+    </div>
+    <div class="dsp-total" id="dspTotais"></div>
+    ${dsp.somenteLeitura ? "" : `<button class="btn" id="btnDspEnviar" type="button">Enviar para aprovação</button>`}
+    ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
+
+  // fotos
+  dsp.fotos = { ini: criarCampoFotos("dspFotoIni", "despesas", { titulo: "Foto do hodômetro (obrigatória)", max: 1 }), fim: criarCampoFotos("dspFotoFim", "despesas", { titulo: "Foto do hodômetro final (obrigatória)", max: 1 }), dias: [] };
+  if (d) { dsp.fotos.ini.definirUrls([d.fotoHodometroIni]); dsp.fotos.fim.definirUrls([d.fotoHodometroFim]); }
+  DSP_DIAS.forEach((_, i) => {
+    const f = criarCampoFotos(`dspFotosD${i}`, "despesas", { titulo: "Foto da nota/comprovante do dia", max: 6 });
+    if (d && d.dias && d.dias[i] && d.dias[i].fotos) f.definirUrls(d.dias[i].fotos);
+    dsp.fotos.dias.push(f);
+  });
+  if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
+
+  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", dspRdvRecalcular));
+  const sa = document.getElementById("dspSemAnt"), sp = document.getElementById("dspSemProx");
+  sa.addEventListener("click", () => { dsp.semana = dspSomar(dsp.semana, -7); dspRdvRecalcular(); });
+  sp.addEventListener("click", () => { if (dsp.semana < dspSegundaAtual()) { dsp.semana = dspSomar(dsp.semana, 7); dspRdvRecalcular(); } });
+  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", dspRdvEnviar);
+  const bX = document.getElementById("btnDspExcluir"); if (bX) bX.addEventListener("click", dspExcluir);
+  // abre o dia de hoje (ou o primeiro)
+  const hoje = dspIso(new Date()); let idxHoje = 0;
+  DSP_DIAS.forEach((_, i) => { if (dspSomar(dsp.semana, i) === hoje) idxHoje = i; });
+  const det = c.querySelectorAll(".dsp-dia"); if (!dsp.id && det[idxHoje]) det[idxHoje].open = true;
+  dspRdvRecalcular();
+}
+
+function dspRdvLer() {
+  const c = document.getElementById("dspConteudo");
+  const kmIni = c.querySelector("#dspKmInicial").value;
+  const dias = [...c.querySelectorAll(".dsp-dia")].map((el, i) => {
+    const g = (n) => el.querySelector(`[data-f="${n}"]`).value;
+    return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim() };
+  });
+  return { kmIni, dias };
+}
+
+function dspRdvRecalcular() {
+  const c = document.getElementById("dspConteudo");
+  document.getElementById("dspSemLabel").textContent = `${dspBr(dsp.semana).slice(0, 5)} a ${dspBr(dspSomar(dsp.semana, 5)).slice(0, 5)}`;
+  const { kmIni, dias } = dspRdvLer();
+  let anterior = dspNum(kmIni), km = 0, hotel = 0, almoco = 0, jantar = 0, aviso = 0;
+  c.querySelectorAll(".dsp-dia").forEach((el, i) => {
+    const x = dias[i];
+    const fim = x.kmFim === "" ? anterior : dspNum(x.kmFim);
+    const rod = Math.max(0, fim - anterior);
+    el.querySelector('[data-r="data"]').textContent = dspBr(x.data).slice(0, 5);
+    el.querySelector('[data-r="kmini"]').textContent = anterior ? anterior.toLocaleString("pt-BR") : "—";
+    const gasto = x.hotel + x.almoco + x.jantar + x.aviso;
+    const valorDia = rod * DSP_VALOR_KM + gasto;
+    el.querySelector('[data-r="resumo"]').textContent = (rod || gasto) ? `${rod} km · ${formatarMoeda(valorDia)}` : "—";
+    km += rod; hotel += x.hotel; almoco += x.almoco; jantar += x.jantar; aviso += x.aviso;
+    if (x.kmFim !== "") anterior = fim;
+  });
+  const vkm = km * DSP_VALOR_KM, total = vkm + hotel + almoco + jantar + aviso;
+  document.getElementById("dspTotais").innerHTML = `
+    <div class="linha"><span>KM rodados</span><span>${km.toLocaleString("pt-BR")} km</span></div>
+    <div class="linha"><span>KM × ${formatarMoeda(DSP_VALOR_KM)}</span><span>${formatarMoeda(vkm)}</span></div>
+    <div class="linha"><span>Hotel</span><span>${formatarMoeda(hotel)}</span></div>
+    <div class="linha"><span>Refeições (almoço + jantar)</span><span>${formatarMoeda(almoco + jantar)}</span></div>
+    <div class="linha"><span>Aviso prévio</span><span>${formatarMoeda(aviso)}</span></div>
+    <div class="linha forte"><span>Total da semana</span><span>${formatarMoeda(total)}</span></div>`;
+}
+
+async function dspRdvEnviar() {
+  const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
+  const btn = document.getElementById("btnDspEnviar");
+  const { kmIni, dias } = dspRdvLer();
+  if (kmIni === "") { marcarCampoInvalido("dspKmInicial", "Informe o KM inicial."); msg("Informe o KM inicial da semana.", "erro"); return; }
+  if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
+  if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final.", "erro"); return; }
+  btn.disabled = true; btn.textContent = "Enviando fotos...";
+  try {
+    const [ini] = await dsp.fotos.ini.enviar();
+    const [fim] = await dsp.fotos.fim.enviar();
+    const lista = [];
+    for (let i = 0; i < dias.length; i++) {
+      const fotos = await dsp.fotos.dias[i].enviar();
+      const x = dias[i];
+      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, fotos });
+    }
+    btn.textContent = "Enviando...";
+    const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
+    try { localStorage.setItem("dspVeiculo", veiculo); localStorage.setItem("dspPlaca", placa); } catch (e) {}
+    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini, fotoHodometroFim: fim, dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
+    await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "RDV", dados });
+    dspSucesso("RDV enviado para aprovação do gestor.");
+  } catch (e) {
+    msg(escHtml(e.message || "Não foi possível enviar."), "erro");
+    btn.disabled = false; btn.textContent = "Enviar para aprovação";
+  }
+}
+
+/* ---------- CI ---------- */
+function dspCiMontar() {
+  const d = dsp.dados || {};
+  const e = d.entrega || {};
+  const ro = dsp.somenteLeitura ? "disabled" : "";
+  dsp.cartao = !!d.cartaoPresente;
+  const c = document.getElementById("dspConteudo");
+  c.innerHTML = `
+    <div class="card">
+      <label for="ciAcao">Ação (o que foi feito e por quê)</label>
+      <textarea id="ciAcao" rows="3" maxlength="600" ${ro} placeholder="Ex.: Café da manhã de negócios com cliente em Pinhão/PR">${escHtml(d.acao || "")}</textarea>
+      <label for="ciCliente">Cliente</label>
+      <input type="text" id="ciCliente" maxlength="160" value="${escHtml(d.cliente || "")}" ${ro}>
+      <div class="dsp-grade" style="margin-top:12px;">
+        <div><label for="ciValor">Valor (R$)</label><input type="text" inputmode="decimal" id="ciValor" value="${d.valor ? String(d.valor).replace(".", ",") : ""}" ${ro} placeholder="0,00"></div>
+        <div><label for="ciCentro">Centro de custo</label>
+          <input type="text" id="ciCentro" list="ciCentros" maxlength="80" value="${escHtml(d.centroCusto || "")}" ${ro} placeholder="Ex.: Pecuária">
+          <datalist id="ciCentros">${DSP_CENTROS.map(x => `<option value="${x}">`).join("")}</datalist></div>
+      </div>
+      <label for="ciExec">Data da ação</label>
+      <input type="date" id="ciExec" value="${d.execucao || ""}" ${ro}>
+    </div>
+    <div class="card">
+      <label>Cartão presente?</label>
+      <div class="dsp-sim-nao">
+        <button type="button" class="btn btn-secundario ${dsp.cartao ? "" : "ativo"}" data-cartao="0" ${ro}>Não</button>
+        <button type="button" class="btn btn-secundario ${dsp.cartao ? "ativo" : ""}" data-cartao="1" ${ro}>Sim</button>
+      </div>
+      <div id="ciCartaoCampos" class="${dsp.cartao ? "" : "oculto"}">
+        <label for="ciTitular">Nome do titular do cartão</label><input type="text" id="ciTitular" maxlength="120" value="${escHtml(d.titular || "")}" ${ro}>
+        <label for="ciCpf">CPF / CNPJ</label><input type="text" id="ciCpf" inputmode="numeric" maxlength="30" value="${escHtml(d.cpfCnpj || "")}" ${ro}>
+      </div>
+    </div>
+    <div class="card">
+      <details class="dsp-mais" ${(d.tipoAcordo || d.brinde || d.periodoIni || d.observacao || e.endereco || e.recebedor) ? "open" : ""}>
+        <summary>Mais detalhes <span class="dsp-opcional">(opcional)</span></summary>
+        <label for="ciAcordo">Tipo de acordo</label><textarea id="ciAcordo" rows="2" maxlength="1500" ${ro}>${escHtml(d.tipoAcordo || "")}</textarea>
+        <label for="ciBrinde">Brinde</label><input type="text" id="ciBrinde" maxlength="120" value="${escHtml(d.brinde || "")}" ${ro}>
+        <div class="dsp-grade" style="margin-top:12px;">
+          <div><label for="ciPerIni">Campanha – início</label><input type="date" id="ciPerIni" value="${d.periodoIni || ""}" ${ro}></div>
+          <div><label for="ciPerFim">Campanha – fim</label><input type="date" id="ciPerFim" value="${d.periodoFim || ""}" ${ro}></div>
+        </div>
+        <label for="ciObs">Observação</label><textarea id="ciObs" rows="2" maxlength="600" ${ro}>${escHtml(d.observacao || "")}</textarea>
+        <p class="subtitulo" style="margin-top:14px;">Dados para entrega</p>
+        <label for="ciEnd">Endereço</label><input type="text" id="ciEnd" maxlength="160" value="${escHtml(e.endereco || "")}" ${ro}>
+        <div class="dsp-grade" style="margin-top:12px;">
+          <div><label for="ciNum">Número / compl.</label><input type="text" id="ciNum" maxlength="60" value="${escHtml(e.numero || "")}" ${ro}></div>
+          <div><label for="ciBairro">Bairro</label><input type="text" id="ciBairro" maxlength="80" value="${escHtml(e.bairro || "")}" ${ro}></div>
+        </div>
+        <label for="ciCidade">Cidade / UF</label><input type="text" id="ciCidade" maxlength="80" value="${escHtml(e.cidade || "")}" ${ro}>
+        <div class="dsp-grade" style="margin-top:12px;">
+          <div><label for="ciRec">Recebedor</label><input type="text" id="ciRec" maxlength="120" value="${escHtml(e.recebedor || "")}" ${ro}></div>
+          <div><label for="ciTel">Telefone</label><input type="text" id="ciTel" inputmode="tel" maxlength="30" value="${escHtml(e.telefone || "")}" ${ro}></div>
+        </div>
+      </details>
+    </div>
+    <div class="card"><div id="ciFotos"></div></div>
+    ${dsp.somenteLeitura ? "" : `<button class="btn" id="btnDspEnviar" type="button">Enviar para aprovação</button>`}
+    ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
+  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (opcional)", max: 6 });
+  if (d.fotos) dsp.fotoCi.definirUrls(d.fotos);
+  if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
+  c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => {
+    dsp.cartao = b.getAttribute("data-cartao") === "1";
+    c.querySelectorAll("[data-cartao]").forEach(x => x.classList.toggle("ativo", x === b));
+    document.getElementById("ciCartaoCampos").classList.toggle("oculto", !dsp.cartao);
+  }));
+  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", dspCiEnviar);
+  const bX = document.getElementById("btnDspExcluir"); if (bX) bX.addEventListener("click", dspExcluir);
+}
+
+async function dspCiEnviar() {
+  const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
+  const v = (id) => document.getElementById(id).value.trim();
+  const obrig = [["ciAcao", "Descreva a ação."], ["ciCliente", "Informe o cliente."], ["ciValor", "Informe o valor."], ["ciCentro", "Informe o centro de custo."]];
+  for (const [id, t] of obrig) {
+    if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
+  }
+  if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
+  if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
+  const btn = document.getElementById("btnDspEnviar");
+  btn.disabled = true; btn.textContent = "Enviando...";
+  try {
+    const fotos = await dsp.fotoCi.enviar();
+    const dados = {
+      acao: v("ciAcao"), cliente: v("ciCliente"), valor: dspNum(v("ciValor")), centroCusto: v("ciCentro"), execucao: v("ciExec"),
+      cartaoPresente: dsp.cartao, titular: v("ciTitular"), cpfCnpj: v("ciCpf"), tipoAcordo: v("ciAcordo"), brinde: v("ciBrinde"),
+      periodoIni: v("ciPerIni"), periodoFim: v("ciPerFim"), observacao: v("ciObs"),
+      entrega: { endereco: v("ciEnd"), numero: v("ciNum"), bairro: v("ciBairro"), cidade: v("ciCidade"), recebedor: v("ciRec"), telefone: v("ciTel") },
+      fotos
+    };
+    await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "CI", dados });
+    dspSucesso("CI enviada para aprovação do gestor.");
+  } catch (e) {
+    msg(escHtml(e.message || "Não foi possível enviar."), "erro");
+    btn.disabled = false; btn.textContent = "Enviar para aprovação";
+  }
+}
+
+async function dspExcluir() {
+  if (!confirm("Excluir esta solicitação?")) return;
+  try {
+    await dspApi("POST", "", { acao: "excluir", id: dsp.id });
+    await abrirDespesas();
+    mostrarMsg("msgDespesas", "Solicitação excluída.", "sucesso");
+  } catch (e) { mostrarMsg("msgDespesaForm", escHtml(e.message), "erro"); }
+}
+
+async function dspSucesso(texto) {
+  await abrirDespesas();
+  mostrarMsg("msgDespesas", texto, "sucesso");
 }
 
 </script>

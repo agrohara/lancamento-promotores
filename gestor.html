@@ -203,6 +203,57 @@
     .so-impressao b{color:var(--texto);}
     main{padding:10px 0;max-width:none;} tr.clicavel td:first-child::after{display:none;}
   }
+
+  /* ---------- abas e aprovação de despesas ---------- */
+  .abas{display:flex;gap:4px;background:#fff;border-bottom:1px solid var(--borda);padding:0 28px;}
+  .abas button{border:none;background:none;padding:13px 18px;font-size:14px;font-weight:700;color:var(--suave);border-bottom:3px solid transparent;min-height:46px;}
+  .abas button:hover{color:var(--marca);}
+  .abas button.ativo{color:var(--marca);border-bottom-color:var(--acao);}
+  .badge{display:inline-block;background:var(--c-atencao);color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:1px 8px;margin-left:6px;}
+  #despesasPainel{max-width:1500px;margin:0 auto;padding:18px 28px 40px;}
+  .dsp-filtro{display:inline-flex;margin-bottom:14px;}
+  .dsp-layout{display:grid;grid-template-columns:minmax(300px,380px) 1fr;gap:16px;align-items:start;}
+  @media (max-width:980px){.dsp-layout{grid-template-columns:1fr;}.abas{padding:0 12px;overflow-x:auto;}#despesasPainel{padding:14px 12px 30px;}}
+  .dsp-item{display:flex;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--borda);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;}
+  .dsp-item:hover{border-color:var(--acao);background:var(--acao-fundo);}
+  .dsp-item.sel{border-color:var(--marca);box-shadow:0 0 0 2px rgba(31,77,46,.18);background:var(--acao-fundo);}
+  .dsp-item b{display:block;}
+  .dsp-item small{color:var(--suave);}
+  .dsp-item .v{font-weight:800;white-space:nowrap;text-align:right;}
+  .st{display:inline-block;font-size:11px;font-weight:800;border-radius:999px;padding:2px 9px;margin-top:4px;}
+  .st.pendente{background:var(--c-atencao-fundo);color:var(--c-atencao);}
+  .st.ok{background:var(--c-ok-fundo);color:var(--c-ok);}
+  .st.recusada{background:var(--c-erro-fundo);color:var(--c-erro);}
+  .st.erro{background:var(--c-erro-fundo);color:var(--c-erro);}
+  .dsp-cab{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:10px;}
+  .dsp-cab h3{margin:0;font-size:17px;}
+  .dsp-tab{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 12px;}
+  .dsp-tab th,.dsp-tab td{border-bottom:1px solid var(--borda);padding:7px 8px;text-align:right;}
+  .dsp-tab th{background:var(--neutro-fundo);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--suave);}
+  .dsp-tab td:first-child,.dsp-tab th:first-child,.dsp-tab td.t,.dsp-tab th.t{text-align:left;}
+  .dsp-tab tfoot td{font-weight:800;background:var(--acao-fundo);}
+  .dsp-fotos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px;}
+  .dsp-fotos a{display:block;border:1px solid var(--borda);border-radius:8px;overflow:hidden;width:92px;height:92px;position:relative;}
+  .dsp-fotos img{width:100%;height:100%;object-fit:cover;}
+  .dsp-fotos span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 4px;}
+  .dsp-kv{display:grid;grid-template-columns:170px 1fr;gap:6px 12px;font-size:13px;margin-bottom:12px;}
+  .dsp-kv dt{color:var(--suave);font-weight:700;}
+  .dsp-kv dd{margin:0;white-space:pre-wrap;}
+  .dsp-form{border:2px solid var(--acao);border-radius:14px;padding:16px;background:#fbfdfb;margin-top:8px;}
+  .dsp-form h4{margin:0 0 10px;color:var(--marca);}
+  .dsp-form .lin{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+  .dsp-form label{display:block;font-size:12px;font-weight:800;color:var(--suave);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+  .dsp-form input,.dsp-form textarea{width:100%;padding:9px 10px;border:1.5px solid var(--borda-forte);border-radius:10px;font-size:14px;font-family:inherit;min-height:42px;}
+  .dsp-form input:focus,.dsp-form textarea:focus{outline:none;border-color:var(--acao);box-shadow:var(--foco);}
+  .dsp-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+  .dsp-ok{background:var(--acao);color:#fff;border:none;border-radius:999px;padding:11px 22px;font-weight:800;font-size:14px;min-height:46px;}
+  .dsp-ok:hover{background:var(--marca);}
+  .dsp-ok:disabled{background:#cfd6de;cursor:not-allowed;}
+  .dsp-rec{background:#fff;color:var(--c-erro);border:1.5px solid var(--c-erro);border-radius:999px;padding:11px 22px;font-weight:800;font-size:14px;min-height:46px;}
+  .dsp-rec:hover{background:var(--c-erro-fundo);}
+  .dsp-aviso{background:var(--c-erro-fundo);color:var(--c-erro);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;}
+  .dsp-info{background:var(--c-ok-fundo);color:var(--c-ok);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;}
+  @media print{.abas,#despesasPainel{display:none !important;}}
 </style>
 </head>
 <body>
@@ -226,6 +277,12 @@
     <a class="btn-topo" href="/?app=1">Abrir app de campo</a>
     <button class="btn-topo" id="btnSair" type="button">Sair</button>
   </header>
+
+
+  <nav class="abas" id="abas" aria-label="Seções">
+    <button data-aba="visao" class="ativo" type="button">Visão gerencial</button>
+    <button data-aba="despesas" type="button">Aprovação de despesas <span id="badgeDesp" class="badge oculto">0</span></button>
+  </nav>
 
   <!-- 1. Contexto e filtros -->
   <div class="filtros" role="search" aria-label="Filtros da visão gerencial">
@@ -285,6 +342,21 @@
     </div>
     <div class="card"><h3>Últimos registros</h3><p class="legenda" id="legRegistros"></p><div id="tabRegistros" class="tabela-wrap"></div></div>
   </main>
+
+  <main id="despesasPainel" class="oculto">
+    <div class="secao"><span class="n">$</span><h2>Despesas dos promotores (RDV e CI)</h2></div>
+    <div id="dspMsg" role="status"></div>
+    <div class="seg dsp-filtro" id="dspFiltro">
+      <button data-f="abertas" class="ativo" type="button">Para aprovar</button>
+      <button data-f="enviadas" type="button">Enviadas ao Kanban</button>
+      <button data-f="recusadas" type="button">Recusadas</button>
+      <button data-f="todas" type="button">Todas</button>
+    </div>
+    <div class="dsp-layout">
+      <div class="card dsp-lista-card"><h3>Solicitações</h3><div id="dspLista"><div class="vazio">Carregando...</div></div></div>
+      <div class="card dsp-detalhe-card"><div id="dspDetalhe"><div class="vazio">Selecione uma solicitação na lista.</div></div></div>
+    </div>
+  </main>
 </div>
 
 <script>
@@ -324,6 +396,7 @@ function iniciar() {
   $("nomeUsuario").textContent = sessao.nome; $("inicialUsuario").textContent = String(sessao.nome || "?").charAt(0).toUpperCase();
   aplicarPreset(presetAtivo, false);
   carregar();
+  setTimeout(carregarBadgeDesp, 0);
 }
 $("btnEntrar").addEventListener("click", async () => {
   const login = $("inLogin").value.trim(), senha = $("inSenha").value;
@@ -587,6 +660,172 @@ document.addEventListener("keydown", e => {
 });
 
 iniciar();
+
+/* =========================================================================
+   APROVAÇÃO DE DESPESAS (RDV / CI) -> Kanban
+   Cálculo e regras ficam no servidor (api/_lib/rdv.js); aqui só tela.
+   ========================================================================= */
+const URL_RDV = "/api/agenda?recurso=rdv";
+let dspItens = [], dspFiltro = "abertas", dspSel = null, dspOcupado = false;
+const moeda2 = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function numBR(v) { let s = String(v == null ? "" : v).trim(); s = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s; const n = Number(s); return isFinite(n) ? n : 0; }
+function cabecalhosApi() { return { "Content-Type": "application/json", "x-api-key": API_KEY, "Authorization": "Bearer " + (sessao && sessao.token || "") }; }
+async function apiRdv(metodo, extra, corpo) {
+  const r = await fetch(URL_RDV + (extra || ""), { method: metodo, headers: cabecalhosApi(), body: corpo ? JSON.stringify(corpo) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || "Não foi possível concluir.");
+  return d;
+}
+function stDesp(l) {
+  if (l.status === "pendente") return ["pendente", "Aguardando aprovação"];
+  if (l.status === "recusada") return ["recusada", "Recusada"];
+  if (l.status === "erro_kanban") return ["erro", "Erro no envio ao Kanban"];
+  return ["ok", "Enviada ao Kanban"];
+}
+function trocarAba(aba) {
+  const d = aba === "despesas";
+  document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativo", b.dataset.aba === aba));
+  $("despesasPainel").classList.toggle("oculto", !d);
+  document.querySelector(".filtros").classList.toggle("oculto", d);
+  $("conteudo").classList.toggle("oculto", d);
+  $("btnImprimir").classList.toggle("oculto", d);
+  if (d) carregarDespesas();
+}
+document.getElementById("abas").addEventListener("click", e => { const b = e.target.closest("button[data-aba]"); if (b) trocarAba(b.dataset.aba); });
+document.getElementById("dspFiltro").addEventListener("click", e => {
+  const b = e.target.closest("button[data-f]"); if (!b) return;
+  dspFiltro = b.dataset.f;
+  document.querySelectorAll("#dspFiltro button").forEach(x => x.classList.toggle("ativo", x === b));
+  desenharListaDesp();
+});
+
+async function carregarDespesas(manterSel) {
+  $("dspLista").innerHTML = '<div class="vazio">Carregando...</div>';
+  try {
+    const r = await apiRdv("GET", "&fila=1");
+    dspItens = r.itens || [];
+    atualizarBadgeDesp();
+    desenharListaDesp();
+    if (!manterSel) $("dspDetalhe").innerHTML = '<div class="vazio">Selecione uma solicitação na lista.</div>';
+  } catch (e) { $("dspLista").innerHTML = `<div class="dsp-aviso">${esc(e.message)}</div>`; }
+}
+async function carregarBadgeDesp() {
+  try { const r = await apiRdv("GET", "&fila=1"); dspItens = r.itens || []; atualizarBadgeDesp(); } catch (e) { /* silencioso */ }
+}
+function atualizarBadgeDesp() {
+  const n = dspItens.filter(l => l.status === "pendente" || l.status === "erro_kanban").length;
+  const b = $("badgeDesp"); b.textContent = n; b.classList.toggle("oculto", n === 0);
+}
+function desenharListaDesp() {
+  const f = { abertas: l => l.status === "pendente" || l.status === "erro_kanban", enviadas: l => l.status === "enviada_kanban", recusadas: l => l.status === "recusada", todas: () => true }[dspFiltro];
+  const lista = dspItens.filter(f);
+  $("dspLista").innerHTML = lista.length ? lista.map(l => {
+    const [c, t] = stDesp(l);
+    const titulo = l.tipo === "RDV" ? `RDV · ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}` : "CI";
+    return `<div class="dsp-item ${dspSel === l.id ? "sel" : ""}" data-id="${l.id}"><div><b>${esc(l.promotor)}</b><small>${esc(titulo)}</small><br><span class="st ${c}">${t}</span></div><div class="v">${moeda2(l.valor_promotor)}</div></div>`;
+  }).join("") : '<div class="vazio">Nada por aqui.</div>';
+}
+document.getElementById("dspLista").addEventListener("click", e => { const it = e.target.closest(".dsp-item"); if (it) abrirDetalheDesp(Number(it.dataset.id)); });
+
+async function abrirDetalheDesp(id) {
+  dspSel = id; desenharListaDesp();
+  $("dspDetalhe").innerHTML = '<div class="vazio">Carregando...</div>';
+  try { desenharDetalheDesp(await apiRdv("GET", "&id=" + id)); }
+  catch (e) { $("dspDetalhe").innerHTML = `<div class="dsp-aviso">${esc(e.message)}</div>`; }
+}
+
+function fotosHtml(lista) {
+  return lista.length ? `<div class="dsp-fotos">${lista.map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(f.url)}" alt="${esc(f.rot)}"><span>${esc(f.rot)}</span></a>`).join("")}</div>` : "";
+}
+const DIAS_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+function desenharDetalheDesp(l) {
+  const d = l.dados || {}, g = l.gestor || {};
+  const [c, t] = stDesp(l);
+  let corpo = "";
+  if (l.tipo === "RDV") {
+    const tot = l.totais || {};
+    const linhas = (d.dias || []).map((x, i) => `<tr><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${num(x.kmIni)}</td><td>${num(x.kmFim)}</td><td>${num(x.kmRodado)}</td><td>${moeda2(x.hotel)}</td><td>${moeda2(x.almoco)}</td><td>${moeda2(x.jantar)}</td><td>${moeda2(x.aviso)}</td><td class="t">${esc(x.descricao)}</td></tr>`).join("");
+    const fotos = [{ url: d.fotoHodometroIni, rot: "Hodômetro inicial" }];
+    (d.dias || []).forEach((x, i) => (x.fotos || []).forEach((u, k) => fotos.push({ url: u, rot: `Nota ${DIAS_CURTO[i]} ${k + 1}` })));
+    fotos.push({ url: d.fotoHodometroFim, rot: "Hodômetro final" });
+    corpo = `<table class="dsp-tab"><thead><tr><th>Dia</th><th>KM ini</th><th>KM fim</th><th>Rodado</th><th>Hotel</th><th>Almoço</th><th>Jantar</th><th>Aviso</th><th class="t">Descrição</th></tr></thead><tbody>${linhas}</tbody>
+      <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td>${moeda2(tot.hotel)}</td><td>${moeda2(tot.almoco)}</td><td>${moeda2(tot.jantar)}</td><td>${moeda2(tot.aviso)}</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${(tot.vkm || 0).toFixed(2).replace(".", ",")}/km) · <b>Total ${moeda2(tot.total)}</b></td></tr></tfoot></table>
+      ${d.observacao ? `<dl class="dsp-kv"><dt>Observações</dt><dd>${esc(d.observacao)}</dd></dl>` : ""}
+      ${d.veiculo || d.placa ? `<dl class="dsp-kv"><dt>Veículo / placa</dt><dd>${esc(d.veiculo)} ${esc(d.placa)}</dd></dl>` : ""}
+      ${fotosHtml(fotos)}`;
+  } else {
+    const e = d.entrega || {};
+    const kv = [["Ação", d.acao], ["Cliente", d.cliente], ["Valor informado", moeda2(d.valor)], ["Centro de custo", d.centroCusto], ["Data da ação", dataBR(d.execucao)],
+      ["Tipo de acordo", d.tipoAcordo], ["Brinde", d.brinde], ["Campanha", d.periodoIni ? dataBR(d.periodoIni) + " a " + dataBR(d.periodoFim || d.periodoIni) : ""],
+      ["Cartão presente", d.cartaoPresente ? "Sim" : "Não"], ["Titular / CPF-CNPJ", d.cartaoPresente ? (d.titular || "") + " · " + (d.cpfCnpj || "") : ""], ["Observação", d.observacao],
+      ["Entrega", [e.endereco, e.numero, e.bairro, e.cidade].filter(Boolean).join(", ")], ["Recebedor / tel.", [e.recebedor, e.telefone].filter(Boolean).join(" · ")]]
+      .filter(x => x[1]);
+    corpo = `<dl class="dsp-kv">${kv.map(x => `<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join("")}</dl>${fotosHtml((d.fotos || []).map((u, k) => ({ url: u, rot: "Anexo " + (k + 1) })))}`;
+  }
+  const titulo = l.tipo === "RDV" ? `RDV · ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}` : "CI – Comunicação Interna";
+  let aviso = "";
+  if (l.status === "recusada") aviso = `<div class="dsp-aviso">Recusada: ${esc(l.motivo_recusa)}</div>`;
+  if (l.status === "erro_kanban") aviso = `<div class="dsp-aviso">${esc(l.kanban_resposta)}<br>Confira no Kanban se o cartão já existe antes de reenviar, para não duplicar.</div>`;
+  if (l.status === "enviada_kanban") aviso = `<div class="dsp-info">${esc(l.kanban_resposta)} · ${l.enviado_kanban_em ? dataBR(String(l.enviado_kanban_em).slice(0, 10)) : ""}</div>`;
+
+  let form = "";
+  if (l.status === "pendente" || l.status === "erro_kanban") {
+    let ult = ""; try { ult = localStorage.getItem("dspUltClass") || ""; } catch (x) { }
+    const valor = g.valor != null ? g.valor : l.valor_promotor;
+    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? `RDV semanal ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)} - ${l.promotor}` : `CI - ${l.promotor} - ${d.cliente || ""}`);
+    form = `<div class="dsp-form" id="dspForm" data-id="${l.id}" data-tipo="${l.tipo}">
+      <h4>Dados para o Kanban</h4>
+      <div class="lin">
+        <div><label for="gClass">Classificação da despesa</label><input id="gClass" list="gClassLista" maxlength="100" value="${esc(g.classificacao != null ? g.classificacao : ult)}" placeholder="Conforme analítica"><datalist id="gClassLista">${l.tipo === "RDV" ? '<option value="RDV SEMANAL">' : ""}</datalist></div>
+        <div><label for="gValor">Valor (R$)</label><input id="gValor" inputmode="decimal" value="${String(valor).replace(".", ",")}"></div>
+        <div><label for="gEmissao">Data de emissão</label><input id="gEmissao" type="date" value="${esc(g.emissao || "")}"></div>
+        <div><label for="gVenc">Data de vencimento</label><input id="gVenc" type="date" value="${esc(g.vencimento || "")}"></div>
+        ${l.tipo === "CI" ? `<div><label for="gNumero">Nº da CI (opcional)</label><input id="gNumero" maxlength="30" value="${esc(g.numero || "")}" placeholder="Ex.: FF0019/26"></div>` : ""}
+      </div>
+      <div style="margin-top:12px;"><label for="gDesc">Descrição</label><textarea id="gDesc" rows="2" maxlength="1500">${esc(desc)}</textarea></div>
+      <div id="gRecusaBox" class="oculto" style="margin-top:12px;"><label for="gMotivo">Motivo da recusa (o promotor vai ver)</label><input id="gMotivo" maxlength="400"></div>
+      <div id="gMsg" role="alert"></div>
+      <div class="dsp-acoes">
+        <button class="dsp-ok" id="btnAprovarDesp" type="button">${l.status === "erro_kanban" ? "Reenviar ao Kanban" : "OK · enviar ao Kanban"}</button>
+        <button class="dsp-rec" id="btnRecusarDesp" type="button">Recusar</button>
+      </div></div>`;
+  }
+  $("dspDetalhe").innerHTML = `<div class="dsp-cab"><div><h3>${esc(l.promotor)} · ${esc(titulo)}</h3><span class="st ${c}">${t}</span></div><div style="text-align:right;"><small style="color:var(--suave)">Valor do promotor</small><div style="font-size:20px;font-weight:800">${moeda2(l.valor_promotor)}</div>${l.arquivo_url ? `<a href="${esc(l.arquivo_url)}" target="_blank" rel="noopener" style="font-size:12px">Baixar Excel gerado</a>` : ""}</div></div>${aviso}${corpo}${form}`;
+}
+
+document.getElementById("dspDetalhe").addEventListener("click", async e => {
+  const f = document.getElementById("dspForm"); if (!f) return;
+  const id = Number(f.dataset.id), tipo = f.dataset.tipo;
+  const msg = t => { $("gMsg").innerHTML = t ? `<div class="dsp-aviso">${esc(t)}</div>` : ""; };
+  if (e.target.id === "btnRecusarDesp") {
+    const box = $("gRecusaBox");
+    if (box.classList.contains("oculto")) { box.classList.remove("oculto"); $("gMotivo").focus(); e.target.textContent = "Confirmar recusa"; return; }
+    const motivo = $("gMotivo").value.trim();
+    if (!motivo) { msg("Escreva o motivo da recusa."); return; }
+    if (dspOcupado) return; dspOcupado = true;
+    try { await apiRdv("POST", "", { acao: "recusar", id, motivo }); $("dspMsg").innerHTML = '<div class="dsp-info">Solicitação recusada. O promotor poderá corrigir e reenviar.</div>'; await carregarDespesas(false); }
+    catch (x) { msg(x.message); } finally { dspOcupado = false; }
+    return;
+  }
+  if (e.target.id === "btnAprovarDesp") {
+    const corpo = { acao: "aprovar", id, classificacao: $("gClass").value.trim(), descricao: $("gDesc").value.trim(), emissao: $("gEmissao").value, vencimento: $("gVenc").value, valor: numBR($("gValor").value) };
+    if (tipo === "CI") corpo.numero = $("gNumero").value.trim();
+    if (!corpo.classificacao) { msg("Informe a classificação da despesa."); return; }
+    if (!corpo.emissao || !corpo.vencimento) { msg("Informe a data de emissão e a data de vencimento."); return; }
+    if (corpo.valor <= 0) { msg("Informe o valor."); return; }
+    if (!corpo.descricao) { msg("Informe a descrição."); return; }
+    if (dspOcupado) return; dspOcupado = true;
+    const btn = e.target; btn.disabled = true; btn.textContent = "Enviando ao Kanban...";
+    try {
+      const r = await apiRdv("POST", "", corpo);
+      try { localStorage.setItem("dspUltClass", corpo.classificacao); } catch (x) { }
+      $("dspMsg").innerHTML = r.status === "enviada_kanban" ? `<div class="dsp-info">Enviado ao Kanban. ${esc(r.kanban_resposta)}</div>` : `<div class="dsp-aviso">${esc(r.kanban_resposta)}</div>`;
+      await carregarDespesas(true); desenharDetalheDesp(r); window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (x) { msg(x.message); btn.disabled = false; btn.textContent = "OK · enviar ao Kanban"; }
+    finally { dspOcupado = false; }
+  }
+});
 </script>
 </body>
 </html>
