@@ -713,6 +713,8 @@
   .dsp-sim-nao button{flex:1;margin:0;}
   .dsp-sim-nao button.ativo{background:var(--marca,#1f4d2e);border-color:var(--marca,#1f4d2e);color:#fff;}
   details.dsp-mais>summary{cursor:pointer;font-weight:600;padding:8px 0;color:var(--marca,#1f4d2e);}
+
+  .dsp-pill.rascunho{background:#eef1f5;color:#475569;}
 </style>
 </head>
 <body>
@@ -3432,6 +3434,7 @@ function criarCampoFotos(idContainer, pasta, opcoes) {
       }
     }
     desenhar();
+    if (op.aoMudar) op.aoMudar();
   }
 
   el.querySelector('[data-acao="camera"]').addEventListener("click", () => el.querySelector('[data-in="camera"]').click());
@@ -3448,6 +3451,7 @@ function criarCampoFotos(idContainer, pasta, opcoes) {
     if (!b) return;
     itens.splice(Number(b.getAttribute("data-i")), 1);
     desenhar();
+    if (op.aoMudar) op.aoMudar();
   });
 
   return {
@@ -7178,6 +7182,18 @@ const DSP_VALOR_KM = 1.33; // apenas para o total exibido; o servidor recalcula
 const DSP_DIAS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
 const DSP_CENTROS = ["Pecuária", "PET", "PPD", "Endoecto", "Leite", "Outro"];
 let dsp = null; // estado do formulário aberto
+let dspCache = []; // última lista carregada (para reabrir o rascunho da semana)
+const DSP_EDITAVEIS = ["rascunho", "pendente", "recusada"];
+function dspSujoAtivo() {
+  const pg = document.getElementById("pagDespesaForm");
+  return !!(dsp && dsp.sujo && pg && !pg.classList.contains("oculto"));
+}
+const DSP_AVISO_SAIR = "Você tem dados não salvos. Sair mesmo assim? (Use \"Salvar rascunho\" para guardar.)";
+window.addEventListener("beforeunload", (e) => { if (dspSujoAtivo()) { e.preventDefault(); e.returnValue = ""; } });
+document.querySelector(".nav-inferior").addEventListener("click", (e) => {
+  if (dspSujoAtivo() && !confirm(DSP_AVISO_SAIR)) { e.stopPropagation(); e.preventDefault(); }
+  else if (dsp) dsp.sujo = false;
+}, true);
 
 function dspUrl(extra) { return `${CONFIG.URL_AGENDA}?recurso=rdv${extra || ""}`; }
 async function dspApi(metodo, extra, corpo) {
@@ -7207,6 +7223,7 @@ function dspSegundaAtual() {
 
 /* ---------- lista ---------- */
 function dspStatusTexto(l) {
+  if (l.status === "rascunho") return { t: "Em preenchimento · não enviado", c: "rascunho" };
   if (l.status === "pendente") return { t: "Aguardando aprovação", c: "pendente" };
   if (l.status === "recusada") return { t: "Recusada · corrigir", c: "recusada" };
   if (l.status === "erro_kanban") return { t: "Aprovada · enviando ao Kanban", c: "ok" };
@@ -7221,6 +7238,7 @@ async function abrirDespesas() {
   try {
     const r = await dspApi("GET", "");
     const itens = r.itens || [];
+    dspCache = itens;
     lista.innerHTML = itens.length === 0
       ? '<div class="carregando-lista">Nenhuma solicitação ainda. Use os botões acima para começar.</div>'
       : itens.map(l => {
@@ -7243,19 +7261,28 @@ document.getElementById("listaDespesas").addEventListener("click", (e) => {
 });
 document.getElementById("btnNovoRdv").addEventListener("click", () => dspNovo("RDV"));
 document.getElementById("btnNovaCi").addEventListener("click", () => dspNovo("CI"));
-document.getElementById("btnDspVoltar").addEventListener("click", () => abrirDespesas());
+document.getElementById("btnDspVoltar").addEventListener("click", () => {
+  if (dspSujoAtivo() && !confirm(DSP_AVISO_SAIR)) return;
+  if (dsp) dsp.sujo = false;
+  abrirDespesas();
+});
 
 async function dspAbrirExistente(id) {
   try {
     const l = await dspApi("GET", `&id=${id}`);
-    dsp = { tipo: l.tipo, id: l.id, status: l.status, motivo: l.motivo_recusa, dados: l.dados, somenteLeitura: !["pendente", "recusada"].includes(l.status), resumo: l };
+    dsp = { tipo: l.tipo, id: l.id, status: l.status, motivo: l.motivo_recusa, dados: l.dados, somenteLeitura: !DSP_EDITAVEIS.includes(l.status), resumo: l, sujo: false };
     dspDesenhar();
   } catch (e) {
     mostrarMsg("msgDespesas", escHtml(e.message), "erro");
   }
 }
 function dspNovo(tipo) {
-  dsp = { tipo, id: null, status: null, motivo: "", dados: null, somenteLeitura: false };
+  if (tipo === "RDV") {
+    // Já existe RDV (rascunho/enviado/recusado) desta semana? Abre ele em vez de criar outro.
+    const ja = dspCache.find(l => l.tipo === "RDV" && l.periodo_ini === dspSegundaAtual() && DSP_EDITAVEIS.includes(l.status));
+    if (ja) { dspAbrirExistente(ja.id); return; }
+  }
+  dsp = { tipo, id: null, status: null, motivo: "", dados: null, somenteLeitura: false, sujo: false };
   if (tipo === "RDV") dsp.semana = dspSegundaAtual();
   dspDesenhar();
 }
@@ -7270,6 +7297,7 @@ function dspDesenhar() {
     : dsp.somenteLeitura
       ? `<div class="msg msg-sucesso">Esta solicitação já foi aprovada e não pode mais ser alterada.</div>` : "";
   document.getElementById("dspTitulo").textContent = dsp.tipo === "RDV" ? "RDV da semana" : "CI – Comunicação Interna";
+  dsp.sujo = false;
   if (dsp.tipo === "RDV") dspRdvMontar(); else dspCiMontar();
 }
 
@@ -7289,7 +7317,7 @@ function dspRdvMontar() {
       <div class="dsp-corpo">
         <div class="dsp-kmini">KM inicial do dia: <b data-r="kmini">—</b></div>
         <label>KM final do dia</label>
-        <input type="number" inputmode="numeric" min="0" step="1" data-f="kmFim" value="${x.kmRodado > 0 ? x.kmFim : ""}" ${ro} placeholder="Deixe vazio se não rodou">
+        <input type="number" inputmode="numeric" min="0" step="1" data-f="kmFim" value="${x.kmFimInformado !== undefined ? (x.kmFimInformado === null ? "" : x.kmFimInformado) : (x.kmRodado > 0 ? x.kmFim : "")}" ${ro} placeholder="Deixe vazio se não rodou">
         <div class="dsp-grade" style="margin-top:12px;">
           <div><label>Hotel (R$)</label><input type="text" inputmode="decimal" data-f="hotel" value="${v("hotel")}" ${ro} placeholder="0,00"></div>
           <div><label>Almoço (R$)</label><input type="text" inputmode="decimal" data-f="almoco" value="${v("almoco")}" ${ro} placeholder="0,00"></div>
@@ -7329,24 +7357,28 @@ function dspRdvMontar() {
       </details>
     </div>
     <div class="dsp-total" id="dspTotais"></div>
-    ${dsp.somenteLeitura ? "" : `<button class="btn" id="btnDspEnviar" type="button">Enviar para aprovação</button>`}
+    ${dsp.somenteLeitura ? "" : `<button class="btn btn-secundario" id="btnDspRascunho" type="button">💾 Salvar rascunho</button>
+    <button class="btn" id="btnDspEnviar" type="button" style="margin-top:10px;">Enviar para aprovação</button>
+    <p class="dsp-opcional" style="margin-top:6px;">Pode salvar e voltar depois para completar. Só vai ao gestor quando você tocar em <b>Enviar para aprovação</b>.</p>`}
     ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
 
   // fotos
-  dsp.fotos = { ini: criarCampoFotos("dspFotoIni", "despesas", { titulo: "Foto do hodômetro (obrigatória)", max: 1 }), fim: criarCampoFotos("dspFotoFim", "despesas", { titulo: "Foto do hodômetro final (obrigatória)", max: 1 }), dias: [] };
+  const sujar = () => { if (dsp) dsp.sujo = true; };
+  dsp.fotos = { ini: criarCampoFotos("dspFotoIni", "despesas", { titulo: "Foto do hodômetro (obrigatória para enviar)", max: 1, aoMudar: sujar }), fim: criarCampoFotos("dspFotoFim", "despesas", { titulo: "Foto do hodômetro final (obrigatória para enviar)", max: 1, aoMudar: sujar }), dias: [] };
   if (d) { dsp.fotos.ini.definirUrls([d.fotoHodometroIni]); dsp.fotos.fim.definirUrls([d.fotoHodometroFim]); }
   DSP_DIAS.forEach((_, i) => {
-    const f = criarCampoFotos(`dspFotosD${i}`, "despesas", { titulo: "Foto da nota/comprovante do dia", max: 6 });
+    const f = criarCampoFotos(`dspFotosD${i}`, "despesas", { titulo: "Foto da nota/comprovante do dia", max: 6, aoMudar: sujar });
     if (d && d.dias && d.dias[i] && d.dias[i].fotos) f.definirUrls(d.dias[i].fotos);
     dsp.fotos.dias.push(f);
   });
   if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
 
-  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", dspRdvRecalcular));
+  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; dspRdvRecalcular(); }));
   const sa = document.getElementById("dspSemAnt"), sp = document.getElementById("dspSemProx");
   sa.addEventListener("click", () => { dsp.semana = dspSomar(dsp.semana, -7); dspRdvRecalcular(); });
   sp.addEventListener("click", () => { if (dsp.semana < dspSegundaAtual()) { dsp.semana = dspSomar(dsp.semana, 7); dspRdvRecalcular(); } });
-  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", dspRdvEnviar);
+  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", () => dspRdvGravar(false));
+  const bR = document.getElementById("btnDspRascunho"); if (bR) bR.addEventListener("click", () => dspRdvGravar(true));
   const bX = document.getElementById("btnDspExcluir"); if (bX) bX.addEventListener("click", dspExcluir);
   // abre o dia de hoje (ou o primeiro)
   const hoje = dspIso(new Date()); let idxHoje = 0;
@@ -7392,14 +7424,31 @@ function dspRdvRecalcular() {
     <div class="linha forte"><span>Total da semana</span><span>${formatarMoeda(total)}</span></div>`;
 }
 
-async function dspRdvEnviar() {
+function dspBotoes(ocupado, textoEnviar) {
+  const e = document.getElementById("btnDspEnviar"), r = document.getElementById("btnDspRascunho");
+  if (e) { e.disabled = ocupado; e.textContent = textoEnviar || "Enviar para aprovação"; }
+  if (r) r.disabled = ocupado;
+}
+// Garante o botão "Excluir" depois do primeiro salvamento (sem redesenhar a tela).
+function dspGarantirExcluir() {
+  if (!dsp.id || document.getElementById("btnDspExcluir")) return;
+  const b = document.createElement("button");
+  b.className = "btn btn-secundario"; b.id = "btnDspExcluir"; b.type = "button"; b.style.marginTop = "10px"; b.textContent = "Excluir solicitação";
+  b.addEventListener("click", dspExcluir);
+  document.getElementById("dspConteudo").appendChild(b);
+}
+
+async function dspRdvGravar(rascunho) {
   const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
-  const btn = document.getElementById("btnDspEnviar");
   const { kmIni, dias } = dspRdvLer();
   if (kmIni === "") { marcarCampoInvalido("dspKmInicial", "Informe o KM inicial."); msg("Informe o KM inicial da semana.", "erro"); return; }
-  if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
-  if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final.", "erro"); return; }
-  btn.disabled = true; btn.textContent = "Enviando fotos...";
+  if (!rascunho) {
+    if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
+    if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final antes de enviar. Se a semana ainda não acabou, use Salvar rascunho.", "erro"); return; }
+  }
+  dspBotoes(true, rascunho ? "Enviar para aprovação" : "Enviando fotos...");
+  const bR = document.getElementById("btnDspRascunho"); const txtR = bR ? bR.textContent : "";
+  if (rascunho && bR) bR.textContent = "Salvando...";
   try {
     const [ini] = await dsp.fotos.ini.enviar();
     const [fim] = await dsp.fotos.fim.enviar();
@@ -7409,15 +7458,26 @@ async function dspRdvEnviar() {
       const x = dias[i];
       lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, fotos });
     }
-    btn.textContent = "Enviando...";
+    if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
     try { localStorage.setItem("dspVeiculo", veiculo); localStorage.setItem("dspPlaca", placa); } catch (e) {}
-    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini, fotoHodometroFim: fim, dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
-    await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "RDV", dados });
-    dspSucesso("RDV enviado para aprovação do gestor.");
+    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini || "", fotoHodometroFim: fim || "", dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
+    const r = await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "RDV", rascunho, dados });
+    dsp.id = r.id; dsp.sujo = false;
+    if (rascunho) {
+      dsp.status = "rascunho"; dspGarantirExcluir();
+      msg("Rascunho salvo. Você pode voltar depois e completar os outros dias.", "sucesso");
+      dspBotoes(false);
+      if (bR) bR.textContent = txtR;
+    } else {
+      dspSucesso("RDV enviado para aprovação do gestor.");
+    }
   } catch (e) {
-    msg(escHtml(e.message || "Não foi possível enviar."), "erro");
-    btn.disabled = false; btn.textContent = "Enviar para aprovação";
+    if (e.dados && e.dados.id && /já existe um rdv/i.test(e.message || "")) {
+      msg(escHtml(e.message) + ' <a href="#" id="dspAbrirDup">Abrir agora</a>', "erro");
+      const a = document.getElementById("dspAbrirDup"); if (a) a.addEventListener("click", (ev) => { ev.preventDefault(); dsp.sujo = false; dspAbrirExistente(e.dados.id); });
+    } else msg(escHtml(e.message || "Não foi possível salvar."), "erro");
+    dspBotoes(false); if (bR) bR.textContent = txtR || "💾 Salvar rascunho";
   }
 }
 
@@ -7478,9 +7538,10 @@ function dspCiMontar() {
       </details>
     </div>
     <div class="card"><div id="ciFotos"></div></div>
-    ${dsp.somenteLeitura ? "" : `<button class="btn" id="btnDspEnviar" type="button">Enviar para aprovação</button>`}
+    ${dsp.somenteLeitura ? "" : `<button class="btn btn-secundario" id="btnDspRascunho" type="button">💾 Salvar rascunho</button>
+    <button class="btn" id="btnDspEnviar" type="button" style="margin-top:10px;">Enviar para aprovação</button>`}
     ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
-  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (opcional)", max: 6 });
+  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (opcional)", max: 6, aoMudar: () => { if (dsp) dsp.sujo = true; } });
   if (d.fotos) dsp.fotoCi.definirUrls(d.fotos);
   if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
   c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => {
@@ -7488,21 +7549,29 @@ function dspCiMontar() {
     c.querySelectorAll("[data-cartao]").forEach(x => x.classList.toggle("ativo", x === b));
     document.getElementById("ciCartaoCampos").classList.toggle("oculto", !dsp.cartao);
   }));
-  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", dspCiEnviar);
+  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; }));
+  c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => { dsp.sujo = true; }));
+  const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", () => dspCiGravar(false));
+  const bR = document.getElementById("btnDspRascunho"); if (bR) bR.addEventListener("click", () => dspCiGravar(true));
   const bX = document.getElementById("btnDspExcluir"); if (bX) bX.addEventListener("click", dspExcluir);
 }
 
-async function dspCiEnviar() {
+async function dspCiGravar(rascunho) {
   const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
   const v = (id) => document.getElementById(id).value.trim();
-  const obrig = [["ciAcao", "Descreva a ação."], ["ciCliente", "Informe o cliente."], ["ciValor", "Informe o valor."], ["ciCentro", "Informe o centro de custo."]];
-  for (const [id, t] of obrig) {
-    if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
+  if (!rascunho) {
+    const obrig = [["ciAcao", "Descreva a ação."], ["ciCliente", "Informe o cliente."], ["ciValor", "Informe o valor."], ["ciCentro", "Informe o centro de custo."]];
+    for (const [id, t] of obrig) {
+      if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
+    }
+    if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
+    if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
+  } else if (!v("ciAcao") && !v("ciCliente") && !v("ciValor")) {
+    msg("Preencha ao menos a ação, o cliente ou o valor para salvar o rascunho.", "erro"); return;
   }
-  if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
-  if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
-  const btn = document.getElementById("btnDspEnviar");
-  btn.disabled = true; btn.textContent = "Enviando...";
+  dspBotoes(true, rascunho ? "Enviar para aprovação" : "Enviando...");
+  const bR = document.getElementById("btnDspRascunho"); const txtR = bR ? bR.textContent : "";
+  if (rascunho && bR) bR.textContent = "Salvando...";
   try {
     const fotos = await dsp.fotoCi.enviar();
     const dados = {
@@ -7512,17 +7581,23 @@ async function dspCiEnviar() {
       entrega: { endereco: v("ciEnd"), numero: v("ciNum"), bairro: v("ciBairro"), cidade: v("ciCidade"), recebedor: v("ciRec"), telefone: v("ciTel") },
       fotos
     };
-    await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "CI", dados });
-    dspSucesso("CI enviada para aprovação do gestor.");
+    const r = await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "CI", rascunho, dados });
+    dsp.id = r.id; dsp.sujo = false;
+    if (rascunho) {
+      dsp.status = "rascunho"; dspGarantirExcluir();
+      msg("Rascunho salvo. Você pode voltar depois e completar.", "sucesso");
+      dspBotoes(false); if (bR) bR.textContent = txtR;
+    } else dspSucesso("CI enviada para aprovação do gestor.");
   } catch (e) {
-    msg(escHtml(e.message || "Não foi possível enviar."), "erro");
-    btn.disabled = false; btn.textContent = "Enviar para aprovação";
+    msg(escHtml(e.message || "Não foi possível salvar."), "erro");
+    dspBotoes(false); if (bR) bR.textContent = txtR || "💾 Salvar rascunho";
   }
 }
 
 async function dspExcluir() {
   if (!confirm("Excluir esta solicitação?")) return;
   try {
+    dsp.sujo = false;
     await dspApi("POST", "", { acao: "excluir", id: dsp.id });
     await abrirDespesas();
     mostrarMsg("msgDespesas", "Solicitação excluída.", "sucesso");
