@@ -107,8 +107,13 @@ function normalizarRdv(d, rascunho) {
     dias.push(reg);
   }
   if (!rascunho && !temMovimento) falha("Preencha pelo menos um dia da semana.");
+  // KM do hodômetro final (o que o promotor lê no painel): precisa bater com o último KM dos dias.
+  const kmHodFinal = numero(d.kmFinalHodometro, "o KM do hodômetro final", { obrigatorio: !rascunho, max: 9999999 });
+  if (!rascunho && kmHodFinal !== kmAnterior) {
+    falha(`O KM do hodômetro final (${kmHodFinal}) não bate com o último KM informado nos dias (${kmAnterior}). Confira os KM finais de cada dia.`);
+  }
   return {
-    semana, kmInicial, kmFinal: kmAnterior, fotoHodometroIni: hodIni, fotoHodometroFim: hodFim,
+    semana, kmInicial, kmFinal: kmAnterior, kmFinalHodometro: kmHodFinal || null, fotoHodometroIni: hodIni, fotoHodometroFim: hodFim,
     veiculo: txt(d.veiculo, 60), placa: txt(d.placa, 12).toUpperCase(),
     observacao: txtLongo(d.observacao, 800), dias
   };
@@ -229,7 +234,7 @@ function planilhaRdv(sol, extra) {
 
   p.cel("A23", "INFORMAÇÕES DE RELEVÂNCIA SOBRE AS DESPESAS", cab); p.mescla("A23:K23");
   p.cel("A24", d.observacao || "", { borda: true, wrap: true, v: "top" }); p.mescla("A24:K27"); p.estiloIntervalo("A24:K27", { borda: true });
-  p.cel("A29", `Hodômetro inicial: ${d.kmInicial}  |  Hodômetro final: ${d.kmFinal}  |  Fotos do hodômetro e das notas seguem anexas no Kanban.`, { sz: 9, cor: "666666" }); p.mescla("A29:K29");
+  p.cel("A29", `Hodômetro inicial: ${d.kmInicial}  |  Hodômetro final: ${d.kmFinalHodometro || d.kmFinal}  |  Fotos do hodômetro e das notas seguem anexas no Kanban.`, { sz: 9, cor: "666666" }); p.mescla("A29:K29");
   p.cel("A30", `Enviado pelo app Gestão de Campo em ${br(extra.hoje)}${extra.aprovador ? " | Aprovado por " + extra.aprovador : ""}.`, { sz: 9, cor: "666666" }); p.mescla("A30:K30");
   return p.gerar();
 }
