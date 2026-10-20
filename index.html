@@ -7346,7 +7346,10 @@ function dspRdvMontar() {
     ${dias}
     <div class="card">
       <p class="subtitulo">Hodômetro final</p>
-      <div id="dspFotoFim"></div>
+      <label for="dspKmFinal">KM final da semana (como está no painel)</label>
+      <input type="number" inputmode="numeric" min="0" step="1" id="dspKmFinal" value="${d && d.kmFinalHodometro ? d.kmFinalHodometro : ""}" ${ro} placeholder="Ex.: 16849">
+      <div class="dsp-kmini" id="dspKmFinalDica" style="margin-top:6px;"></div>
+      <div id="dspFotoFim" style="margin-top:12px;"></div>
     </div>
     <div class="card">
       <label>Observações da semana <span class="dsp-opcional">(opcional)</span></label>
@@ -7394,7 +7397,7 @@ function dspRdvLer() {
     const g = (n) => el.querySelector(`[data-f="${n}"]`).value;
     return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim() };
   });
-  return { kmIni, dias };
+  return { kmIni, dias, kmFinal: c.querySelector("#dspKmFinal").value };
 }
 
 function dspRdvRecalcular() {
@@ -7414,6 +7417,12 @@ function dspRdvRecalcular() {
     km += rod; hotel += x.hotel; almoco += x.almoco; jantar += x.jantar; aviso += x.aviso;
     if (x.kmFim !== "") anterior = fim;
   });
+  const dica = document.getElementById("dspKmFinalDica");
+  if (dica) {
+    const kf = document.getElementById("dspKmFinal").value;
+    const ok = kf !== "" && dspNum(kf) === anterior;
+    dica.innerHTML = anterior ? `Último KM informado nos dias: <b>${anterior.toLocaleString("pt-BR")}</b>${kf === "" ? "" : ok ? " · confere ✓" : ' · <span style="color:var(--c-erro,#b91c1c);font-weight:700;">não confere com o KM digitado</span>'}` : "";
+  }
   const vkm = km * DSP_VALOR_KM, total = vkm + hotel + almoco + jantar + aviso;
   document.getElementById("dspTotais").innerHTML = `
     <div class="linha"><span>KM rodados</span><span>${km.toLocaleString("pt-BR")} km</span></div>
@@ -7440,9 +7449,10 @@ function dspGarantirExcluir() {
 
 async function dspRdvGravar(rascunho) {
   const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
-  const { kmIni, dias } = dspRdvLer();
+  const { kmIni, dias, kmFinal } = dspRdvLer();
   if (kmIni === "") { marcarCampoInvalido("dspKmInicial", "Informe o KM inicial."); msg("Informe o KM inicial da semana.", "erro"); return; }
   if (!rascunho) {
+    if (kmFinal === "") { marcarCampoInvalido("dspKmFinal", "Informe o KM final."); msg("Informe o KM final do hodômetro (como está no painel).", "erro"); return; }
     if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
     if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final antes de enviar. Se a semana ainda não acabou, use Salvar rascunho.", "erro"); return; }
   }
@@ -7461,7 +7471,7 @@ async function dspRdvGravar(rascunho) {
     if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
     try { localStorage.setItem("dspVeiculo", veiculo); localStorage.setItem("dspPlaca", placa); } catch (e) {}
-    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini || "", fotoHodometroFim: fim || "", dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
+    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini || "", fotoHodometroFim: fim || "", kmFinalHodometro: kmFinal === "" ? null : dspNum(kmFinal), dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
     const r = await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "RDV", rascunho, dados });
     dsp.id = r.id; dsp.sujo = false;
     if (rascunho) {
