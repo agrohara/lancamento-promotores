@@ -68,15 +68,15 @@ function urlsDoStorage(lista, max) {
 function umaUrl(v) { return urlsDoStorage([v], 1)[0] || ""; }
 
 /* ---------- validação e cálculo ---------- */
-function normalizarRdv(d) {
+function normalizarRdv(d, rascunho) {
   d = d || {};
   const semana = dataIso(d.semana, "a semana", true);
   if (new Date(semana + "T00:00:00Z").getUTCDay() !== 1) falha("A semana deve começar na segunda-feira.");
   const kmInicial = numero(d.kmInicial, "o KM inicial", { obrigatorio: true, max: 9999999 });
   const hodIni = umaUrl(d.fotoHodometroIni);
   const hodFim = umaUrl(d.fotoHodometroFim);
-  if (!hodIni) falha("Envie a foto do hodômetro inicial.");
-  if (!hodFim) falha("Envie a foto do hodômetro final.");
+  if (!rascunho && !hodIni) falha("Envie a foto do hodômetro inicial.");
+  if (!rascunho && !hodFim) falha("Envie a foto do hodômetro final.");
 
   const entrada = Array.isArray(d.dias) ? d.dias : [];
   let kmAnterior = kmInicial;
@@ -87,11 +87,11 @@ function normalizarRdv(d) {
     const data = paraIso(ms(semana) + i * 86400000);
     const kmFimBruto = dia.kmFim === "" || dia.kmFim === undefined || dia.kmFim === null ? null : numero(dia.kmFim, `o KM final de ${DIAS_SEMANA[i].toLowerCase()}`, { max: 9999999 });
     const kmIni = kmAnterior;
-    if (kmFimBruto !== null && kmFimBruto < kmIni) falha(`KM final de ${DIAS_SEMANA[i].toLowerCase()} (${kmFimBruto}) é menor que o inicial (${kmIni}).`);
+    if (!rascunho && kmFimBruto !== null && kmFimBruto < kmIni) falha(`KM final de ${DIAS_SEMANA[i].toLowerCase()} (${kmFimBruto}) é menor que o inicial (${kmIni}).`);
     const kmFim = kmFimBruto === null ? kmIni : kmFimBruto;
-    const rod = kmFim - kmIni;
+    const rod = Math.max(0, kmFim - kmIni);
     const reg = {
-      data, kmIni, kmFim, kmRodado: rod,
+      data, kmIni, kmFim, kmRodado: rod, kmFimInformado: kmFimBruto,
       hotel: cent(numero(dia.hotel, "hotel", { max: 100000 })),
       almoco: cent(numero(dia.almoco, "almoço", { max: 100000 })),
       jantar: cent(numero(dia.jantar, "jantar", { max: 100000 })),
@@ -100,13 +100,13 @@ function normalizarRdv(d) {
       fotos: urlsDoStorage(dia.fotos, 8)
     };
     const gastou = reg.hotel + reg.almoco + reg.jantar + reg.aviso;
-    if ((rod > 0 || gastou > 0) && !reg.descricao) falha(`Descreva a atividade de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
-    if (gastou > 0 && reg.fotos.length === 0) falha(`Anexe a foto da nota de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && (rod > 0 || gastou > 0) && !reg.descricao) falha(`Descreva a atividade de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && gastou > 0 && reg.fotos.length === 0) falha(`Anexe a foto da nota de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (rod > 0 || gastou > 0) temMovimento = true;
     kmAnterior = kmFim;
     dias.push(reg);
   }
-  if (!temMovimento) falha("Preencha pelo menos um dia da semana.");
+  if (!rascunho && !temMovimento) falha("Preencha pelo menos um dia da semana.");
   return {
     semana, kmInicial, kmFinal: kmAnterior, fotoHodometroIni: hodIni, fotoHodometroFim: hodFim,
     veiculo: txt(d.veiculo, 60), placa: txt(d.placa, 12).toUpperCase(),
@@ -125,10 +125,10 @@ function totaisRdv(d) {
   return { km, valorKm, hotel, almoco, jantar, aviso, total: cent(valorKm + hotel + almoco + jantar + aviso), vkm };
 }
 
-function normalizarCi(d) {
+function normalizarCi(d, rascunho) {
   d = d || {};
   const cartao = d.cartaoPresente === true || d.cartaoPresente === "SIM";
-  const valor = cent(numero(d.valor, "o valor", { min: 0.01, obrigatorio: true, max: 1e7 }));
+  const valor = cent(numero(d.valor, "o valor", { min: rascunho ? 0 : 0.01, obrigatorio: !rascunho, max: 1e7 }));
   const reg = {
     acao: txtLongo(d.acao, 600),
     execucao: dataIso(d.execucao, "a data de execução", false),
@@ -150,10 +150,12 @@ function normalizarCi(d) {
     centroCusto: txt(d.centroCusto, 80),
     fotos: urlsDoStorage(d.fotos, 8)
   };
-  if (!reg.acao) falha("Descreva a ação.");
-  if (!reg.cliente) falha("Informe o cliente.");
-  if (!reg.centroCusto) falha("Informe o centro de custo (ex.: Pecuária, PET).");
-  if (cartao && !reg.titular) falha("Informe o nome do titular do cartão presente.");
+  if (!rascunho) {
+    if (!reg.acao) falha("Descreva a ação.");
+    if (!reg.cliente) falha("Informe o cliente.");
+    if (!reg.centroCusto) falha("Informe o centro de custo (ex.: Pecuária, PET).");
+    if (cartao && !reg.titular) falha("Informe o nome do titular do cartão presente.");
+  }
   return reg;
 }
 
@@ -336,13 +338,14 @@ async function tratarRdv(req, res, ctx) {
         const { data, error } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(q.id)).maybeSingle();
         if (error) throw error;
         if (!data) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
-        if (!ehGestor && data.promotor_login !== loginUsuario) { res.status(403).json({ erro: "Sem permissão." }); return; }
+        if (data.promotor_login !== loginUsuario && (!ehGestor || data.status === "rascunho")) { res.status(403).json({ erro: "Sem permissão." }); return; }
         res.status(200).json(detalheLinha(data));
         return;
       }
       let consulta = supabase.from("solicitacoes_despesa").select("*").order("criado_em", { ascending: false }).limit(150);
       const fila = ehGestor && String(q.fila || "") === "1";
       if (!fila) consulta = consulta.eq("promotor_login", loginUsuario);
+      else consulta = consulta.neq("status", "rascunho");
       const { data, error } = await consulta;
       if (error) throw error;
       res.status(200).json({ itens: (data || []).map(resumoLinha), fila });
@@ -356,20 +359,22 @@ async function tratarRdv(req, res, ctx) {
     /* ----- promotor: salvar / excluir ----- */
     if (acao === "salvar") {
       const tipo = b.tipo === "CI" ? "CI" : b.tipo === "RDV" ? "RDV" : falha("Escolha RDV ou CI.");
-      const dados = tipo === "RDV" ? normalizarRdv(b.dados) : normalizarCi(b.dados);
+      const rascunho = b.rascunho === true;
+      const dados = tipo === "RDV" ? normalizarRdv(b.dados, rascunho) : normalizarCi(b.dados, rascunho);
       const periodoIni = tipo === "RDV" ? dados.semana : null;
       const periodoFim = tipo === "RDV" ? paraIso(ms(dados.semana) + 5 * 86400000) : null;
-      const valorPromotor = tipo === "RDV" ? totaisRdv(dados).total : dados.valor;
+      let valorPromotor = 0;
+      try { valorPromotor = tipo === "RDV" ? totaisRdv(dados).total : dados.valor; } catch (e) { valorPromotor = 0; }
       const base = {
         tipo, dados, periodo_ini: periodoIni, periodo_fim: periodoFim, valor_promotor: valorPromotor,
-        status: "pendente", motivo_recusa: null, atualizado_em: new Date().toISOString()
+        status: rascunho ? "rascunho" : "pendente", motivo_recusa: null, atualizado_em: new Date().toISOString()
       };
       if (b.id) {
         const { data: atual, error: e1 } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
         if (e1) throw e1;
         if (!atual) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
         if (atual.promotor_login !== loginUsuario) { res.status(403).json({ erro: "Só quem criou pode alterar." }); return; }
-        if (!["pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Esta solicitação já foi aprovada e não pode mais ser alterada." }); return; }
+        if (!["rascunho", "pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Esta solicitação já foi aprovada e não pode mais ser alterada." }); return; }
         if (atual.tipo !== tipo) { res.status(400).json({ erro: "Não é possível trocar o tipo." }); return; }
         const { data, error } = await supabase.from("solicitacoes_despesa").update(base).eq("id", atual.id).select().single();
         if (error) throw error;
@@ -379,7 +384,7 @@ async function tratarRdv(req, res, ctx) {
       if (tipo === "RDV") {
         const { data: dup, error: e2 } = await supabase.from("solicitacoes_despesa").select("id,status").eq("promotor_login", loginUsuario).eq("tipo", "RDV").eq("periodo_ini", periodoIni).neq("status", "recusada");
         if (e2) throw e2;
-        if (dup && dup.length) { res.status(409).json({ erro: "Você já enviou o RDV desta semana. Abra-o na lista para alterar." , id: dup[0].id }); return; }
+        if (dup && dup.length) { res.status(409).json({ erro: "Já existe um RDV desta semana. Abra-o na lista para continuar.", id: dup[0].id }); return; }
       }
       const { data, error } = await supabase.from("solicitacoes_despesa")
         .insert({ ...base, promotor_login: loginUsuario, promotor_nome: nomeUsuario, criado_em: new Date().toISOString() }).select().single();
@@ -392,7 +397,7 @@ async function tratarRdv(req, res, ctx) {
       const { data: atual } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
       if (!atual) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
       if (atual.promotor_login !== loginUsuario && !ehGestor) { res.status(403).json({ erro: "Sem permissão." }); return; }
-      if (!["pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Já enviada ao Kanban: não pode ser excluída." }); return; }
+      if (!["rascunho", "pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Já aprovada: não pode ser excluída." }); return; }
       const { error } = await supabase.from("solicitacoes_despesa").delete().eq("id", atual.id);
       if (error) throw error;
       res.status(200).json({ status: "ok" });
@@ -407,7 +412,7 @@ async function tratarRdv(req, res, ctx) {
       if (!motivo) { res.status(400).json({ erro: "Informe o motivo da recusa." }); return; }
       const { data: atual } = await supabase.from("solicitacoes_despesa").select("status").eq("id", Number(b.id)).maybeSingle();
       if (!atual) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
-      if (atual.status === "enviada_kanban") { res.status(409).json({ erro: "Já enviada ao Kanban." }); return; }
+      if (!["pendente", "erro_kanban"].includes(atual.status)) { res.status(409).json({ erro: "Esta solicitação não está aguardando aprovação." }); return; }
       const { data, error } = await supabase.from("solicitacoes_despesa")
         .update({ status: "recusada", motivo_recusa: motivo, atualizado_em: new Date().toISOString() }).eq("id", Number(b.id)).select().single();
       if (error) throw error;
