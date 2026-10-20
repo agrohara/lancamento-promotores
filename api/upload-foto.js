@@ -21,7 +21,7 @@ const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase } = require("./_lib/supabase");
 
 const BUCKET = "fotos";
-const PASTAS_VALIDAS = ["visitas", "pedidos", "calendarios"];
+const PASTAS_VALIDAS = ["visitas", "pedidos", "calendarios", "despesas"];
 
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.status(204).end(); return; }

@@ -28,6 +28,7 @@
 // PATCH /api/agenda                            -> edita um compromisso existente (por Id)
 // DELETE /api/agenda?id=N                      -> exclui um compromisso
 // GET  /api/agenda?recurso=gestor&de=&ate=...  -> Visão gerencial (ver api/_lib/gestor.js)
+// ANY  /api/agenda?recurso=rdv...               -> Despesas RDV/CI + Kanban (ver api/_lib/rdv.js)
 // ANY  /api/agenda?recurso=calendario...       -> Calendário Sanitário (ver api/_lib/calendario.js)
 //
 // Colunas da tabela "agenda_compromissos" no Supabase: nome_promotor, tipo_cliente
@@ -50,6 +51,7 @@ const { obterSupabase } = require("./_lib/supabase");
 const { segundaFeira, somarDias, statusSemana } = require("./_lib/agenda_prazo");
 const { tratarCalendario } = require("./_lib/calendario");
 const { tratarGestor } = require("./_lib/gestor");
+const { tratarRdv } = require("./_lib/rdv");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 const TIPOS_CLIENTE_VALIDOS = ["revenda", "propriedade"];
@@ -115,6 +117,12 @@ module.exports = async function handler(req, res) {
   // funções da Vercel. Lógica em api/_lib/calendario.js.
   if (req.query && req.query.recurso === "calendario") {
     await tratarCalendario(req, res, { usuario, ehGestor, supabase });
+    return;
+  }
+
+  // Despesas dos promotores (RDV semanal e CI) + envio ao Kanban. Lógica em api/_lib/rdv.js.
+  if (req.query && req.query.recurso === "rdv") {
+    await tratarRdv(req, res, { usuario, ehGestor, supabase });
     return;
   }
 
