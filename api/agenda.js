@@ -27,6 +27,7 @@
 // POST /api/agenda                             -> cria um compromisso novo
 // PATCH /api/agenda                            -> edita um compromisso existente (por Id)
 // DELETE /api/agenda?id=N                      -> exclui um compromisso
+// GET  /api/agenda?recurso=gestor&de=&ate=...  -> Visão gerencial (ver api/_lib/gestor.js)
 // ANY  /api/agenda?recurso=calendario...       -> Calendário Sanitário (ver api/_lib/calendario.js)
 //
 // Colunas da tabela "agenda_compromissos" no Supabase: nome_promotor, tipo_cliente
@@ -48,6 +49,7 @@ const { usuarioDaRequisicao } = require("./_lib/auth");
 const { obterSupabase } = require("./_lib/supabase");
 const { segundaFeira, somarDias, statusSemana } = require("./_lib/agenda_prazo");
 const { tratarCalendario } = require("./_lib/calendario");
+const { tratarGestor } = require("./_lib/gestor");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 const TIPOS_CLIENTE_VALIDOS = ["revenda", "propriedade"];
@@ -113,6 +115,18 @@ module.exports = async function handler(req, res) {
   // funções da Vercel. Lógica em api/_lib/calendario.js.
   if (req.query && req.query.recurso === "calendario") {
     await tratarCalendario(req, res, { usuario, ehGestor, supabase });
+    return;
+  }
+
+  // Visão gerencial (gestor.html): indicadores, comparativos e rankings. Só gestor.
+  if (req.query && req.query.recurso === "gestor") {
+    if (req.method !== "GET") { res.status(405).json({ erro: "Use GET." }); return; }
+    if (!ehGestor) { res.status(403).json({ erro: "Acesso restrito à gestão." }); return; }
+    try {
+      await tratarGestor(req, res);
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao montar a visão gerencial.", detalhe: err.detalhe || String(err.message || err) });
+    }
     return;
   }
 
