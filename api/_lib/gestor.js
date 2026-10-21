@@ -31,7 +31,7 @@ async function tratarGestor(req, res) {
 
   const supabase = obterSupabase();
   const [linL, linV, metas, usuarios] = await Promise.all([
-    buscarTodasLinhas(supabase, "lancamentos", "nome_promotor,revenda,propriedade,produto,valor_total,dia_lancamento", null),
+    buscarTodasLinhas(supabase, "lancamentos", "id,nome_promotor,revenda,propriedade,produto,unidade,volume,valor_total,dia_lancamento,id_envio", null),
     buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null),
     supabase.from("metas_revenda").select("revenda, meta_semanal").then(r => r.data || []).catch(() => []),
     supabase.from("usuarios").select("nome, cargo").ilike("cargo", "promotor").then(r => r.data || []).catch(() => [])
@@ -40,6 +40,10 @@ async function tratarGestor(req, res) {
   const todosPed = linL.map(l => ({
     promotor: String(l.nome_promotor || "").trim(), revenda: String(l.revenda || "").trim(),
     fazenda: String(l.propriedade || "").trim(), produto: String(l.produto || "").trim(),
+    unidade: String(l.unidade || "").trim(), volume: Number(l.volume) || 0,
+    // chave do pedido: um pedido tem vários itens (linhas) com o mesmo id_envio; registros
+    // antigos sem id_envio contam cada linha como um pedido.
+    pk: l.id_envio ? String(l.id_envio) : "linha-" + l.id,
     valor: Number(l.valor_total) || 0, data: String(l.dia_lancamento || "").slice(0, 10)
   })).filter(p => p.promotor && ISO.test(p.data));
   const todasVis = linV.map(v => ({
@@ -64,9 +68,10 @@ async function tratarGestor(req, res) {
   const soma = arr => arr.reduce((s, p) => s + p.valor, 0);
   const nFaz = (p, v) => new Set([...p.map(x => x.fazenda), ...v.map(x => x.fazenda)].filter(Boolean)).size;
   const nProm = (p, v) => new Set([...p.map(x => x.promotor), ...v.map(x => x.promotor)]).size;
+  const nPed = arr => new Set(arr.map(x => x.pk)).size;
   const kpi = (p, v) => ({
-    valor: soma(p), pedidos: p.length, visitas: v.length, fazendas: nFaz(p, v), promotoresAtivos: nProm(p, v),
-    ticket: p.length ? soma(p) / p.length : 0
+    valor: soma(p), pedidos: nPed(p), itens: p.length, visitas: v.length, fazendas: nFaz(p, v), promotoresAtivos: nProm(p, v),
+    ticket: nPed(p) ? soma(p) / nPed(p) : 0
   });
   const kA = kpi(pedA, visA), kB = kpi(pedB, visB);
   const variacao = {};
@@ -98,7 +103,8 @@ async function tratarGestor(req, res) {
     const va = visA.filter(x => igual(x.promotor, n)), vb = visB.filter(x => igual(x.promotor, n));
     return {
       promotor: n, valor: soma(pa), valorAnt: soma(pb), variacao: var_(soma(pa), soma(pb)),
-      pedidos: pa.length, visitas: va.length, visitasAnt: vb.length, fazendas: nFaz(pa, va),
+      pedidos: nPed(pa), itens: pa.length, visitas: va.length, visitasAnt: vb.length, fazendas: nFaz(pa, va),
+      spark: serie.map(b => soma(pa.filter(x => emP(x, b.inicio, b.fim)))),
       semAtividade: !pa.length && !va.length
     };
   }).sort((a, b) => b.valor - a.valor || b.visitas - a.visitas);
@@ -107,8 +113,9 @@ async function tratarGestor(req, res) {
   // nenhum filtro de promotor/fazenda, já que a meta é da revenda inteira).
   const mapaMeta = new Map(metas.map(m => [String(m.revenda || "").trim().toLowerCase(), Number(m.meta_semanal) || 0]));
   const mapaRev = new Map();
-  pedA.forEach(p => { if (p.revenda) { const r = mapaRev.get(p.revenda) || { revenda: p.revenda, valor: 0, valorAnt: 0, pedidos: 0 }; r.valor += p.valor; r.pedidos++; mapaRev.set(p.revenda, r); } });
+  pedA.forEach(p => { if (p.revenda) { const r = mapaRev.get(p.revenda) || { revenda: p.revenda, valor: 0, valorAnt: 0, pedidos: 0 }; r.valor += p.valor; mapaRev.set(p.revenda, r); } });
   pedB.forEach(p => { if (p.revenda) { const r = mapaRev.get(p.revenda) || { revenda: p.revenda, valor: 0, valorAnt: 0, pedidos: 0 }; r.valorAnt += p.valor; mapaRev.set(p.revenda, r); } });
+  mapaRev.forEach((r, nome) => { r.pedidos = nPed(pedA.filter(x => x.revenda === nome)); });
   const totalRev = [...mapaRev.values()].reduce((s, r) => s + r.valor, 0);
   const usaMeta = !fPromotor && !fFazenda;
   const porRevenda = [...mapaRev.values()].map(r => {
@@ -123,7 +130,7 @@ async function tratarGestor(req, res) {
   // Fazendas
   const mapaFaz = new Map();
   const faz = n => { if (!mapaFaz.has(n)) mapaFaz.set(n, { fazenda: n, valor: 0, pedidos: 0, visitas: 0 }); return mapaFaz.get(n); };
-  pedA.forEach(p => { if (p.fazenda) { const f = faz(p.fazenda); f.valor += p.valor; f.pedidos++; } });
+  pedA.forEach(p => { if (p.fazenda) { const f = faz(p.fazenda); f.valor += p.valor; f.pedidos++; } }); // pedidos = itens aqui (uso interno)
   visA.forEach(v => { if (v.fazenda) faz(v.fazenda).visitas++; });
   const porFazenda = [...mapaFaz.values()].sort((a, b) => b.valor - a.valor || b.visitas - a.visitas).slice(0, 15);
 
@@ -144,7 +151,31 @@ async function tratarGestor(req, res) {
     ...visA.map(v => ({ tipo: "Visita", data: v.data, promotor: v.promotor, fazenda: v.fazenda, revenda: "", detalhe: v.tipo, valor: null }))
   ].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 40);
 
+  // CUBO de vendas (quem vendeu × para onde × o quê): agregado no menor nível
+  // (promotor, revenda, fazenda, produto, unidade) para o navegador fazer o drill-down sem
+  // novas chamadas. v = valor, q = quantidade (soma do volume), i = itens, n = pedidos distintos.
+  const SEP = "\u0001";
+  const cuboMap = new Map(), pedMap = new Map(), antMap = new Map();
+  pedA.forEach(x => {
+    const k = [x.promotor, x.revenda, x.fazenda, x.produto, x.unidade].join(SEP);
+    const c = cuboMap.get(k) || { p: x.promotor, r: x.revenda, f: x.fazenda, pr: x.produto, un: x.unidade, v: 0, q: 0, i: 0, peds: new Set() };
+    c.v += x.valor; c.q += x.volume; c.i++; c.peds.add(x.pk); cuboMap.set(k, c);
+    const k2 = [x.promotor, x.revenda, x.fazenda].join(SEP);
+    const c2 = pedMap.get(k2) || { p: x.promotor, r: x.revenda, f: x.fazenda, peds: new Set() };
+    c2.peds.add(x.pk); pedMap.set(k2, c2);
+  });
+  pedB.forEach(x => {
+    const k = [x.promotor, x.revenda, x.fazenda, x.produto].join(SEP);
+    const c = antMap.get(k) || { p: x.promotor, r: x.revenda, f: x.fazenda, pr: x.produto, v: 0 };
+    c.v += x.valor; antMap.set(k, c);
+  });
+  const r2 = n => Math.round(n * 100) / 100;
+  const cubo = [...cuboMap.values()].map(c => ({ p: c.p, r: c.r, f: c.f, pr: c.pr, un: c.un, v: r2(c.v), q: r2(c.q), i: c.i, n: c.peds.size }));
+  const cuboPed = [...pedMap.values()].map(c => ({ p: c.p, r: c.r, f: c.f, n: c.peds.size }));
+  const cuboAnt = [...antMap.values()].map(c => ({ p: c.p, r: c.r, f: c.f, pr: c.pr, v: r2(c.v) }));
+
   res.status(200).json({
+    cubo, cuboPed, cuboAnt,
     periodo: { de, ate, dias, deAnt, ateAnt },
     filtros: { promotor: fPromotor || null, revenda: fRevenda || null, fazenda: fFazenda || null },
     opcoes: { promotores: promotoresCadastrados, revendas: revendasTodas },
