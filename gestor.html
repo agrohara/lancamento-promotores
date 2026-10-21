@@ -254,6 +254,78 @@
   .dsp-aviso{background:var(--c-erro-fundo);color:var(--c-erro);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;}
   .dsp-info{background:var(--c-ok-fundo);color:var(--c-ok);border-radius:10px;padding:10px 12px;margin:8px 0;font-size:13px;font-weight:600;}
   @media print{.abas,#despesasPainel{display:none !important;}}
+
+  /* ---------- visão de vendas: cartões, explorador, mapa ---------- */
+  .dest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;}
+  .dest-grid .dest{margin:0;}
+  .dest-grid .vazio{grid-column:1/-1;}
+  .legenda-secao{margin:-4px 0 12px;font-size:13px;color:var(--suave);}
+  .grid-prom{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+  .pc{background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:14px 16px 12px;box-shadow:var(--sombra-1);cursor:pointer;display:flex;flex-direction:column;gap:6px;position:relative;transition:border-color .15s,box-shadow .15s,transform .15s;}
+  .pc:hover{border-color:var(--acao);box-shadow:var(--sombra-2);transform:translateY(-1px);}
+  .pc:focus-visible{outline:2px solid var(--acao);outline-offset:2px;}
+  .pc.sel{border-color:var(--marca);box-shadow:0 0 0 2px rgba(31,77,46,.22);background:#f6fbf4;}
+  .pc.zero{opacity:.7;}
+  .pc .cab{display:flex;align-items:center;gap:8px;}
+  .pc .pos{margin:0;flex:0 0 24px;width:24px;height:24px;}
+  .pc.top1 .pos{background:var(--acao);color:#fff;}
+  .pc .nome-p{font-weight:800;font-size:15px;color:var(--texto);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pc .val-p{font-size:26px;font-weight:800;color:var(--marca);letter-spacing:-.02em;line-height:1.1;}
+  .pc .part{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--suave);font-weight:700;}
+  .pc .trilho-p{flex:1;height:8px;background:#edf1f5;border-radius:6px;overflow:hidden;}
+  .pc .trilho-p i{display:block;height:100%;background:var(--acao);border-radius:6px;}
+  .pc .stats{display:flex;gap:6px 14px;flex-wrap:wrap;font-size:12px;color:var(--suave);}
+  .pc .stats b{color:var(--texto);}
+  .pc svg.spark{display:block;width:100%;height:34px;margin-top:2px;}
+  .pc .ir{position:absolute;right:14px;bottom:10px;font-size:11px;font-weight:800;color:var(--acao);opacity:0;transition:opacity .15s;}
+  .pc:hover .ir,.pc:focus-visible .ir{opacity:1;}
+  .semat{margin-top:10px;font-size:13px;color:var(--suave);}
+  .semat .tag{margin-right:6px;}
+  .explorador{padding:16px 18px 18px;}
+  .ex-topo{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .ex-topo .seg button[disabled]{color:#b3bcc7;cursor:not-allowed;background:#f7f9fb;}
+  .ex-caminho{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--suave);}
+  .ex-caminho .raiz{font-weight:800;color:var(--marca);}
+  .ex-caminho .sep{color:var(--mudo);}
+  .ex-caminho .chip{background:var(--cd,var(--acao-fundo));}
+  .ex-resumo{display:flex;flex-wrap:wrap;gap:8px 26px;align-items:baseline;padding:10px 14px;background:var(--neutro-fundo);border-radius:12px;margin-bottom:14px;}
+  .ex-resumo .it{display:flex;flex-direction:column;line-height:1.2;}
+  .ex-resumo .it span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--suave);font-weight:800;}
+  .ex-resumo .it b{font-size:20px;color:var(--marca);}
+  .treemap{position:relative;height:300px;border-radius:12px;overflow:hidden;background:#eef1f5;margin-bottom:16px;}
+  .tile{position:absolute;padding:8px 10px;color:#fff;overflow:hidden;border:2px solid #fff;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-start;gap:2px;line-height:1.2;transition:filter .12s;background:var(--bg,var(--cor));}
+  .tile:hover{filter:brightness(1.18);}
+  .tile:focus-visible{outline:3px solid #fff;outline-offset:-5px;}
+  .tile .t-n{font-weight:800;font-size:13px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+  .tile .t-v{font-size:12px;font-weight:700;opacity:.95;}
+  .tile.pequeno .t-v,.tile.minusculo .t-n,.tile.minusculo .t-v{display:none;}
+  .tile.outros{background:#9aa7b4;cursor:default;}
+  .tile.outros:hover{filter:none;}
+  td.qtd{color:var(--suave);}
+  .linha-barra{display:block;height:5px;background:#edf1f5;border-radius:4px;margin-top:4px;max-width:260px;}
+  .linha-barra i{display:block;height:100%;border-radius:4px;background:var(--cor,var(--acao));}
+  td.nome-ex{max-width:340px;white-space:normal;}
+  td.nome-ex b{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  tr.clicavel.sem-drill{cursor:default;} tr.clicavel.sem-drill:hover td{background:inherit;} tr.clicavel.sem-drill td:first-child::after{display:none;}
+  .explorador{scroll-margin-top:170px;}
+  @media (max-width:820px){.explorador{scroll-margin-top:12px;}.treemap{height:240px;}.grid-prom{grid-template-columns:1fr;}.dest-grid{grid-template-columns:1fr;}}
+  @media print{.treemap{height:260px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}.tile,.pc .trilho-p i{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.pc{break-inside:avoid;}.ir{display:none;}}
+
+  /* ajustes finos (filtros compactos, tabela do explorador no celular) */
+  .seg button{padding:8px 10px;font-size:12.5px;}
+  .filtros input[type=date]{min-width:118px;}
+  .filtros select{min-width:140px;}
+  .filtros-linha{gap:10px 14px;}
+  tr.clicavel td.nome-ex::after{display:none;}
+  @media (max-width:700px){
+    #exTabela th:nth-child(3),#exTabela td:nth-child(3),#exTabela th:nth-child(4),#exTabela td:nth-child(4),
+    #exTabela th:nth-child(5),#exTabela td:nth-child(5),#exTabela th:nth-child(7),#exTabela td:nth-child(7){display:none;}
+    td.nome-ex{max-width:none;}
+    .ex-resumo{gap:8px 18px;} .ex-resumo .it b{font-size:17px;}
+  }
+  .filtros select{max-width:170px;}
+  @media (min-width:1500px){.filtros select{max-width:230px;}}
+  td.qtd{white-space:normal;max-width:210px;text-align:right;line-height:1.3;}
 </style>
 </head>
 <body>
@@ -315,32 +387,39 @@
     <div class="secao"><span class="n">1</span><h2>Indicadores do período</h2></div>
     <div class="grid g-kpi" id="kpis"></div>
 
-    <!-- 3. Evolução e destaques -->
-    <div class="secao"><span class="n">2</span><h2>Evolução e destaques</h2></div>
-    <div class="grid g-eq">
-      <div class="card"><h3>Evolução no período</h3><p class="legenda" id="legGrafico"></p>
-        <div class="seg alt-metrica" id="altMetrica"><button data-m="valor" class="ativo">Valor em pedidos</button><button data-m="visitas">Visitas</button></div>
-        <div class="leg-linha"><span><i></i>Período atual</span><span><i class="a"></i>Período anterior</span></div>
-        <div id="grafico"></div>
+    <!-- 2. O que mudou -->
+    <div class="secao"><span class="n">2</span><h2>O que mudou</h2></div>
+    <div id="destaques" class="dest-grid"></div>
+
+    <!-- 3. Quem vendeu -->
+    <div class="secao"><span class="n">3</span><h2>Quem vendeu</h2></div>
+    <p class="legenda-secao" id="legPromotores"></p>
+    <div id="cartoesPromotores" class="grid-prom"></div>
+    <div id="semAtividade"></div>
+
+    <!-- 4. Para onde e o que vendeu (explorador com drill-down) -->
+    <div class="secao"><span class="n">4</span><h2>Para onde e o que vendeu</h2></div>
+    <div class="card explorador" id="explorador">
+      <div class="ex-topo">
+        <div class="seg" id="exTabs" role="tablist" aria-label="Agrupar vendas por">
+          <button data-dim="promotor" type="button">Promotor</button>
+          <button data-dim="revenda" type="button">Revenda</button>
+          <button data-dim="fazenda" type="button">Fazenda / cliente</button>
+          <button data-dim="produto" type="button">Produto</button>
+        </div>
+        <div id="exCaminho" class="ex-caminho"></div>
       </div>
-      <div class="card"><h3>Destaques</h3><p class="legenda">O que mudou em relação ao período anterior</p><div id="destaques"></div></div>
+      <div id="exResumo" class="ex-resumo"></div>
+      <div id="exTreemap" class="treemap" aria-label="Mapa de vendas"></div>
+      <div id="exTabela" class="tabela-wrap"></div>
     </div>
 
-    <!-- 4. Comparação da equipe -->
-    <div class="secao"><span class="n">3</span><h2>Comparação da equipe</h2></div>
+    <!-- 5. Atividade de campo -->
+    <div class="secao"><span class="n">5</span><h2>Atividade de campo</h2></div>
     <div class="grid g-2-1">
-      <div class="card"><h3><span class="bola"></span>Promotores</h3><p class="legenda">Clique na linha para detalhar o promotor · clique no título da coluna para ordenar</p><div id="tabPromotores" class="tabela-wrap"></div></div>
-      <div class="card"><h3><span class="bola"></span>Revendas</h3><p class="legenda">Barra = valor no período · marca laranja = meta proporcional ao período</p><div id="listaRevendas"></div></div>
-    </div>
-
-    <!-- 5. Detalhamento -->
-    <div class="secao"><span class="n">4</span><h2>Detalhamento</h2></div>
-    <div class="grid g3">
-      <div class="card"><h3><span class="bola" style="--cor:var(--c-fazenda)"></span>Fazendas</h3><p class="legenda">Clique para ver só os registros da fazenda</p><div id="tabFazendas" class="tabela-wrap"></div></div>
+      <div class="card"><h3>Últimos registros</h3><p class="legenda" id="legRegistros"></p><div id="tabRegistros" class="tabela-wrap"></div></div>
       <div class="card"><h3><span class="bola" style="--cor:var(--c-visita)"></span>Tipos de visita</h3><p class="legenda">Barra cinza = período anterior</p><div id="listaTipos"></div></div>
-      <div class="card"><h3><span class="bola" style="--cor:var(--c-pedido)"></span>Produtos mais vendidos</h3><p class="legenda">Por valor em pedidos</p><div id="listaProdutos"></div></div>
     </div>
-    <div class="card"><h3>Últimos registros</h3><p class="legenda" id="legRegistros"></p><div id="tabRegistros" class="tabela-wrap"></div></div>
   </main>
 
   <main id="despesasPainel" class="oculto">
@@ -364,7 +443,7 @@
 const API_KEY = "Marcelo9955@";
 const URL_LOGIN = "/api/login", URL_GESTOR = "/api/agenda?recurso=gestor";
 const CHAVE_SESSAO = "sessaoAgroHara";
-let sessao = null, dados = null, metrica = "valor", ordem = { col: "valor", dir: -1 }, expandido = {};
+let sessao = null, dados = null, expandido = {};
 const filtro = { de: "", ate: "", promotor: "", revenda: "", fazenda: "" };
 let presetAtivo = "mes", reqId = 0, timer = null;
 
@@ -517,58 +596,9 @@ function desenhar() {
     ["k-ticket", "ticket", "Ticket médio", brl(k.ticket), v.ticket, brl(a.ticket)]
   ];
   $("kpis").innerHTML = cards.map(c => `<div class="card kpi ${c[0]}"><div class="topo-kpi"><span class="rot">${c[2]}</span><span class="ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[c[1]]}</svg></span></div><div class="val">${c[3]}</div><div class="comp">${delta(c[4])}<span class="ant">antes: ${c[5]}</span></div></div>`).join("");
-  desenharGrafico(); desenharDestaques(); desenharPromotores(); desenharRevendas();
-  desenharFazendas(); desenharTipos(); desenharProdutos(); desenharRegistros();
+  desenharDestaques(); desenharCartoesPromotores(); exReset(); desenharTipos(); desenharRegistros();
 }
 const vazio = (t, s) => `<div class="vazio"><b>${t}</b>${s || ""}</div>`;
-
-function desenharGrafico() {
-  const s = dados.serie, W = 760, H = 260, mE = 74, mD = 28, mT = 14, mB = 32;
-  const kA = metrica === "valor" ? "valor" : "visitas", kB = metrica === "valor" ? "valorAnt" : "visitasAnt";
-  const cor = metrica === "valor" ? "#3d8b28" : "#2563eb";
-  $("grafico").parentElement.style.setProperty("--cor-metrica", cor);
-  $("legGrafico").textContent = dados.passo === 1 ? "Dia a dia" : "Semana a semana (blocos de 7 dias a partir da data inicial)";
-  const max = Math.max(1, ...s.map(x => Math.max(x[kA], x[kB])));
-  const topo = niceMax(max), n = s.length;
-  const X = i => mE + (n === 1 ? (W - mE - mD) / 2 : (i * (W - mE - mD)) / (n - 1));
-  const Y = val => mT + (H - mT - mB) * (1 - val / topo);
-  const fmt = val => metrica === "valor" ? compacto(val) : num(val);
-  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Evolução no período: período atual comparado com o anterior"><defs><linearGradient id="grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor}" stop-opacity=".22"/><stop offset="1" stop-color="${cor}" stop-opacity="0"/></linearGradient></defs>`;
-  for (let g = 0; g <= 4; g++) {
-    const val = (topo * g) / 4, y = Y(val);
-    svg += `<line x1="${mE}" x2="${W - mD}" y1="${y}" y2="${y}" stroke="#e6ebf1" stroke-width="1"/><text x="${mE - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#5b6776">${fmt(val)}</text>`;
-  }
-  const passoRot = Math.ceil(n / 10);
-  s.forEach((x, i) => { if (i % passoRot === 0) svg += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#5b6776">${dm(x.inicio)}</text>`; });
-  const pts = key => s.map((x, i) => `${X(i)},${Y(x[key])}`).join(" ");
-  if (n > 1) svg += `<polygon points="${X(0)},${Y(0)} ${pts(kA)} ${X(n - 1)},${Y(0)}" fill="url(#grad)"/>`;
-  svg += `<polyline points="${pts(kB)}" fill="none" stroke="#9aa7b4" stroke-width="2" stroke-dasharray="6 5" stroke-linejoin="round" stroke-linecap="round"/>`;
-  svg += `<polyline points="${pts(kA)}" fill="none" stroke="${cor}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
-  s.forEach((x, i) => { svg += `<circle cx="${X(i)}" cy="${Y(x[kB])}" r="3" fill="#fff" stroke="#9aa7b4" stroke-width="2"/><circle cx="${X(i)}" cy="${Y(x[kA])}" r="4.5" fill="${cor}" stroke="#fff" stroke-width="2"/>`; });
-  const larg = n === 1 ? W : (W - mE - mD) / (n - 1);
-  s.forEach((x, i) => { svg += `<rect data-i="${i}" x="${X(i) - larg / 2}" y="${mT}" width="${larg}" height="${H - mT - mB}" fill="transparent"/>`; });
-  svg += "</svg><div id='tip'></div>";
-  $("grafico").innerHTML = svg;
-  const tip = $("tip");
-  $("grafico").onmousemove = e => {
-    const r = e.target.closest("rect[data-i]");
-    if (!r) { tip.style.display = "none"; return; }
-    const x = s[+r.dataset.i];
-    const dif = x[kB] > 0 ? Math.round(((x[kA] - x[kB]) / x[kB]) * 100) : null;
-    tip.innerHTML = `<b>${dm(x.inicio)}${x.fim !== x.inicio ? " a " + dm(x.fim) : ""}</b><br>Atual: ${metrica === "valor" ? brl(x[kA]) : num(x[kA])}<br>Anterior: ${metrica === "valor" ? brl(x[kB]) : num(x[kB])}${dif != null ? `<br>${dif >= 0 ? "▲" : "▼"} ${Math.abs(dif)}%` : ""}`;
-    const box = $("grafico").getBoundingClientRect();
-    tip.style.display = "block";
-    tip.style.left = Math.min(e.clientX - box.left + 14, box.width - 170) + "px"; tip.style.top = (e.clientY - box.top - 10) + "px";
-  };
-  $("grafico").onmouseleave = () => { tip.style.display = "none"; };
-}
-function niceMax(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
-$("altMetrica").addEventListener("click", e => {
-  const b = e.target.closest("button"); if (!b) return;
-  metrica = b.dataset.m; document.querySelectorAll("#altMetrica button").forEach(x => x.classList.toggle("ativo", x === b));
-  $("altMetrica").style.setProperty("--cor-metrica", metrica === "valor" ? "#3d8b28" : "#2563eb");
-  desenharGrafico();
-});
 
 function desenharDestaques() {
   const d = dados, itens = [];
@@ -597,42 +627,11 @@ function limite(chave, lista, n) { return expandido[chave] ? lista : lista.slice
 function botaoMais(chave, total, n) { return total > n ? `<button class="verMais" type="button" data-mais="${chave}">${expandido[chave] ? "Mostrar menos" : "Ver todos (" + total + ")"}</button>` : ""; }
 function pillMeta(p) { return p == null ? "" : `<span class="tag ${p >= 100 ? "ok" : p >= 70 ? "" : "mal"}">${p >= 100 ? "✓" : p >= 70 ? "◐" : "▼"} ${p}% da meta</span>`; }
 
-function desenharPromotores() {
-  const lista = [...dados.porPromotor].sort((a, b) => (ordem.dir) * ((a[ordem.col] ?? -1e15) - (b[ordem.col] ?? -1e15)));
-  const max = Math.max(1, ...lista.map(p => Math.max(p.valor, p.valorAnt)));
-  const th = (col, rot, cor) => `<th class="ord ${ordem.col === col ? "ativo" : ""}" data-ord="${col}" tabindex="0" role="columnheader button" aria-sort="${ordem.col === col ? (ordem.dir < 0 ? "descending" : "ascending") : "none"}" title="Ordenar por ${rot}">${cor ? `<span class="pt" style="--cor:${cor}"></span>` : ""}${rot}${ordem.col === col ? (ordem.dir < 0 ? " ↓" : " ↑") : " ⇅"}</th>`;
-  const linhas = limite("prom", lista, 8).map((p, i) => `<tr class="clicavel ${p.semAtividade ? "zero" : ""}" data-promotor="${esc(p.promotor)}" tabindex="0" role="button" aria-label="Detalhar ${esc(p.promotor)}">
-    <td class="nome"><span class="pos top">${i + 1}</span>${esc(p.promotor)} ${p.semAtividade ? '<span class="tag">⚠ sem atividade</span>' : ""}</td>
-    <td class="barra-cel"><div class="barra" style="width:${(p.valor / max) * 100}%"></div><div class="barra ant" style="width:${(p.valorAnt / max) * 100}%"></div></td>
-    <td class="c-valor">${brl(p.valor)}</td><td>${delta(p.variacao)}</td><td>${num(p.pedidos)}</td><td>${num(p.visitas)}</td><td>${num(p.fazendas)}</td></tr>`).join("");
-  $("tabPromotores").innerHTML = lista.length ? `<table><thead><tr><th>Promotor</th><th style="text-align:left;">Valor · cinza = anterior</th>${th("valor", "Valor", "#3d8b28")}${th("variacao", "Var.")}${th("pedidos", "Pedidos", "#0f766e")}${th("visitas", "Visitas", "#2563eb")}${th("fazendas", "Fazendas", "#7c3aed")}</tr></thead><tbody>${linhas}</tbody></table>${botaoMais("prom", lista.length, 8)}` : vazio("Sem promotores neste recorte");
-}
-
-function desenharRevendas() {
-  const l = dados.porRevenda, max = Math.max(1, ...l.map(r => Math.max(r.valor, r.metaPeriodo || 0)));
-  $("listaRevendas").innerHTML = l.length ? (limite("rev", l, 8).map(r => `<div class="hb clicavel" data-revenda="${esc(r.revenda)}" tabindex="0" role="button" title="Detalhar ${esc(r.revenda)}">
-    <span class="n">${esc(r.revenda)}</span>
-    <span><span class="trilho"><span class="pre" style="width:${(r.valor / max) * 100}%"></span>${r.metaPeriodo ? `<span class="marca" style="left:${(r.metaPeriodo / max) * 100}%" title="Meta do período: ${brl(r.metaPeriodo)}"></span>` : ""}</span></span>
-    <span class="v">${compacto(r.valor)} ${pillMeta(r.atingimento)} ${delta(r.variacao)}</span></div>`).join("")) + botaoMais("rev", l.length, 8) : vazio("Sem pedidos no período", "Ajuste o período ou os filtros.");
-}
-
-function desenharFazendas() {
-  const l = dados.porFazenda;
-  const linhas = limite("faz", l, 8).map(f => `<tr class="clicavel" data-fazenda="${esc(f.fazenda)}" tabindex="0" role="button" aria-label="Ver registros de ${esc(f.fazenda)}"><td class="nome" title="${esc(f.fazenda)}">${esc(f.fazenda)}</td><td class="c-valor">${brl(f.valor)}</td><td>${num(f.visitas)}</td></tr>`).join("");
-  $("tabFazendas").innerHTML = l.length ? `<table><thead><tr><th>Fazenda</th><th><span class="pt" style="--cor:#3d8b28"></span>Valor</th><th><span class="pt" style="--cor:#2563eb"></span>Visitas</th></tr></thead><tbody>${linhas}</tbody></table>${botaoMais("faz", l.length, 8)}` : vazio("Sem fazendas atendidas", "Nenhuma visita ou pedido no recorte.");
-}
-
 function desenharTipos() {
   const l = dados.porTipoVisita, max = Math.max(1, ...l.map(t => Math.max(t.total, t.totalAnt)));
   $("listaTipos").innerHTML = l.map(t => `<div class="hb" style="--cor:#2563eb"><span class="n" title="${esc(t.tipo)}">${esc(t.tipo)}</span>
     <span><span class="trilho"><span class="pre" style="width:${(t.total / max) * 100}%"></span></span><span class="ant-barra" style="width:${(t.totalAnt / max) * 100}%"></span></span>
     <span class="v">${num(t.total)}</span></div>`).join("") || vazio("Sem visitas no período", dados.filtros.revenda ? "O filtro de revenda exclui visitas." : "");
-}
-
-function desenharProdutos() {
-  const l = dados.porProduto, max = Math.max(1, ...l.map(p => p.valor));
-  $("listaProdutos").innerHTML = l.length ? limite("prod", l, 6).map(p => `<div class="hb" style="--cor:#0f766e"><span class="n" title="${esc(p.produto)}">${esc(p.produto)}</span>
-    <span class="trilho"><span class="pre" style="width:${(p.valor / max) * 100}%"></span></span><span class="v">${compacto(p.valor)}</span></div>`).join("") + botaoMais("prod", l.length, 6) : vazio("Sem pedidos no período");
 }
 
 function desenharRegistros() {
@@ -643,20 +642,203 @@ function desenharRegistros() {
     limite("reg", l, 10).map(r => `<tr><td style="text-align:left;">${dataBR(r.data)}</td><td style="text-align:left;"><span class="tag ${r.tipo === "Pedido" ? "ok" : ""}" style="${r.tipo === "Pedido" ? "background:#e3f5f3;color:#0f766e" : "background:#eaf1ff;color:#2563eb"}">${r.tipo === "Pedido" ? "🛒" : "👁"} ${r.tipo}</span></td><td style="text-align:left;">${esc(r.promotor)}</td><td class="nome" style="text-align:left;">${esc(r.fazenda)}</td><td class="nome" style="text-align:left;">${esc(r.revenda) || "—"}</td><td class="nome" style="text-align:left;">${esc(r.detalhe)}</td><td class="c-valor">${r.valor != null ? brl(r.valor) : "—"}</td></tr>`).join("") + `</tbody></table>${botaoMais("reg", l.length, 10)}` : vazio("Sem registros neste recorte", "Ajuste o período ou limpe os filtros.");
 }
 
+/* =========================================================================
+   QUEM VENDEU (cartões) + EXPLORADOR (drill-down: promotor > revenda > fazenda > produto)
+   Os dados vêm do "cubo" agregado pelo servidor; o clique só filtra no navegador.
+   ========================================================================= */
+const DIMS = {
+  promotor: { c: "p", rot: "Promotor", cor: "#3d8b28", vazio: "(sem promotor)" },
+  revenda: { c: "r", rot: "Revenda", cor: "#0f766e", vazio: "(sem revenda)" },
+  fazenda: { c: "f", rot: "Fazenda / cliente", cor: "#7c3aed", vazio: "(balcão · sem fazenda)" },
+  produto: { c: "pr", rot: "Produto", cor: "#2563eb", vazio: "(sem produto)" }
+};
+// depois de filtrar por X, qual dimensão mostrar a seguir
+const ORDEM_DRILL = {
+  promotor: ["revenda", "fazenda", "produto"],
+  revenda: ["fazenda", "produto", "promotor"],
+  fazenda: ["produto", "promotor", "revenda"],
+  produto: ["promotor", "revenda", "fazenda"]
+};
+let ex = null;
+const qtdFmt = v => (Number(v) || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+function sparkSvg(vals, cor) {
+  const n = vals.length, max = Math.max(1, ...vals);
+  if (n < 2) return "";
+  const pts = vals.map((v, i) => [(i * 100) / (n - 1), 28 - (v / max) * 24]);
+  const linha = pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+  return `<svg class="spark" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,30 ${linha} 100,30" fill="${cor}" opacity=".14"/><polyline points="${linha}" fill="none" stroke="${cor}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+function desenharCartoesPromotores() {
+  const lista = dados.porPromotor.filter(p => !p.semAtividade);
+  const total = dados.kpi.valor || 0;
+  $("legPromotores").textContent = lista.length
+    ? "Clique em um promotor para ver para onde e o que ele vendeu. Linha = evolução no período."
+    : "";
+  $("cartoesPromotores").innerHTML = lista.length ? lista.map((p, i) => {
+    const part = total ? Math.round((p.valor / total) * 1000) / 10 : 0;
+    return `<div class="pc ${i === 0 && p.valor ? "top1" : ""}" data-promotor="${esc(p.promotor)}" tabindex="0" role="button" aria-label="Detalhar vendas de ${esc(p.promotor)}">
+      <div class="cab"><span class="pos">${i + 1}</span><span class="nome-p" title="${esc(p.promotor)}">${esc(p.promotor)}</span>${delta(p.variacao)}</div>
+      <div class="val-p">${brl(p.valor)}</div>
+      <div class="part"><span class="trilho-p"><i style="width:${Math.min(100, part)}%"></i></span><span>${part.toLocaleString("pt-BR")}% do total</span></div>
+      <div class="stats"><span><b>${num(p.pedidos)}</b> pedidos</span><span><b>${num(p.itens)}</b> itens</span><span><b>${num(p.visitas)}</b> visitas</span><span><b>${num(p.fazendas)}</b> fazendas</span></div>
+      ${sparkSvg(p.spark || [], "#3d8b28")}
+      <span class="ir">ver detalhes ›</span></div>`;
+  }).join("") : vazio("Sem vendas neste recorte", "Ajuste o período ou limpe os filtros.");
+  const sem = dados.porPromotor.filter(p => p.semAtividade).map(p => p.promotor);
+  $("semAtividade").innerHTML = sem.length ? `<div class="semat"><span class="tag">⚠ sem atividade</span>${sem.map(esc).join(", ")}</div>` : "";
+  marcarCartaoSelecionado();
+}
+function marcarCartaoSelecionado() {
+  document.querySelectorAll("#cartoesPromotores .pc").forEach(c => c.classList.toggle("sel", ex && ex.filt.promotor !== null && c.dataset.promotor === ex.filt.promotor));
+}
+
+/* ---------- estado e regras do drill ---------- */
+function exReset() {
+  ex = { filt: { promotor: null, revenda: null, fazenda: null, produto: null }, ordem: [], inicio: "revenda", dim: "revenda", mais: false };
+  exDesenhar(); marcarCartaoSelecionado();
+}
+function exProximo() { for (const d of ORDEM_DRILL[ex.inicio]) if (ex.filt[d] === null) return d; return null; }
+function exDrill(dim, valor) {
+  if (ex.filt[dim] !== null) return;
+  if (!ex.ordem.length) ex.inicio = dim;
+  ex.filt[dim] = valor; ex.ordem.push(dim);
+  ex.dim = exProximo() || ex.dim; ex.mais = false;
+  exDesenhar(); marcarCartaoSelecionado();
+}
+function exRemover(dim) {
+  ex.filt[dim] = null; ex.ordem = ex.ordem.filter(d => d !== dim);
+  if (!ex.ordem.length) ex.inicio = dim;
+  ex.dim = dim; ex.mais = false;
+  exDesenhar(); marcarCartaoSelecionado();
+}
+const exCasa = (r, ignorarProduto) => Object.keys(DIMS).every(d => (ignorarProduto && d === "produto") || ex.filt[d] === null || r[DIMS[d].c] === ex.filt[d]);
+
+function exAgrega() {
+  const c = DIMS[ex.dim].c;
+  const usaProd = ex.dim === "produto" || ex.filt.produto !== null;
+  const g = new Map();
+  const pega = k => { if (!g.has(k)) g.set(k, { nome: k, valor: 0, itens: 0, pedidos: 0, q: 0, unidades: new Set(), qu: new Map(), valorAnt: 0 }); return g.get(k); };
+  let selValor = 0, selItens = 0, selPed = 0, selAnt = 0;
+  dados.cubo.filter(r => exCasa(r)).forEach(r => {
+    const x = pega(r[c]); x.valor += r.v; x.itens += r.i; x.q += r.q; x.unidades.add(r.un || ""); x.qu.set(r.un || "un", (x.qu.get(r.un || "un") || 0) + r.q);
+    if (usaProd) x.pedidos += r.n;
+    selValor += r.v; selItens += r.i; if (usaProd) selPed += r.n;
+  });
+  if (!usaProd) dados.cuboPed.filter(r => exCasa(r, true)).forEach(r => { pega(r[c]).pedidos += r.n; selPed += r.n; });
+  dados.cuboAnt.filter(r => exCasa(r)).forEach(r => { const x = g.get(r[c]); selAnt += r.v; if (x) x.valorAnt += r.v; });
+  // sem filtro de drill, o total de pedidos distintos é o do indicador (um pedido pode ter itens de mais de uma revenda)
+  if (!ex.ordem.length) selPed = dados.kpi.pedidos;
+  const linhas = [...g.values()].filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor);
+  linhas.forEach(x => {
+    x.unidade = x.unidades.size === 1 ? [...x.unidades][0] : null;
+    x.variacao = var_(x.valor, x.valorAnt);
+  });
+  return { linhas, sel: { valor: selValor, itens: selItens, pedidos: selPed, ant: selAnt } };
+}
+function var_(a, b) { return b > 0 ? Math.round(((a - b) / b) * 1000) / 10 : null; }
+
+function squarify(areas, x, y, w, h) {
+  const out = []; let rest = areas.slice(), k = 0;
+  const pior = (row, lado) => { const s = row.reduce((a, b) => a + b, 0), mx = Math.max(...row), mn = Math.min(...row); return Math.max((lado * lado * mx) / (s * s), (s * s) / (lado * lado * mn)); };
+  while (rest.length) {
+    const lado = Math.min(w, h); let row = [rest[0]], i = 1;
+    while (i < rest.length && pior([...row, rest[i]], lado) <= pior(row, lado)) { row.push(rest[i]); i++; }
+    const s = row.reduce((a, b) => a + b, 0);
+    if (w >= h) { const rw = s / h; let yy = y; row.forEach(v => { const rh = v / rw; out.push({ x, y: yy, w: rw, h: rh }); yy += rh; }); x += rw; w -= rw; }
+    else { const rh = s / w; let xx = x; row.forEach(v => { const rw = v / rh; out.push({ x: xx, y, w: rw, h: rh }); xx += rw; }); y += rh; h -= rh; }
+    rest = rest.slice(row.length); k += row.length;
+  }
+  return out;
+}
+
+function exDesenhar() {
+  const d = DIMS[ex.dim], { linhas, sel } = exAgrega();
+  // abas: só habilitam dimensões ainda não filtradas
+  document.querySelectorAll("#exTabs button").forEach(b => {
+    const dim = b.dataset.dim, filtrada = ex.filt[dim] !== null;
+    b.disabled = filtrada && dim !== ex.dim; b.classList.toggle("ativo", dim === ex.dim);
+    b.title = filtrada ? "Já filtrado: " + ex.filt[dim] : "Agrupar por " + DIMS[dim].rot;
+  });
+  // caminho (breadcrumb)
+  const nomeF = (dim, v) => v === "" ? DIMS[dim].vazio : v;
+  $("exCaminho").innerHTML = ex.ordem.length
+    ? '<span class="raiz">Todas as vendas</span>' + ex.ordem.map(dim => `<span class="sep">›</span><span class="chip" style="--cd:${DIMS[dim].cor}22">${DIMS[dim].rot}: <b>${esc(nomeF(dim, ex.filt[dim]))}</b><button type="button" data-rm-ex="${dim}" aria-label="Remover filtro ${esc(DIMS[dim].rot)}" title="Voltar para este nível">×</button></span>`).join("") + '<button class="btn-limpar" type="button" data-ex-limpar="1">Limpar</button>'
+    : '<span class="raiz">Todas as vendas</span><span class="sep">·</span><span>clique em uma linha ou bloco para detalhar</span>';
+  // resumo da seleção
+  const geral = dados.kpi.valor || 0;
+  $("exResumo").innerHTML = `<div class="it"><span>Valor ${ex.ordem.length ? "da seleção" : "total"}</span><b>${brl(sel.valor)}</b></div>
+    <div class="it"><span>Pedidos</span><b>${num(sel.pedidos)}</b></div><div class="it"><span>Itens vendidos</span><b>${num(sel.itens)}</b></div>
+    ${ex.ordem.length && geral ? `<div class="it"><span>% do total geral</span><b>${(Math.round((sel.valor / geral) * 1000) / 10).toLocaleString("pt-BR")}%</b></div>` : ""}
+    <div class="it"><span>Vs. período anterior</span><b style="font-size:16px">${delta(var_(sel.valor, sel.ant))}</b></div>
+    <div class="it"><span>Agrupado por</span><b style="font-size:16px;color:${d.cor}">${d.rot}</b></div>`;
+  // mapa (treemap)
+  const MAX_TILES = 14;
+  const top = linhas.slice(0, MAX_TILES), resto = linhas.slice(MAX_TILES);
+  const itens = top.map(x => ({ nome: x.nome, valor: x.valor, x }));
+  if (resto.length) itens.push({ nome: `Outros (${resto.length})`, valor: resto.reduce((s, r) => s + r.valor, 0), outros: true });
+  if (!itens.length) {
+    $("exTreemap").innerHTML = vazio("Sem vendas neste recorte", "Ajuste o período ou limpe os filtros.");
+    $("exTreemap").style.background = "none"; $("exTabela").innerHTML = ""; return;
+  }
+  $("exTreemap").style.background = "";
+  const tot = itens.reduce((s, i) => s + i.valor, 0);
+  const rects = squarify(itens.map(i => (i.valor / tot) * 10000), 0, 0, 100, 100);
+  const maxV = itens[0].valor;
+  $("exTreemap").innerHTML = itens.map((it, i) => {
+    const r = rects[i], t = Math.sqrt(it.valor / maxV);
+    const area = (r.w * r.h) / 100; // % da área total
+    const cls = it.outros ? "outros" : "";
+    const tam = area < 2.2 ? "minusculo" : area < 5 ? "pequeno" : "";
+    const bg = `color-mix(in srgb, ${d.cor} ${Math.round(48 + 52 * t)}%, #0b1f14)`;
+    const lab = it.outros ? it.nome : nomeF(ex.dim, it.nome);
+    return `<div class="tile ${cls} ${tam}" ${it.outros ? "" : `data-drill="${ex.dim}" data-v="${esc(it.nome)}" tabindex="0" role="button" aria-label="Detalhar ${esc(lab)}"`} style="left:${r.x}%;top:${r.y}%;width:${r.w}%;height:${r.h}%;--bg:${bg};--cor:${d.cor}" title="${esc(lab)} · ${brl(it.valor)} · ${(Math.round((it.valor / tot) * 1000) / 10).toLocaleString("pt-BR")}%">
+      <span class="t-n">${esc(lab)}</span><span class="t-v">${compacto(it.valor)} · ${(Math.round((it.valor / tot) * 1000) / 10).toLocaleString("pt-BR")}%</span></div>`;
+  }).join("");
+  // tabela
+  const podeDrill = exProximo() !== null || ex.filt[ex.dim] === null;
+  const mostra = ex.mais ? linhas : linhas.slice(0, 10);
+  const metaRev = ex.dim === "revenda" && !ex.ordem.length ? new Map(dados.porRevenda.map(r => [r.revenda, r])) : null;
+  const maxL = linhas[0].valor;
+  $("exTabela").innerHTML = `<table><thead><tr><th>${d.rot}</th><th>Valor</th><th>% da seleção</th><th>Pedidos</th><th>Itens</th><th>Quantidade</th><th>Vs. anterior</th></tr></thead><tbody>` +
+    mostra.map((x, i) => {
+      const part = sel.valor ? Math.round((x.valor / sel.valor) * 1000) / 10 : 0;
+      const meta = metaRev && metaRev.get(x.nome) ? pillMeta(metaRev.get(x.nome).atingimento) : "";
+      const ql = [...x.qu.entries()].sort((a, b) => b[1] - a[1]);
+      const q = ql.slice(0, 3).map(([u, v]) => `${qtdFmt(v)}&nbsp;${esc(u)}`).join(" · ") + (ql.length > 3 ? ` · +${ql.length - 3}` : "");
+      return `<tr class="clicavel" data-drill="${ex.dim}" data-v="${esc(x.nome)}" tabindex="0" role="button" aria-label="Detalhar ${esc(nomeF(ex.dim, x.nome))}">
+        <td class="nome-ex"><b title="${esc(nomeF(ex.dim, x.nome))}"><span class="pos ${i < 3 ? "top" : ""}">${i + 1}</span>${esc(nomeF(ex.dim, x.nome))} ${meta}</b><span class="linha-barra" style="--cor:${d.cor}"><i style="width:${(x.valor / maxL) * 100}%"></i></span></td>
+        <td class="c-valor">${brl(x.valor)}</td><td>${part.toLocaleString("pt-BR")}%</td><td>${num(x.pedidos)}</td><td>${num(x.itens)}</td><td class="qtd">${q}</td><td>${delta(x.variacao)}</td></tr>`;
+    }).join("") + `</tbody></table>` +
+    (linhas.length > 10 ? `<button class="verMais" type="button" data-ex-mais="1">${ex.mais ? "Mostrar menos" : "Ver todos (" + linhas.length + ")"}</button>` : "") +
+    `<p class="legenda" style="margin:10px 0 0;">Quantidade = soma do volume lançado, separada por unidade (FR, SC, KG...). Pedidos = pedidos distintos; itens = linhas de produto.</p>`;
+}
+function pillMeta(p) { return p == null ? "" : `<span class="tag ${p >= 100 ? "ok" : p >= 70 ? "" : "mal"}">${p >= 100 ? "✓" : p >= 70 ? "◐" : "▼"} ${p}% da meta</span>`; }
+
+document.getElementById("exTabs").addEventListener("click", e => {
+  const b = e.target.closest("button[data-dim]"); if (!b || b.disabled) return;
+  ex.dim = b.dataset.dim; if (!ex.ordem.length) ex.inicio = ex.dim; ex.mais = false; exDesenhar();
+});
+
 /* ---------- interações de detalhamento ---------- */
-function rolarAoTopo() { window.scrollTo({ top: 0, behavior: "smooth" }); }
 function acionar(e) {
   const mais = e.target.closest("[data-mais]");
-  if (mais) { expandido[mais.dataset.mais] = !expandido[mais.dataset.mais]; ({ prom: desenharPromotores, rev: desenharRevendas, faz: desenharFazendas, prod: desenharProdutos, reg: desenharRegistros })[mais.dataset.mais](); return; }
-  const o = e.target.closest("[data-ord]");
-  if (o) { const c = o.dataset.ord; ordem = { col: c, dir: ordem.col === c ? -ordem.dir : -1 }; desenharPromotores(); return; }
-  const tp = e.target.closest("[data-promotor]"); if (tp) { filtro.promotor = tp.dataset.promotor; sincronizarControles(); agendar(); rolarAoTopo(); return; }
-  const tr = e.target.closest("[data-revenda]"); if (tr) { filtro.revenda = tr.dataset.revenda; sincronizarControles(); agendar(); rolarAoTopo(); return; }
-  const tf = e.target.closest("[data-fazenda]"); if (tf) { filtro.fazenda = tf.dataset.fazenda; sincronizarControles(); agendar(); rolarAoTopo(); }
+  if (mais) { expandido[mais.dataset.mais] = !expandido[mais.dataset.mais]; desenharRegistros(); return; }
+  if (e.target.closest("[data-ex-mais]")) { ex.mais = !ex.mais; exDesenhar(); return; }
+  const rm = e.target.closest("[data-rm-ex]"); if (rm) { exRemover(rm.dataset.rmEx); return; }
+  if (e.target.closest("[data-ex-limpar]")) { exReset(); return; }
+  const dr = e.target.closest("[data-drill]");
+  if (dr && dr.dataset.v !== undefined) { exDrill(dr.dataset.drill, dr.dataset.v); return; }
+  const pc = e.target.closest(".pc[data-promotor]");
+  if (pc) {
+    exReset(); exDrill("promotor", pc.dataset.promotor);
+    $("explorador").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 document.addEventListener("click", acionar);
 document.addEventListener("keydown", e => {
-  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[tabindex][data-promotor],[tabindex][data-revenda],[tabindex][data-fazenda],th[data-ord]")) { e.preventDefault(); acionar(e); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches("[tabindex][data-drill],.pc[tabindex]")) { e.preventDefault(); acionar(e); }
 });
 
 iniciar();
@@ -739,7 +921,24 @@ function fotosHtml(lista) {
 }
 const DIAS_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
+function pctDemanda(custo, dem) { return dem > 0 ? (custo / dem * 100) : null; }
+function blocoDemanda(l) {
+  const dm_ = l.demanda; if (!dm_) return "";
+  const p = dm_.percentual;
+  return `<div id="dspDemBox" style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;">
+    <div style="flex:1;min-width:130px;border:1px solid var(--borda,#e2e8e0);border-radius:10px;padding:10px 12px;"><small style="color:var(--suave)">Custo do RDV</small><div style="font-size:18px;font-weight:800">${moeda2(dm_.custo)}</div></div>
+    <div style="flex:1;min-width:130px;border:1px solid var(--borda,#e2e8e0);border-radius:10px;padding:10px 12px;"><small style="color:var(--suave)">Demanda da semana</small><div id="dspDemVal" style="font-size:18px;font-weight:800">${moeda2(dm_.valor)}</div><small style="color:var(--suave)" id="dspDemOrig">${dm_.origem === "gestor" ? "informada pelo gestor" : "pedidos lançados no app (seg a dom)"}</small></div>
+    <div style="flex:1;min-width:130px;border:1px solid var(--borda,#e2e8e0);border-radius:10px;padding:10px 12px;"><small style="color:var(--suave)">% RDV / Demanda</small><div id="dspDemPct" style="font-size:18px;font-weight:800">${p == null ? "sem demanda" : p.toFixed(2).replace(".", ",") + "%"}</div></div></div>`;
+}
+document.addEventListener("input", e => {
+  if (!e.target || e.target.id !== "gDemanda") return;
+  const custo = Number(((window._dspCusto) || 0)); const dem = numBR(e.target.value); const p = pctDemanda(custo, dem);
+  const v = document.getElementById("dspDemVal"), pc = document.getElementById("dspDemPct"), o = document.getElementById("dspDemOrig");
+  if (v) v.textContent = moeda2(dem); if (o) o.textContent = "informada pelo gestor";
+  if (pc) pc.textContent = p == null ? "sem demanda" : p.toFixed(2).replace(".", ",") + "%";
+});
 function desenharDetalheDesp(l) {
+  window._dspCusto = l.demanda ? l.demanda.custo : 0;
   const d = l.dados || {}, g = l.gestor || {};
   const [c, t] = stDesp(l);
   let corpo = "";
@@ -751,6 +950,7 @@ function desenharDetalheDesp(l) {
     fotos.push({ url: d.fotoHodometroFim, rot: "Hodômetro final" });
     corpo = `<table class="dsp-tab"><thead><tr><th>Dia</th><th>KM ini</th><th>KM fim</th><th>Rodado</th><th>Hotel</th><th>Almoço</th><th>Jantar</th><th>Aviso</th><th class="t">Descrição</th></tr></thead><tbody>${linhas}</tbody>
       <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td>${moeda2(tot.hotel)}</td><td>${moeda2(tot.almoco)}</td><td>${moeda2(tot.jantar)}</td><td>${moeda2(tot.aviso)}</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${(tot.vkm || 0).toFixed(2).replace(".", ",")}/km) · <b>Total ${moeda2(tot.total)}</b></td></tr></tfoot></table>
+      ${blocoDemanda(l)}
       ${d.observacao ? `<dl class="dsp-kv"><dt>Observações</dt><dd>${esc(d.observacao)}</dd></dl>` : ""}
       ${d.veiculo || d.placa ? `<dl class="dsp-kv"><dt>Veículo / placa</dt><dd>${esc(d.veiculo)} ${esc(d.placa)}</dd></dl>` : ""}
       ${fotosHtml(fotos)}`;
@@ -781,6 +981,7 @@ function desenharDetalheDesp(l) {
         <div><label for="gValor">Valor (R$)</label><input id="gValor" inputmode="decimal" value="${String(valor).replace(".", ",")}"></div>
         <div><label for="gEmissao">Data de emissão</label><input id="gEmissao" type="date" value="${esc(g.emissao || "")}"></div>
         <div><label for="gVenc">Data de vencimento</label><input id="gVenc" type="date" value="${esc(g.vencimento || "")}"></div>
+        ${l.tipo === "RDV" ? `<div><label for="gDemanda">Demanda da semana (R$)</label><input id="gDemanda" inputmode="decimal" value="${String(l.demanda ? l.demanda.valor : 0).replace(".", ",")}"></div>` : ""}
         ${l.tipo === "CI" ? `<div><label for="gNumero">Nº da CI (opcional)</label><input id="gNumero" maxlength="30" value="${esc(g.numero || "")}" placeholder="Ex.: FF0019/26"></div>` : ""}
       </div>
       <div style="margin-top:12px;"><label for="gDesc">Descrição</label><textarea id="gDesc" rows="2" maxlength="1500">${esc(desc)}</textarea></div>
@@ -811,6 +1012,7 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
   if (e.target.id === "btnAprovarDesp") {
     const corpo = { acao: "aprovar", id, classificacao: $("gClass").value.trim(), descricao: $("gDesc").value.trim(), emissao: $("gEmissao").value, vencimento: $("gVenc").value, valor: numBR($("gValor").value) };
     if (tipo === "CI") corpo.numero = $("gNumero").value.trim();
+    if (tipo === "RDV" && $("gDemanda")) corpo.demanda = numBR($("gDemanda").value);
     if (!corpo.classificacao) { msg("Informe a classificação da despesa."); return; }
     if (!corpo.emissao || !corpo.vencimento) { msg("Informe a data de emissão e a data de vencimento."); return; }
     if (corpo.valor <= 0) { msg("Informe o valor."); return; }
