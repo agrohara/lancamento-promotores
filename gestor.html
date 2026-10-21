@@ -410,7 +410,7 @@
         <div id="exCaminho" class="ex-caminho"></div>
       </div>
       <div id="exResumo" class="ex-resumo"></div>
-      <div id="exTreemap" class="treemap" aria-label="Mapa de vendas"></div>
+      <div id="exTreemap" class="treemap" aria-label="Mapa de vendas" hidden style="display:none"></div>
       <div id="exTabela" class="tabela-wrap"></div>
     </div>
 
@@ -780,8 +780,7 @@ function exDesenhar() {
   const itens = top.map(x => ({ nome: x.nome, valor: x.valor, x }));
   if (resto.length) itens.push({ nome: `Outros (${resto.length})`, valor: resto.reduce((s, r) => s + r.valor, 0), outros: true });
   if (!itens.length) {
-    $("exTreemap").innerHTML = vazio("Sem vendas neste recorte", "Ajuste o período ou limpe os filtros.");
-    $("exTreemap").style.background = "none"; $("exTabela").innerHTML = ""; return;
+    $("exTabela").innerHTML = vazio("Sem vendas neste recorte", "Ajuste o período ou limpe os filtros."); return;
   }
   $("exTreemap").style.background = "";
   const tot = itens.reduce((s, i) => s + i.valor, 0);
