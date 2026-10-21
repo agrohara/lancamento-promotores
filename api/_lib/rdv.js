@@ -164,6 +164,28 @@ function normalizarCi(d, rascunho) {
   return reg;
 }
 
+/* ---------- demanda da semana (cruzamento custo x venda) ---------- */
+// "Demanda" = valor dos pedidos que o promotor lançou no app na semana (segunda a domingo).
+// O gestor pode corrigir o valor na aprovação (ex.: sell-out oficial); o valor final fica salvo.
+async function demandaDaSemana(supabase, nomePromotor, semana) {
+  if (!semana || !nomePromotor) return 0;
+  const fim = paraIso(ms(semana) + 6 * 86400000);
+  const padrao = String(nomePromotor).replace(/[\\%_]/g, m => "\\" + m);
+  const { data, error } = await supabase.from("lancamentos").select("valor_total")
+    .ilike("nome_promotor", padrao).gte("dia_lancamento", semana).lte("dia_lancamento", fim);
+  if (error) throw error;
+  return cent((data || []).reduce((t, l) => t + (Number(l.valor_total) || 0), 0));
+}
+// Acrescenta ao detalhe de um RDV: custo, demanda (a salva pelo gestor ou a calculada) e o percentual.
+async function anexarDemanda(supabase, l, det) {
+  if (l.tipo !== "RDV" || !det.totais) return det;
+  let demanda = l.gestor && l.gestor.demanda != null ? Number(l.gestor.demanda) : null;
+  let origem = "gestor";
+  if (demanda === null) { origem = "pedidos do app"; try { demanda = await demandaDaSemana(supabase, l.promotor_nome, l.periodo_ini); } catch (e) { demanda = 0; } }
+  det.demanda = { valor: demanda, origem, custo: det.totais.total, percentual: demanda > 0 ? Math.round((det.totais.total / demanda) * 10000) / 100 : null };
+  return det;
+}
+
 /* ---------- Excel ---------- */
 const AZUL = "1F4D2E";
 function planilhaRdv(sol, extra) {
@@ -195,6 +217,13 @@ function planilhaRdv(sol, extra) {
   p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: "I21+J21+F21+G21+H21" }); p.mescla("G6:H6");
   p.estiloIntervalo("A6:H6", { borda: true });
 
+  // custo x demanda da semana (linha 7)
+  const dem = Number(extra.demanda) || 0;
+  p.cel("D7", "DEMANDA DA SEMANA:", cab); p.mescla("D7:F7");
+  p.cel("G7", dem > 0 ? dem : null, { b: true, fmt: "moeda", borda: true, h: "center" }); p.mescla("G7:H7");
+  p.cel("I7", "% RDV / DEMANDA:", cab); p.mescla("I7:J7");
+  p.cel("K7", dem > 0 ? t.total / dem : "sem demanda informada", { b: true, fmt: "pct", borda: true, h: "left" }, dem > 0 ? { f: "G6/G7" } : undefined);
+  p.estiloIntervalo("D7:K7", { borda: true });
   // cabeçalho da tabela (linhas 8-9)
   p.cel("A8", "DIA DA SEMANA", cab); p.mescla("A8:A9");
   p.cel("B8", "DATA", cab); p.mescla("B8:B9");
@@ -344,7 +373,7 @@ async function tratarRdv(req, res, ctx) {
         if (error) throw error;
         if (!data) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
         if (data.promotor_login !== loginUsuario && (!ehGestor || data.status === "rascunho")) { res.status(403).json({ erro: "Sem permissão." }); return; }
-        res.status(200).json(detalheLinha(data));
+        res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
         return;
       }
       let consulta = supabase.from("solicitacoes_despesa").select("*").order("criado_em", { ascending: false }).limit(150);
@@ -443,11 +472,15 @@ async function tratarRdv(req, res, ctx) {
         numero: txt(b.numero !== undefined ? b.numero : anterior.numero, 30),
         aprovador: nomeUsuario
       };
+      if (sol.tipo === "RDV") {
+        const dv = b.demanda !== undefined && b.demanda !== "" ? b.demanda : (anterior.demanda != null ? anterior.demanda : await demandaDaSemana(supabase, sol.promotor_nome, sol.periodo_ini));
+        g.demanda = cent(numero(dv, "a demanda da semana", { min: 0, max: 1e9 }));
+      }
       if (!g.classificacao) falha("Informe a Classificação da Despesa.");
       if (!g.descricao) falha("Informe a Descrição.");
       if (g.vencimento < g.emissao) falha("O vencimento não pode ser anterior à emissão.");
 
-      const extra = { hoje: new Date().toISOString().slice(0, 10), aprovador: nomeUsuario, emissao: g.emissao, valor: g.valor, numero: g.numero };
+      const extra = { hoje: new Date().toISOString().slice(0, 10), aprovador: nomeUsuario, emissao: g.emissao, valor: g.valor, numero: g.numero, demanda: g.demanda };
       const buffer = sol.tipo === "RDV" ? planilhaRdv(sol, extra) : planilhaCi(sol, extra);
       const rotulo = sol.tipo === "RDV"
         ? `RDV ${sol.promotor_nome} ${sol.periodo_ini}`
@@ -494,7 +527,7 @@ async function tratarRdv(req, res, ctx) {
         : { status: "erro_kanban", gestor: g, arquivo_url: arquivoUrl, kanban_resposta: r.resumo, atualizado_em: new Date().toISOString() };
       const { data, error } = await supabase.from("solicitacoes_despesa").update(upd).eq("id", sol.id).select().single();
       if (error) throw error;
-      res.status(200).json(detalheLinha(data));
+      res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
       return;
     }
 

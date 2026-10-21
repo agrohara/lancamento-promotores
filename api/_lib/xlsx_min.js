@@ -112,7 +112,8 @@ const FORMATOS = {
   dec2: 4,       // #,##0.00
   data: 164,     // dd/mm/yyyy
   moeda: 165,    // "R$" #,##0.00
-  km: 166        // #,##0
+  km: 166,       // #,##0
+  pct: 10        // 0,00%
 };
 
 class Planilha {
