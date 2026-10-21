@@ -554,6 +554,7 @@ async function carregar() {
     if (r.status === 401) { localStorage.removeItem(CHAVE_SESSAO); mostrarLogin("Sessão expirada. Entre novamente."); return; }
     if (r.status === 403) { mostrarLogin("Esta tela é exclusiva da gestão."); return; }
     if (!r.ok) throw new Error(d.erro || "Não foi possível carregar os dados.");
+    if (!d.cubo || !d.cuboPed || !d.cuboAnt) throw new Error("O servidor ainda está com a versão antiga. Suba o arquivo api/_lib/gestor.js novo no GitHub e aguarde o deploy da Vercel.");
     dados = d; expandido = {};
     preencherOpcoes(); desenhar();
   } catch (e) {
