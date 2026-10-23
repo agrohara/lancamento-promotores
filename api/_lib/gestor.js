@@ -68,7 +68,8 @@ async function tratarGestor(req, res, opcoes) {
   const visA = vis.filter(v => emP(v, de, ate)), visB = vis.filter(v => emP(v, deAnt, ateAnt));
 
   const soma = arr => arr.reduce((s, p) => s + p.valor, 0);
-  const nFaz = (p, v) => new Set([...p.map(x => x.fazenda), ...v.map(x => x.fazenda)].filter(Boolean)).size;
+  // Visita em revenda é gravada como "Revenda: NOME" no campo propriedade — não conta como fazenda.
+  const nFaz = (p, v) => new Set([...p.map(x => x.fazenda), ...v.map(x => x.fazenda)].filter(f => f && !/^Revenda: /i.test(f))).size;
   const nProm = (p, v) => new Set([...p.map(x => x.promotor), ...v.map(x => x.promotor)]).size;
   const nPed = arr => new Set(arr.map(x => x.pk)).size;
   const kpi = (p, v) => ({
