@@ -739,6 +739,10 @@
   details.dsp-mais>summary{cursor:pointer;font-weight:600;padding:8px 0;color:var(--marca,#1f4d2e);}
 
   .dsp-pill.rascunho{background:#eef1f5;color:#475569;}
+  .dsp-pessoa{background:#f6faf4;border:1px solid var(--cinza-borda,#dbe3da);border-radius:12px;padding:10px 12px;margin-bottom:8px;}
+  .dsp-obrig{color:#a3231a;font-size:12px;font-weight:700;}
+  #barraSemRede{display:none;position:fixed;left:0;right:0;top:0;z-index:2000;background:#7a5c10;color:#fff;font-size:12px;font-weight:600;line-height:1.3;padding:6px 12px;text-align:center;}
+  body.sem-rede #barraSemRede{display:block;} body.sem-rede{padding-top:32px;}
 </style>
 </head>
 <body>
@@ -2131,7 +2135,63 @@ function limparMsg(idContainer) {
 function salvarSessao(dados) {
   sessao = dados;
   localStorage.setItem("sessaoAgroHara", JSON.stringify(dados));
+  idbAuthSalvar("sessao", dados);
 }
+
+/* ---- Armazenamento reserva da sessão e login SEM internet ----
+   1) A sessão é copiada também no IndexedDB: se o navegador limpar o localStorage (acontece em
+      celular com pouco espaço), o app se restaura sozinho e o promotor não cai na tela de login.
+   2) Depois de UM login com internet no aparelho, fica guardada uma "impressão" da senha (PBKDF2,
+      nunca a senha) só neste celular. Sem internet, a pessoa consegue entrar digitando a mesma
+      senha — e continua vendo/lançando normalmente (a fila envia tudo quando a rede voltar). */
+function idbAuth() {
+  return new Promise((ok, falha) => {
+    try {
+      const rq = indexedDB.open("agrohara-auth", 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore("kv");
+      rq.onsuccess = () => ok(rq.result);
+      rq.onerror = () => falha(rq.error);
+    } catch (e) { falha(e); }
+  });
+}
+async function idbAuthSalvar(chave, valor) {
+  try { const db = await idbAuth(); await new Promise(r => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").put(valor, chave); t.oncomplete = r; t.onerror = r; }); } catch (e) {}
+}
+async function idbAuthLer(chave) {
+  try { const db = await idbAuth(); return await new Promise(r => { const q = db.transaction("kv").objectStore("kv").get(chave); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); }); } catch (e) { return null; }
+}
+async function idbAuthApagar(chave) {
+  try { const db = await idbAuth(); await new Promise(r => { const t = db.transaction("kv", "readwrite"); t.objectStore("kv").delete(chave); t.oncomplete = r; t.onerror = r; }); } catch (e) {}
+}
+function b64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function b64Bytes(t) { return Uint8Array.from(atob(t), c => c.charCodeAt(0)); }
+async function hashSenhaOffline(login, senha, salt) {
+  const chave = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(login).trim().toLowerCase() + "\u0000" + senha), "PBKDF2", false, ["deriveBits"]);
+  return b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 150000 }, chave, 256));
+}
+async function guardarLoginOffline(login, senha, sess) {
+  try {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const reg = { login: String(login).trim().toLowerCase(), salt: b64(salt), hash: await hashSenhaOffline(login, senha, salt), sessao: sess, quando: Date.now() };
+    localStorage.setItem("loginOfflineAgroHara", JSON.stringify(reg));
+    await idbAuthSalvar("login", reg);
+  } catch (e) { /* sem crypto.subtle: só não habilita o login offline */ }
+}
+async function lerLoginOffline() {
+  try { const t = localStorage.getItem("loginOfflineAgroHara"); if (t) return JSON.parse(t); } catch (e) {}
+  return await idbAuthLer("login");
+}
+async function tentarLoginOffline(login, senha) {
+  const reg = await lerLoginOffline();
+  if (!reg || reg.login !== String(login).trim().toLowerCase()) return { ok: false, motivo: "sem-registro" };
+  try {
+    const h = await hashSenhaOffline(login, senha, b64Bytes(reg.salt));
+    if (h !== reg.hash) return { ok: false, motivo: "senha" };
+    return { ok: true, sessao: reg.sessao };
+  } catch (e) { return { ok: false, motivo: "sem-registro" }; }
+}
+// Pede ao navegador para NÃO apagar os dados do app quando o celular estiver com pouco espaço.
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 
 function carregarSessaoSalva() {
   try {
@@ -2146,6 +2206,7 @@ function carregarSessaoSalva() {
 function limparSessao() {
   sessao = null;
   localStorage.removeItem("sessaoAgroHara");
+  idbAuthApagar("sessao");
 }
 
 document.getElementById("btnLogin").addEventListener("click", realizarLogin);
@@ -2173,10 +2234,23 @@ async function realizarLogin() {
     });
     const dados = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error((dados && dados.erro) || "Não foi possível entrar.");
-    salvarSessao({ token: dados.token, nome: dados.nome, cargo: dados.cargo, login });
+    const nova = { token: dados.token, nome: dados.nome, cargo: dados.cargo, login };
+    salvarSessao(nova);
+    guardarLoginOffline(login, senha, nova);
     iniciarApp();
   } catch (err) {
-    mostrarMsg("msgLogin", err.message, "erro");
+    // Falha de REDE (fetch lança TypeError, ou o aparelho está sem conexão): tenta entrar com o
+    // login guardado neste aparelho. Erro de senha vindo do servidor (resposta 4xx) não cai aqui.
+    const semRede = err instanceof TypeError || !navigator.onLine;
+    if (semRede) {
+      const r = await tentarLoginOffline(login, senha);
+      if (r.ok) { salvarSessao(r.sessao); iniciarApp(); return; }
+      mostrarMsg("msgLogin", r.motivo === "senha"
+        ? "Senha incorreta."
+        : "Sem internet. Neste aparelho ainda não há um acesso guardado para este usuário — o primeiro login precisa de conexão.", "erro");
+    } else {
+      mostrarMsg("msgLogin", err.message, "erro");
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = "Entrar";
@@ -2245,12 +2319,30 @@ function iniciarApp() {
   aquecerCacheOffline();
 }
 
-(function iniciarSeJaLogado() {
-  const salva = carregarSessaoSalva();
+(async function iniciarSeJaLogado() {
+  let salva = carregarSessaoSalva();
+  // localStorage vazio (limpo pelo celular)? Restaura da cópia reserva.
+  if (!(salva && salva.token)) {
+    const reserva = await idbAuthLer("sessao");
+    if (reserva && reserva.token) { salva = reserva; try { localStorage.setItem("sessaoAgroHara", JSON.stringify(reserva)); } catch (e) {} }
+  }
   if (salva && salva.token) {
     sessao = salva;
     iniciarApp();
   }
+})();
+
+// Aviso discreto quando o aparelho está sem internet.
+(function avisoSemInternet() {
+  const barra = document.createElement("div");
+  barra.id = "barraSemRede";
+  barra.setAttribute("role", "status");
+  barra.textContent = "Sem internet — visitas e pedidos ficam salvos no aparelho e são enviados quando a conexão voltar.";
+  document.body.appendChild(barra);
+  const atualizar = () => document.body.classList.toggle("sem-rede", !navigator.onLine);
+  window.addEventListener("online", atualizar);
+  window.addEventListener("offline", atualizar);
+  atualizar();
 })();
 
 /* =========================================================================
@@ -7486,11 +7578,27 @@ function dspRdvMontar() {
         <div class="dsp-grade" style="margin-top:12px;">
           <div><label>Hotel (R$)</label><input type="text" inputmode="decimal" data-f="hotel" value="${v("hotel")}" ${ro} placeholder="0,00"></div>
           <div><label>Almoço (R$)</label><input type="text" inputmode="decimal" data-f="almoco" value="${v("almoco")}" ${ro} placeholder="0,00"></div>
+          <div style="grid-column:1/-1;"><label>Almoço: individual ou acompanhado?</label><select data-f="almocoPessoas" ${ro}>
+            <option value="1" ${(x.almocoPessoas || 1) == 1 ? "selected" : ""}>Individual</option>
+            <option value="2" ${x.almocoPessoas == 2 ? "selected" : ""}>Com 2 pessoas</option>
+            <option value="3" ${x.almocoPessoas == 3 ? "selected" : ""}>Com 3 pessoas</option></select></div>
           <div><label>Jantar (R$)</label><input type="text" inputmode="decimal" data-f="jantar" value="${v("jantar")}" ${ro} placeholder="0,00"></div>
           <div><label>Aviso prévio (R$)</label><input type="text" inputmode="decimal" data-f="aviso" value="${v("aviso")}" ${ro} placeholder="0,00"></div>
         </div>
-        <label style="margin-top:12px;">O que foi feito (cidades, clientes)</label>
-        <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Loanda a Santa Isabel do Ivaí – visita ao cliente X">
+        <div class="dsp-part ${(x.almocoPessoas || 1) > 1 ? "" : "oculto"}" data-r="part" style="margin-top:12px;">
+          <p class="subtitulo" style="margin:0 0 4px;">Despesa com participantes <span class="dsp-obrig">(obrigatório)</span></p>
+          <p class="dsp-opcional" style="margin:0 0 8px;">Informe quem almoçou com você: nome, função e de qual loja ou propriedade.</p>
+          ${[0, 1].map(k => { const pp = (x.participantes && x.participantes[k]) || {}; return `<div class="dsp-pessoa ${k === 1 && (x.almocoPessoas || 1) < 3 ? "oculto" : ""}" data-pessoa="${k}">
+            <label>Pessoa ${k + 1} – nome</label><input type="text" data-p="nome" maxlength="120" value="${escHtml(pp.nome || "")}" ${ro} placeholder="Nome completo">
+            <div class="dsp-grade" style="margin-top:8px;">
+              <div><label>Função</label><select data-p="cargo" ${ro}>
+                <option value="">Selecione...</option>
+                ${["Proprietário", "Veterinário", "Balconista", "Outro"].map(o => `<option value="${o}" ${pp.cargo === o ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+              <div><label>Qual loja / propriedade</label><input type="text" data-p="local" maxlength="160" value="${escHtml(pp.local || "")}" ${ro} placeholder="Ex.: Agropecuária X / Fazenda Y"></div>
+            </div></div>`; }).join("")}
+        </div>
+        <label style="margin-top:12px;">Descrição da despesa <span class="dsp-opcional">(justifique a despesa)</span></label>
+        <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Almoço com o proprietário da Fazenda X em Loanda – negociação de vacinas">
         <div id="dspFotosD${i}" style="margin-top:12px;"></div>
       </div></details>`;
   }).join("");
@@ -7541,7 +7649,15 @@ function dspRdvMontar() {
   });
   if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
 
-  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; dspRdvRecalcular(); }));
+  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; dspRdvRecalcular(); el.classList.remove("campo-invalido"); }));
+  c.querySelectorAll(".dsp-dia select").forEach(el => el.addEventListener("change", () => {
+    dsp.sujo = true; el.classList.remove("campo-invalido");
+    if (el.getAttribute("data-f") === "almocoPessoas") {
+      const dia = el.closest(".dsp-dia"), n = Number(el.value) || 1;
+      dia.querySelector('[data-r="part"]').classList.toggle("oculto", n < 2);
+      dia.querySelector('[data-pessoa="1"]').classList.toggle("oculto", n < 3);
+    }
+  }));
   const sa = document.getElementById("dspSemAnt"), sp = document.getElementById("dspSemProx");
   sa.addEventListener("click", () => { dsp.semana = dspSomar(dsp.semana, -7); dspRdvRecalcular(); });
   sp.addEventListener("click", () => { if (dsp.semana < dspSegundaAtual()) { dsp.semana = dspSomar(dsp.semana, 7); dspRdvRecalcular(); } });
@@ -7560,7 +7676,9 @@ function dspRdvLer() {
   const kmIni = c.querySelector("#dspKmInicial").value;
   const dias = [...c.querySelectorAll(".dsp-dia")].map((el, i) => {
     const g = (n) => el.querySelector(`[data-f="${n}"]`).value;
-    return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim() };
+    return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim(),
+      almocoPessoas: Number(g("almocoPessoas")) || 1,
+      participantes: [...el.querySelectorAll("[data-pessoa]")].slice(0, (Number(g("almocoPessoas")) || 1) - 1).map(b => { const q = (n) => b.querySelector(`[data-p="${n}"]`).value.trim(); return { nome: q("nome"), cargo: q("cargo"), local: q("local") }; }) };
   });
   return { kmIni, dias, kmFinal: c.querySelector("#dspKmFinal").value };
 }
@@ -7618,6 +7736,22 @@ async function dspRdvGravar(rascunho) {
   if (kmIni === "") { marcarCampoInvalido("dspKmInicial", "Informe o KM inicial."); msg("Informe o KM inicial da semana.", "erro"); return; }
   if (!rascunho) {
     if (kmFinal === "") { marcarCampoInvalido("dspKmFinal", "Informe o KM final."); msg("Informe o KM final do hodômetro (como está no painel).", "erro"); return; }
+    for (let i = 0; i < dias.length; i++) {
+      const x = dias[i];
+      if (x.almoco > 0 && x.almocoPessoas > 1) {
+        const det = document.querySelectorAll("#dspConteudo .dsp-dia")[i];
+        for (let k = 0; k < x.participantes.length; k++) {
+          const pp = x.participantes[k], blk = det.querySelector(`[data-pessoa="${k}"]`);
+          const falta = !pp.nome ? "nome" : !pp.cargo ? "função" : !pp.local ? "loja/propriedade" : "";
+          if (falta) {
+            det.open = true;
+            const campo = blk.querySelector(!pp.nome ? '[data-p="nome"]' : !pp.cargo ? '[data-p="cargo"]' : '[data-p="local"]');
+            campo.classList.add("campo-invalido"); campo.focus();
+            msg(`Almoço de ${DSP_DIAS[i].toLowerCase()}: informe ${falta} da pessoa ${k + 1} (despesa com participantes é obrigatória).`, "erro"); return;
+          }
+        }
+      }
+    }
     if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
     if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final antes de enviar. Se a semana ainda não acabou, use Salvar rascunho.", "erro"); return; }
   }
@@ -7631,7 +7765,7 @@ async function dspRdvGravar(rascunho) {
     for (let i = 0; i < dias.length; i++) {
       const fotos = await dsp.fotos.dias[i].enviar();
       const x = dias[i];
-      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, fotos });
+      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, almocoPessoas: x.almocoPessoas, participantes: x.participantes, fotos });
     }
     if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
@@ -7716,7 +7850,7 @@ function dspCiMontar() {
     ${dsp.somenteLeitura ? "" : `<button class="btn btn-secundario" id="btnDspRascunho" type="button">💾 Salvar rascunho</button>
     <button class="btn" id="btnDspEnviar" type="button" style="margin-top:10px;">Enviar para aprovação</button>`}
     ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
-  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (opcional)", max: 6, aoMudar: () => { if (dsp) dsp.sujo = true; } });
+  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (obrigatório para enviar)", max: 6, aoMudar: () => { if (dsp) dsp.sujo = true; } });
   if (d.fotos) dsp.fotoCi.definirUrls(d.fotos);
   if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
   c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => {
@@ -7740,6 +7874,7 @@ async function dspCiGravar(rascunho) {
       if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
     }
     if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
+    if (dsp.fotoCi.quantidade() === 0) { msg("Anexe ao menos uma foto ou comprovante da CI.", "erro"); return; }
     if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
   } else if (!v("ciAcao") && !v("ciCliente") && !v("ciValor")) {
     msg("Preencha ao menos a ação, o cliente ou o valor para salvar o rascunho.", "erro"); return;
