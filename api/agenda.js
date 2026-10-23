@@ -29,6 +29,7 @@
 // DELETE /api/agenda?id=N                      -> exclui um compromisso
 // GET  /api/agenda?recurso=gestor&de=&ate=...  -> Visão gerencial (ver api/_lib/gestor.js)
 // ANY  /api/agenda?recurso=rdv...               -> Despesas RDV/CI + Kanban (ver api/_lib/rdv.js)
+// ANY  /api/agenda?recurso=metas...             -> Metas por representante/período/ano + cestas (ver api/_lib/metas_rep.js)
 // ANY  /api/agenda?recurso=calendario...       -> Calendário Sanitário (ver api/_lib/calendario.js)
 //
 // Colunas da tabela "agenda_compromissos" no Supabase: nome_promotor, tipo_cliente
@@ -52,6 +53,7 @@ const { segundaFeira, somarDias, statusSemana } = require("./_lib/agenda_prazo")
 const { tratarCalendario } = require("./_lib/calendario");
 const { tratarGestor } = require("./_lib/gestor");
 const { tratarRdv } = require("./_lib/rdv");
+const { tratarMetasRep } = require("./_lib/metas_rep");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 const TIPOS_CLIENTE_VALIDOS = ["revenda", "propriedade"];
@@ -126,12 +128,17 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  // Visão gerencial (gestor.html): indicadores, comparativos e rankings. Só gestor.
+  if (req.query && req.query.recurso === "metas") {
+    await tratarMetasRep(req, res, { usuario, ehGestor, supabase });
+    return;
+  }
+
+  // Visão gerencial/analítica (gestor.html): indicadores, comparativos e rankings. O gestor vê
+  // todo mundo; o promotor/vendedor abre a mesma tela travada nos PRÓPRIOS dados.
   if (req.query && req.query.recurso === "gestor") {
     if (req.method !== "GET") { res.status(405).json({ erro: "Use GET." }); return; }
-    if (!ehGestor) { res.status(403).json({ erro: "Acesso restrito à gestão." }); return; }
     try {
-      await tratarGestor(req, res);
+      await tratarGestor(req, res, ehGestor ? null : { vendedor: usuario.nome });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao montar a visão gerencial.", detalhe: err.detalhe || String(err.message || err) });
     }
