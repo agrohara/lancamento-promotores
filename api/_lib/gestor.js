@@ -15,7 +15,9 @@ function paraIso(ms) { return new Date(ms).toISOString().slice(0, 10); }
 function var_(atual, ant) { return ant > 0 ? Math.round(((atual - ant) / ant) * 1000) / 10 : null; }
 function igual(a, b) { return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase(); }
 
-async function tratarGestor(req, res) {
+async function tratarGestor(req, res, opcoes) {
+  // opcoes.vendedor = nome do promotor logado quando NÃO é gestor: a visão fica travada nos dados dele.
+  const vendedor = opcoes && opcoes.vendedor ? String(opcoes.vendedor).trim() : "";
   const q = req.query || {};
   const hoje = new Date().toISOString().slice(0, 10);
   let de = ISO.test(q.de || "") ? q.de : hoje.slice(0, 8) + "01";
@@ -25,15 +27,14 @@ async function tratarGestor(req, res) {
   if (dias > 800) { res.status(400).json({ erro: "Período muito longo (máx. ~2 anos)." }); return; }
   const deAnt = paraIso(paraMs(de) - dias * DIA);
   const ateAnt = paraIso(paraMs(de) - DIA);
-  const fPromotor = String(q.promotor || "").trim();
+  const fPromotor = vendedor || String(q.promotor || "").trim();
   const fRevenda = String(q.revenda || "").trim();
   const fFazenda = String(q.fazenda || "").trim();
 
   const supabase = obterSupabase();
-  const [linL, linV, metas, usuarios] = await Promise.all([
+  const [linL, linV, usuarios] = await Promise.all([
     buscarTodasLinhas(supabase, "lancamentos", "id,nome_promotor,revenda,propriedade,produto,unidade,volume,valor_total,dia_lancamento,id_envio", null),
     buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null),
-    supabase.from("metas_revenda").select("revenda, meta_semanal").then(r => r.data || []).catch(() => []),
     supabase.from("usuarios").select("nome, cargo").ilike("cargo", "promotor").then(r => r.data || []).catch(() => [])
   ]);
 
@@ -51,8 +52,9 @@ async function tratarGestor(req, res) {
     tipo: String(v.tipo_visita || "").trim() || "Não informado", data: String(v.dia_visita || "").slice(0, 10)
   })).filter(v => v.promotor && ISO.test(v.data));
 
-  const promotoresCadastrados = usuarios.map(u => String(u.nome || "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const revendasTodas = [...new Set(todosPed.map(p => p.revenda).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const promotoresCadastrados = vendedor ? [vendedor] : usuarios.map(u => String(u.nome || "").trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  // vendedor só vê as revendas das próprias vendas (não vaza carteira dos outros)
+  const revendasTodas = [...new Set(todosPed.filter(p => !vendedor || igual(p.promotor, vendedor)).map(p => p.revenda).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   // Filtros de detalhamento (promotor / revenda / fazenda). Visita não tem revenda: com
   // filtro de revenda, as visitas ficam de fora (só pedidos têm essa informação).
@@ -109,21 +111,17 @@ async function tratarGestor(req, res) {
     };
   }).sort((a, b) => b.valor - a.valor || b.visitas - a.visitas);
 
-  // Revendas (com meta proporcional ao período quando houver meta semanal cadastrada e
-  // nenhum filtro de promotor/fazenda, já que a meta é da revenda inteira).
-  const mapaMeta = new Map(metas.map(m => [String(m.revenda || "").trim().toLowerCase(), Number(m.meta_semanal) || 0]));
+  // Revendas. (As metas agora são por REPRESENTANTE — ver _lib/metas_rep.js; a tabela de
+  // revenda não tem mais meta própria.)
   const mapaRev = new Map();
   pedA.forEach(p => { if (p.revenda) { const r = mapaRev.get(p.revenda) || { revenda: p.revenda, valor: 0, valorAnt: 0, pedidos: 0 }; r.valor += p.valor; mapaRev.set(p.revenda, r); } });
   pedB.forEach(p => { if (p.revenda) { const r = mapaRev.get(p.revenda) || { revenda: p.revenda, valor: 0, valorAnt: 0, pedidos: 0 }; r.valorAnt += p.valor; mapaRev.set(p.revenda, r); } });
   mapaRev.forEach((r, nome) => { r.pedidos = nPed(pedA.filter(x => x.revenda === nome)); });
   const totalRev = [...mapaRev.values()].reduce((s, r) => s + r.valor, 0);
-  const usaMeta = !fPromotor && !fFazenda;
   const porRevenda = [...mapaRev.values()].map(r => {
-    const metaSem = usaMeta ? (mapaMeta.get(r.revenda.toLowerCase()) || 0) : 0;
-    const metaPeriodo = metaSem * dias / 7;
     return {
       ...r, variacao: var_(r.valor, r.valorAnt), participacao: totalRev ? Math.round((r.valor / totalRev) * 1000) / 10 : 0,
-      metaPeriodo: metaPeriodo || null, atingimento: metaPeriodo ? Math.round((r.valor / metaPeriodo) * 100) : null
+      metaPeriodo: null, atingimento: null
     };
   }).filter(r => r.valor || r.valorAnt).sort((a, b) => b.valor - a.valor);
 
@@ -175,6 +173,7 @@ async function tratarGestor(req, res) {
   const cuboAnt = [...antMap.values()].map(c => ({ p: c.p, r: c.r, f: c.f, pr: c.pr, v: r2(c.v) }));
 
   res.status(200).json({
+    modoVendedor: !!vendedor,
     cubo, cuboPed, cuboAnt,
     periodo: { de, ate, dias, deAnt, ateAnt },
     filtros: { promotor: fPromotor || null, revenda: fRevenda || null, fazenda: fFazenda || null },
