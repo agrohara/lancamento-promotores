@@ -780,6 +780,10 @@
         <div class="cartao cartao-preto"><div class="cartao-numero" id="statPedidos">—</div><span class="cartao-icone" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg></span><div class="cartao-legenda">Pedidos</div></div>
         <div class="cartao cartao-escuro"><div class="cartao-numero" id="statVendas">—</div><span class="cartao-icone" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></span><div class="cartao-legenda">Total de vendas</div></div>
       </div>
+      <div id="areaMinhasMetas" class="oculto">
+        <h3 class="subtitulo-secao">Minhas metas</h3>
+        <div id="listaMinhasMetas" class="card" style="padding:14px 16px;"></div>
+      </div>
       <h3 class="subtitulo-secao">Registrar</h3>
       <div class="grid-acoes">
         <button class="acao-rapida" data-acao="novaVisita" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="4"/></svg></span>Nova Visita</button>
@@ -797,7 +801,7 @@
       <div class="grid-acoes">
         <button class="acao-rapida acao-unica" data-acao="despesas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z"/><path d="M9 7h6M9 11h6M9 15h4"/></svg></span>Despesas</button>
         <button class="acao-rapida oculto" id="acaoMetas" data-acao="metas" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>Metas</button>
-        <button class="acao-rapida oculto" id="acaoGestorDesktop" data-acao="gestorDesktop" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></span>Visão gerencial</button>
+        <button class="acao-rapida oculto" id="acaoGestorDesktop" data-acao="gestorDesktop" type="button"><span class="acao-icone"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="16" x2="12" y2="20"/></svg></span><span id="rotuloAcaoGestor">Visão gerencial</span></button>
       </div>
     </section>
 
@@ -1115,7 +1119,7 @@
       </div>
 
       <div id="areaMetasSemana" class="oculto" style="margin:14px 0;">
-        <h3 class="subtitulo-secao">Metas da semana <span style="font-weight:400;color:#5b6771;">— por revenda</span></h3>
+        <h3 class="subtitulo-secao">Metas em andamento <span style="font-weight:400;color:#5b6771;">— por representante</span></h3>
         <div id="listaMetasSemana" class="card"></div>
       </div>
 
@@ -1186,20 +1190,35 @@
       </div>
     </section>
 
-    <!-- METAS SEMANAIS (só Gerente/Desenvolvedor) -->
+    <!-- METAS POR REPRESENTANTE (só Gerente/Desenvolvedor cadastra) -->
     <section id="pagMetas" class="pagina oculto">
-      <h2 class="titulo-pagina">Metas semanais</h2>
-      <p style="font-size:13px;color:#5b6771;margin:-10px 0 18px;">O promotor da carteira vê o progresso em Relatórios.</p>
+      <h2 class="titulo-pagina">Metas</h2>
+      <p style="font-size:13px;color:#5b6771;margin:-10px 0 14px;">Meta por representante, no período que você escolher. Cada um vê a sua no Início e em Relatórios.</p>
+
+      <div class="card" style="padding:14px 16px;">
+        <label style="margin-top:0;">Tipo de meta</label>
+        <div class="filtro-historico" id="chipsTipoMeta" style="margin-bottom:10px;flex-wrap:wrap;">
+          <button class="chip-filtro ativo" data-tipo-meta="mensal" type="button">Mensal</button>
+          <button class="chip-filtro" data-tipo-meta="trimestral" type="button">Trimestral</button>
+          <button class="chip-filtro" data-tipo-meta="semestral" type="button">Semestral</button>
+          <button class="chip-filtro" data-tipo-meta="anual" type="button">Anual</button>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;"><label for="selAnoMeta" style="margin-top:0;">Ano</label><select id="selAnoMeta"></select></div>
+          <div style="flex:1;" id="boxPeriodoMeta"><label for="selPeriodoMeta" style="margin-top:0;">Período</label><select id="selPeriodoMeta"></select></div>
+        </div>
+        <div id="resumoPeriodoMeta" style="font-size:12px;color:#5b6771;margin-top:8px;"></div>
+      </div>
 
       <div class="filtro-historico" style="margin-bottom:16px;">
-        <button class="chip-filtro ativo" data-aba-metas="revenda" type="button">Por revenda</button>
+        <button class="chip-filtro ativo" data-aba-metas="revenda" type="button">Meta geral (R$)</button>
         <button class="chip-filtro" data-aba-metas="cesta" type="button">Cestas de produto</button>
       </div>
 
       <div id="abaMetasRevenda">
-        <input type="text" id="buscaMetas" placeholder="Buscar revenda...">
         <div id="msgMetas"></div>
         <div id="listaPaginaMetas"></div>
+        <button class="btn" id="btnSalvarMetasGeral" type="button" style="margin-top:6px;">Salvar metas do período</button>
       </div>
 
       <div id="abaMetasCesta" class="oculto">
@@ -1597,9 +1616,7 @@ const CONFIG = {
   URL_VISITAS: "/api/visitas",
   URL_UPLOAD_FOTO: "/api/upload-foto",
   URL_RELATORIOS: "/api/relatorios",
-  URL_METAS: "/api/metas",
   URL_CESTAS: "/api/cestas",
-  URL_METAS_CESTA: "/api/metas-cesta",
   URL_AGENDA: "/api/agenda",
   API_KEY: "Marcelo9955@"
 };
@@ -2207,10 +2224,12 @@ function iniciarApp() {
     ? "Como Gerente/Desenvolvedor, você edita o catálogo de produtos e vê relatórios de todos os promotores."
     : "Como Promotor, você vê e lança dados só da sua própria carteira. O catálogo de produtos é somente leitura.";
   document.getElementById("acaoMetas").classList.toggle("oculto", !ehGestor());
-  document.getElementById("acaoGestorDesktop").classList.toggle("oculto", !ehGestor());
+  document.getElementById("acaoGestorDesktop").classList.remove("oculto");
+  document.getElementById("rotuloAcaoGestor").textContent = ehGestor() ? "Visão gerencial" : "Minha análise";
   ajustarGradeAcoes();
   mostrarPagina("inicio");
   carregarDashboard();
+  carregarMinhasMetas();
 
   // Offline: tenta enviar o que ficou pendente de uma sessão anterior sem sinal,
   // atualiza a pílula e, com internet, já deixa catálogo/fazendas guardados.
@@ -5323,11 +5342,7 @@ async function carregarRelatorios() {
     }
 
     renderSemAtividade(dados, gestor && !promotorFiltro);
-    const metasCombinadas = [
-      ...(dados.porRevendaSemanaAtual || []).map(r => ({ label: r.revenda, meta: r.meta, valorSemana: r.valorSemana, percentual: r.percentual })),
-      ...(dados.porCestaSemanaAtual || []).map(r => ({ label: "Cesta: " + r.cesta + ((gestor && !promotorFiltro) ? " · " + r.promotor : ""), meta: r.meta, valorSemana: r.valorSemana, percentual: r.percentual }))
-    ];
-    renderMetasSemana(metasCombinadas);
+    carregarMetasRelatorio(gestor && !promotorFiltro ? "" : (promotorFiltro || ""));
 
     ultimoDadosRelatorios = dados;
     ultimoRankingPromotor = rankingParaExibir;
@@ -5358,179 +5373,240 @@ function renderSemAtividade(dados, deveMostrar) {
   area.classList.remove("oculto");
 }
 
-// Progresso da meta semanal por revenda (dados.porRevendaSemanaAtual, já vem pronto do
-// backend — só entram revendas com meta cadastrada). Aparece pra promotor (só as revendas
-// da própria carteira) e pra gestor (todas as que têm meta). Fica escondido quando ninguém
-// cadastrou nenhuma meta ainda, pra não poluir a tela à toa.
-function renderMetasSemana(lista) {
-  const area = document.getElementById("areaMetasSemana");
-  const alvo = document.getElementById("listaMetasSemana");
-  if (!lista || lista.length === 0) {
-    area.classList.add("oculto");
-    alvo.innerHTML = "";
-    return;
-  }
-  alvo.innerHTML = lista.map(r => {
-    const pct = Math.max(0, Math.min(100, r.percentual));
-    const cor = r.percentual >= 100 ? "linear-gradient(90deg,#2f8f4e,#3d8b28)" : r.percentual >= 60 ? "linear-gradient(90deg,#d4a13a,#c99a1f)" : "linear-gradient(90deg,#d9564a,#c0392b)";
-    // Só escreve o % dentro da barra se ela já tiver espaço suficiente (senão o texto
-    // fica espremido/ilegível numa barra muito curta).
-    const rotuloDentro = pct >= 22;
-    return `
-      <div style="margin-bottom:16px;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:6px;">
-          <b>${r.label}</b>
-          <span style="color:#5b6771;font-size:12px;">${formatarMoeda(r.valorSemana)} de ${formatarMoeda(r.meta)}</span>
-        </div>
-        <div style="position:relative;background:#eef1f3;border-radius:999px;height:22px;overflow:hidden;">
-          <div style="position:absolute;inset:0;width:${pct}%;background:${cor};border-radius:999px;transition:width .4s ease;"></div>
-          <div style="position:relative;height:100%;display:flex;align-items:center;${rotuloDentro ? "justify-content:flex-end;padding-right:10px;" : "justify-content:flex-start;padding-left:" + (pct + 2) + "%;"} font-size:12px;font-weight:700;color:${rotuloDentro ? "#fff" : "#44525c"};">${r.percentual}%</div>
-        </div>
+/* =========================================================================
+   METAS POR REPRESENTANTE — mensal, trimestral, semestral ou anual, no ano escolhido.
+   Meta geral (R$ vendido) e meta por cesta de produtos. Só Gerente/Desenvolvedor cadastra;
+   o representante (promotor/vendedor) vê só as próprias, no Início e em Relatórios.
+   Backend: /api/agenda?recurso=metas (api/_lib/metas_rep.js).
+   ========================================================================= */
+const NOMES_MES_META = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const SITUACAO_META = {
+  batida: { txt: "Meta batida", cor: "#2f8f4e" },
+  no_ritmo: { txt: "No ritmo", cor: "#3d8b28" },
+  atrasada: { txt: "Atrasada", cor: "#c0392b" },
+  nao_batida: { txt: "Não batida", cor: "#c0392b" },
+  futura: { txt: "Ainda não começou", cor: "#5b6771" }
+};
+function escMeta(t) { return String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function hojeBRMeta() { return new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10); }
+function periodoAtualMeta(tipo) {
+  const m = Number(hojeBRMeta().slice(5, 7));
+  if (tipo === "mensal") return m;
+  if (tipo === "trimestral") return Math.ceil(m / 3);
+  if (tipo === "semestral") return m <= 6 ? 1 : 2;
+  return 1;
+}
+function opcoesPeriodoMeta(tipo) {
+  if (tipo === "mensal") return NOMES_MES_META.map((n, i) => [i + 1, n]);
+  if (tipo === "trimestral") return [1, 2, 3, 4].map(n => [n, n + "º trimestre"]);
+  if (tipo === "semestral") return [1, 2].map(n => [n, n + "º semestre"]);
+  return [];
+}
+function dataBR(iso) { return iso ? iso.split("-").reverse().join("/") : ""; }
+
+// Cartão de progresso (usado em Início, Relatórios e na tela de Metas)
+function htmlProgressoMeta(r, mostrarRep) {
+  const pct = Math.max(0, Math.min(100, r.percentual));
+  const sit = SITUACAO_META[r.situacao] || SITUACAO_META.atrasada;
+  const cor = r.situacao === "batida" ? "linear-gradient(90deg,#2f8f4e,#3d8b28)" : (r.situacao === "no_ritmo" ? "linear-gradient(90deg,#d4a13a,#c99a1f)" : (r.situacao === "futura" ? "#c9d1d6" : "linear-gradient(90deg,#d9564a,#c0392b)"));
+  const rotuloDentro = pct >= 22;
+  const titulo = (r.escopo === "cesta" ? "Cesta: " + r.cesta : "Vendas") + " · " + (r.tipo.charAt(0).toUpperCase() + r.tipo.slice(1)) + " " + r.rotulo;
+  const ritmo = r.situacao === "futura" ? "" : (r.situacao === "batida" ? "Meta batida" : (r.diasRestantes > 0
+    ? "Faltam " + formatarMoeda(r.falta) + " em " + r.diasRestantes + " dia" + (r.diasRestantes === 1 ? "" : "s") + " · esperado até hoje " + formatarMoeda(r.esperado)
+    : "Fechou com " + formatarMoeda(r.realizado) + " (faltaram " + formatarMoeda(r.falta) + ")"));
+  return `
+    <div style="margin-bottom:16px;">
+      ${mostrarRep ? `<div style="font-size:12px;font-weight:700;color:var(--verde-escuro);margin-bottom:2px;">${escMeta(r.representante)}</div>` : ""}
+      <div style="font-size:13px;margin-bottom:2px;"><b>${escMeta(titulo)}</b></div>
+      <div style="color:#5b6771;font-size:12px;margin-bottom:6px;">${formatarMoeda(r.realizado)} de ${formatarMoeda(r.meta)}</div>
+      <div style="position:relative;background:#eef1f3;border-radius:999px;height:22px;overflow:hidden;">
+        <div style="position:absolute;inset:0;width:${pct}%;background:${cor};border-radius:999px;transition:width .4s ease;"></div>
+        <div style="position:relative;height:100%;display:flex;align-items:center;${rotuloDentro ? "width:" + pct + "%;box-sizing:border-box;justify-content:flex-end;padding-right:10px;" : "justify-content:flex-start;padding-left:" + (pct + 2) + "%;"} font-size:12px;font-weight:700;color:${rotuloDentro ? "#fff" : "#44525c"};">${r.percentual}%</div>
       </div>
-    `;
-  }).join("");
+      <div style="font-size:12px;margin-top:5px;"><span style="color:${sit.cor};font-weight:700;">${sit.txt}</span>${ritmo ? '<span style="color:#5b6771;"> · ' + ritmo + '</span>' : ""}</div>
+    </div>`;
+}
+
+function renderListaProgressoMeta(areaId, alvoId, lista, mostrarRep) {
+  const area = document.getElementById(areaId);
+  const alvo = document.getElementById(alvoId);
+  if (!lista || lista.length === 0) { area.classList.add("oculto"); alvo.innerHTML = ""; return; }
+  alvo.innerHTML = lista.map(r => htmlProgressoMeta(r, mostrarRep)).join("");
   area.classList.remove("oculto");
 }
 
-/* =========================================================================
-   METAS SEMANAIS POR REVENDA (só Gerente/Desenvolvedor cadastra) — tela própria,
-   aberta pela ação "Metas" no Início.
-   ========================================================================= */
-let cacheMetasRevenda = null;
-let todasRevendasMetas = null;
-
-function renderizarListaPaginaMetas(termo) {
-  const alvo = document.getElementById("listaPaginaMetas");
-  const filtro = (termo || "").trim().toLowerCase();
-  const revendas = filtro
-    ? todasRevendasMetas.filter(r => r.toLowerCase().includes(filtro))
-    : todasRevendasMetas;
-
-  if (revendas.length === 0) {
-    alvo.innerHTML = '<div class="carregando-lista">Nenhuma revenda encontrada.</div>';
-    return;
+// Início: metas vigentes do próprio usuário (se tiver alguma cadastrada)
+async function carregarMinhasMetas() {
+  try {
+    const resp = await fetch(`${CONFIG.URL_AGENDA}?recurso=metas&acao=vigentes&representante=${encodeURIComponent(ehGestor() ? "" : sessao.nome)}`, { headers: cabecalhosAutenticados() });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) { document.getElementById("areaMinhasMetas").classList.add("oculto"); return; }
+    // Gestor não tem meta própria: o cartão só aparece pra quem é representante
+    const lista = ehGestor() ? [] : (dados.metas || []);
+    renderListaProgressoMeta("areaMinhasMetas", "listaMinhasMetas", lista, false);
+  } catch (e) {
+    document.getElementById("areaMinhasMetas").classList.add("oculto");
   }
+}
 
-  alvo.innerHTML = revendas.map(revenda => {
-    const metaAtual = cacheMetasRevenda.get(revenda) || 0;
-    const idSeguro = "meta-" + revenda.replace(/[^a-zA-Z0-9]/g, "");
-    return `
-      <div class="card-meta" data-linha-meta="${revenda.replace(/"/g, "&quot;")}" style="background:#fff;border:1px solid var(--cinza-borda);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
-        <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${revenda}</div>
-        <div class="texto-meta-atual" style="font-size:12px;color:#5b6771;margin-bottom:10px;">${metaAtual > 0 ? "Meta atual: " + formatarMoeda(metaAtual) + " por semana" : "Sem meta definida ainda"}</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:14px;color:#5b6771;">R$</span>
-          <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual || ""}" id="${idSeguro}" style="margin:0;flex:1;">
-          <button type="button" data-salvar-meta="${revenda.replace(/"/g, "&quot;")}" data-input-meta="${idSeguro}"
-            style="flex:0 0 auto;width:40px;height:40px;border-radius:10px;border:none;background:var(--azul);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </div>
-        <button type="button" data-ver-historico="${revenda.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--azul);font-size:12px;font-weight:600;padding:8px 0 0;cursor:pointer;">Ver histórico de metas</button>
-        <div class="historico-meta oculto" data-historico-de="${revenda.replace(/"/g, "&quot;")}" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--cinza-borda);"></div>
-      </div>
-    `;
-  }).join("");
+// Relatórios: metas vigentes (gestor vê todos os representantes; ou o filtrado)
+async function carregarMetasRelatorio(representante) {
+  try {
+    const rep = ehGestor() ? (representante || "") : sessao.nome;
+    const resp = await fetch(`${CONFIG.URL_AGENDA}?recurso=metas&acao=vigentes&representante=${encodeURIComponent(rep)}`, { headers: cabecalhosAutenticados() });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) { document.getElementById("areaMetasSemana").classList.add("oculto"); return; }
+    renderListaProgressoMeta("areaMetasSemana", "listaMetasSemana", dados.metas || [], ehGestor() && !rep);
+  } catch (e) {
+    document.getElementById("areaMetasSemana").classList.add("oculto");
+  }
+}
+
+// ---- Tela de Metas (cadastro) ----
+let metasSel = { tipo: "mensal", ano: 0, periodo: 0 };
+let dadosPeriodoMetas = null; // resposta de acao=periodo
+let metasGeralOriginal = new Map(); // representante -> valor atual
+let metasInicializadas = false;
+
+function inicializarSeletorMetas() {
+  const anoAtual = Number(hojeBRMeta().slice(0, 4));
+  const selAno = document.getElementById("selAnoMeta");
+  selAno.innerHTML = [anoAtual - 1, anoAtual, anoAtual + 1, anoAtual + 2].map(a => `<option value="${a}">${a}</option>`).join("");
+  metasSel = { tipo: "mensal", ano: anoAtual, periodo: periodoAtualMeta("mensal") };
+  selAno.value = String(anoAtual);
+  montarSelectPeriodoMeta();
+  document.querySelectorAll("[data-tipo-meta]").forEach(c => c.classList.toggle("ativo", c.getAttribute("data-tipo-meta") === "mensal"));
+  metasInicializadas = true;
+}
+function montarSelectPeriodoMeta() {
+  const ops = opcoesPeriodoMeta(metasSel.tipo);
+  const box = document.getElementById("boxPeriodoMeta");
+  const sel = document.getElementById("selPeriodoMeta");
+  box.classList.toggle("oculto", ops.length === 0);
+  sel.innerHTML = ops.map(([v, n]) => `<option value="${v}">${n}</option>`).join("");
+  if (ops.length) sel.value = String(metasSel.periodo);
 }
 
 async function carregarPaginaMetas() {
+  if (!metasInicializadas) inicializarSeletorMetas();
   document.querySelectorAll("[data-aba-metas]").forEach(c => c.classList.toggle("ativo", c.getAttribute("data-aba-metas") === "revenda"));
   document.getElementById("abaMetasRevenda").classList.remove("oculto");
   document.getElementById("abaMetasCesta").classList.add("oculto");
-  limparMsg("msgMetas");
-  document.getElementById("buscaMetas").value = "";
-  document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
-  try {
-    const resp = await fetch(CONFIG.URL_METAS, {
-      headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
-    });
-    const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar as metas.");
-    cacheMetasRevenda = new Map((dados.metas || []).map(m => [m.Revenda, m.Meta_Semanal]));
-  } catch (err) {
-    cacheMetasRevenda = new Map();
-    mostrarMsg("msgMetas", err.message, "erro");
-  }
-
-  todasRevendasMetas = [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  renderizarListaPaginaMetas("");
+  await recarregarPeriodoMetas();
 }
 
-document.getElementById("buscaMetas").addEventListener("input", (e) => {
-  renderizarListaPaginaMetas(e.target.value);
-});
-
-document.getElementById("listaPaginaMetas").addEventListener("click", async (e) => {
-  const btnHistorico = e.target.closest("[data-ver-historico]");
-  if (btnHistorico) {
-    const revenda = btnHistorico.getAttribute("data-ver-historico");
-    const alvoHistorico = document.querySelector(`[data-historico-de="${CSS.escape(revenda)}"]`);
-    const abrindo = alvoHistorico.classList.contains("oculto");
-    if (!abrindo) {
-      alvoHistorico.classList.add("oculto");
-      btnHistorico.textContent = "Ver histórico de metas";
-      return;
-    }
-    btnHistorico.textContent = "Carregando...";
-    try {
-      const resp = await fetch(`${CONFIG.URL_METAS}?historico=1&revenda=${encodeURIComponent(revenda)}`, {
-        headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" }
-      });
-      const dados = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar o histórico.");
-      const historico = dados.historico || [];
-      alvoHistorico.innerHTML = historico.length === 0
-        ? '<div style="font-size:12px;color:#5b6771;">Nenhuma meta cadastrada ainda pra essa revenda.</div>'
-        : historico.map(h => `
-            <div style="font-size:12px;color:#5b6771;padding:3px 0;display:flex;justify-content:space-between;gap:8px;">
-              <span>Semana ${h.Semana_Cadastro}${h.Atualizado_Por ? " · " + h.Atualizado_Por : ""}</span>
-              <b style="color:var(--texto);">${formatarMoeda(h.Meta_Semanal)}</b>
-            </div>
-          `).join("");
-      alvoHistorico.classList.remove("oculto");
-      btnHistorico.textContent = "Esconder histórico";
-    } catch (err) {
-      alvoHistorico.innerHTML = `<div style="font-size:12px;color:var(--vermelho);">${err.message}</div>`;
-      alvoHistorico.classList.remove("oculto");
-      btnHistorico.textContent = "Esconder histórico";
-    }
-    return;
-  }
-
-  const btn = e.target.closest("[data-salvar-meta]");
-  if (!btn) return;
+async function recarregarPeriodoMetas() {
   limparMsg("msgMetas");
-  const revenda = btn.getAttribute("data-salvar-meta");
-  const input = document.getElementById(btn.getAttribute("data-input-meta"));
-  const meta = Number(input.value);
-  if (Number.isNaN(meta) || meta < 0) {
-    mostrarMsg("msgMetas", "Informe uma meta válida para " + revenda + ".", "erro");
+  limparMsg("msgCestas");
+  document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  try {
+    const q = `recurso=metas&acao=periodo&tipo=${metasSel.tipo}&ano=${metasSel.ano}&periodo=${metasSel.periodo}`;
+    const resp = await fetch(`${CONFIG.URL_AGENDA}?${q}`, { headers: cabecalhosAutenticados() });
+    const dados = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(dados.erro || "Não foi possível carregar as metas.");
+    dadosPeriodoMetas = dados;
+  } catch (err) {
+    dadosPeriodoMetas = { representantes: [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR")), metas: [], rotulo: "", ini: "", fim: "", vigente: false };
+    mostrarMsg("msgMetas", err.message + " — confira se o SQL de metas já foi rodado no Supabase.", "erro");
+  }
+  const d = dadosPeriodoMetas;
+  document.getElementById("resumoPeriodoMeta").textContent = d.ini
+    ? `${metasSel.tipo.charAt(0).toUpperCase() + metasSel.tipo.slice(1)} ${d.rotulo} · de ${dataBR(d.ini)} a ${dataBR(d.fim)}${d.vigente ? " · período em andamento" : ""}`
+    : "";
+  metasGeralOriginal = new Map((d.metas || []).filter(m => m.escopo === "geral").map(m => [m.representante, m.meta]));
+  renderizarListaMetasGeral();
+  if (!document.getElementById("abaMetasCesta").classList.contains("oculto")) renderizarListaCestas();
+}
+
+function progressoGeralDe(rep) {
+  return ((dadosPeriodoMetas && dadosPeriodoMetas.metas) || []).find(m => m.escopo === "geral" && m.representante === rep);
+}
+
+function renderizarListaMetasGeral() {
+  const alvo = document.getElementById("listaPaginaMetas");
+  const reps = (dadosPeriodoMetas && dadosPeriodoMetas.representantes) || [];
+  if (reps.length === 0) {
+    alvo.innerHTML = '<div class="carregando-lista">Nenhum representante encontrado.</div>';
     return;
   }
-  const linha = btn.closest("[data-linha-meta]");
+  alvo.innerHTML = reps.map(rep => {
+    const pr = progressoGeralDe(rep);
+    const atual = metasGeralOriginal.get(rep) || "";
+    const info = pr ? `Vendido no período: ${formatarMoeda(pr.realizado)} (${pr.percentual}%)` : "Sem meta definida neste período";
+    return `
+      <div class="card-meta" style="background:#fff;border:1px solid var(--cinza-borda);border-radius:12px;padding:14px 16px;margin-bottom:10px;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:2px;">${escMeta(rep)}</div>
+        <div style="font-size:12px;color:#5b6771;margin-bottom:10px;">${info}</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:14px;color:#5b6771;">R$</span>
+          <input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00" value="${atual}" data-meta-geral-rep="${escMeta(rep)}" style="margin:0;flex:1;">
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function postarMetas(escopo, itens, idMsg, btn, rotuloBtn) {
+  limparMsg(idMsg);
+  if (itens.length === 0) { mostrarMsg(idMsg, "Nenhuma alteração para salvar.", "info"); return false; }
   btn.disabled = true;
+  btn.textContent = "Salvando...";
   try {
-    const resp = await fetch(CONFIG.URL_METAS, {
+    const resp = await fetch(`${CONFIG.URL_AGENDA}?recurso=metas`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" },
-      body: JSON.stringify({ Revenda: revenda, Meta_Semanal: meta })
+      headers: { "Content-Type": "application/json", ...cabecalhosAutenticados() },
+      body: JSON.stringify({ escopo, tipo: metasSel.tipo, ano: metasSel.ano, periodo: metasSel.periodo, itens })
     });
     const dados = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar a meta.") + (dados.detalhe ? " — " + dados.detalhe : ""));
-    cacheMetasRevenda.set(revenda, meta);
-    linha.querySelector(".texto-meta-atual").textContent = meta > 0 ? "Meta atual: " + formatarMoeda(meta) + " por semana" : "Sem meta definida ainda";
-    linha.style.borderColor = "var(--azul-claro)";
-    setTimeout(() => { linha.style.borderColor = ""; }, 1200);
+    if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar as metas.") + (dados.detalhe ? " — " + dados.detalhe : ""));
+    mostrarMsg(idMsg, `Metas salvas ✓ (${dados.salvas || 0} definida${dados.salvas === 1 ? "" : "s"}, ${dados.removidas || 0} removida${dados.removidas === 1 ? "" : "s"})`, "sucesso");
+    return true;
   } catch (err) {
-    mostrarMsg("msgMetas", err.message, "erro");
+    mostrarMsg(idMsg, err.message, "erro");
+    return false;
   } finally {
     btn.disabled = false;
+    btn.textContent = rotuloBtn;
   }
+}
+
+document.getElementById("btnSalvarMetasGeral").addEventListener("click", async () => {
+  const itens = [];
+  document.querySelectorAll("[data-meta-geral-rep]").forEach(inp => {
+    const rep = inp.getAttribute("data-meta-geral-rep");
+    const novo = inp.value === "" ? 0 : Number(inp.value);
+    const antigo = metasGeralOriginal.get(rep) || 0;
+    if (Number.isNaN(novo) || novo < 0) { inp.style.borderColor = "var(--vermelho)"; itens.push(null); return; }
+    inp.style.borderColor = "";
+    if (novo !== antigo) itens.push({ representante: rep, valor: novo });
+  });
+  if (itens.includes(null)) { mostrarMsg("msgMetas", "Há valores inválidos (marcados em vermelho).", "erro"); return; }
+  const ok = await postarMetas("geral", itens, "msgMetas", document.getElementById("btnSalvarMetasGeral"), "Salvar metas do período");
+  if (ok) { await recarregarPeriodoMetas(); mostrarMsg("msgMetas", "Metas salvas ✓", "sucesso"); }
+});
+
+document.querySelectorAll("[data-tipo-meta]").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const tipo = chip.getAttribute("data-tipo-meta");
+    document.querySelectorAll("[data-tipo-meta]").forEach(c => c.classList.toggle("ativo", c === chip));
+    metasSel.tipo = tipo;
+    metasSel.periodo = periodoAtualMeta(tipo);
+    montarSelectPeriodoMeta();
+    recarregarPeriodoMetas();
+  });
+});
+document.getElementById("selAnoMeta").addEventListener("change", (e) => {
+  metasSel.ano = Number(e.target.value);
+  recarregarPeriodoMetas();
+});
+document.getElementById("selPeriodoMeta").addEventListener("change", (e) => {
+  metasSel.periodo = Number(e.target.value);
+  recarregarPeriodoMetas();
 });
 
 /* =========================================================================
    CESTAS DE PRODUTOS (só Gerente/Desenvolvedor cadastra) — dentro da mesma tela de
-   Metas, na aba "Cestas de produto".
+   Metas, na aba "Cestas de produto". A meta de cada cesta é por representante e vale
+   no período escolhido acima.
    ========================================================================= */
 document.querySelectorAll("[data-aba-metas]").forEach(chip => {
   chip.addEventListener("click", () => {
@@ -5545,7 +5621,6 @@ document.querySelectorAll("[data-aba-metas]").forEach(chip => {
 let cestaProdutosSelecionados = [];
 let cestaEditandoNome = null; // null = cadastrando nova; string = editando essa cesta
 let cacheCestas = null;
-let cacheMetasCesta = null;
 let cestasCarregadas = false;
 
 async function carregarAbaCestas() {
@@ -5559,15 +5634,10 @@ async function recarregarCestasEMetas() {
   limparMsg("msgCestas");
   document.getElementById("listaCestas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
   try {
-    const [respCestas, respMetas] = await Promise.all([
-      fetch(CONFIG.URL_CESTAS, { headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" } }),
-      fetch(CONFIG.URL_METAS_CESTA, { headers: { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" } })
-    ]);
+    const respCestas = await fetch(CONFIG.URL_CESTAS, { headers: cabecalhosAutenticados() });
     const dadosCestas = await respCestas.json().catch(() => ({}));
-    const dadosMetas = await respMetas.json().catch(() => ({}));
     if (!respCestas.ok) throw new Error(dadosCestas.erro || "Não foi possível carregar as cestas.");
     cacheCestas = dadosCestas.cestas || [];
-    cacheMetasCesta = new Map((dadosMetas.metas || []).map(m => [m.Cesta + "|" + m.Promotor, m.Meta_Semanal]));
     renderizarListaCestas();
   } catch (err) {
     cacheCestas = [];
@@ -5594,7 +5664,7 @@ function renderizarListaCestas() {
       <div style="margin:8px 0;display:flex;flex-wrap:wrap;gap:6px;">
         ${c.Produtos.map(p => `<span class="unidade-tag">${p}</span>`).join("")}
       </div>
-      <button type="button" data-ver-metas-cesta="${c.Nome.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--azul);font-size:12px;font-weight:600;padding:6px 0 0;cursor:pointer;">Definir metas por promotor</button>
+      <button type="button" data-ver-metas-cesta="${c.Nome.replace(/"/g, "&quot;")}" style="background:none;border:none;color:var(--azul);font-size:12px;font-weight:600;padding:6px 0 0;cursor:pointer;">Definir metas por representante (período escolhido)</button>
       <div class="metas-por-promotor oculto" data-metas-de="${c.Nome.replace(/"/g, "&quot;")}" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--cinza-borda);"></div>
     </div>
   `).join("");
@@ -5719,56 +5789,49 @@ document.getElementById("listaCestas").addEventListener("click", async (e) => {
     const abrindo = alvo.classList.contains("oculto");
     if (!abrindo) {
       alvo.classList.add("oculto");
-      btnVerMetas.textContent = "Definir metas por promotor";
+      btnVerMetas.textContent = "Definir metas por representante (período escolhido)";
       return;
     }
-    const nomesPromotores = [...new Set(PROMOTOR_CLIENTE.map(p => p.Promotor))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-    alvo.innerHTML = nomesPromotores.map(promotor => {
-      const metaAtual = cacheMetasCesta.get(cesta + "|" + promotor) || "";
-      const idSeguro = "metacesta-" + (cesta + promotor).replace(/[^a-zA-Z0-9]/g, "");
-      return `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span style="flex:1;font-size:13px;">${promotor}</span>
-          <input type="number" min="0" step="0.01" placeholder="0,00" value="${metaAtual}" id="${idSeguro}" style="margin:0;width:110px;">
-          <button type="button" data-salvar-meta-cesta="${cesta.replace(/"/g, "&quot;")}" data-promotor-meta-cesta="${promotor.replace(/"/g, "&quot;")}" data-input-meta-cesta="${idSeguro}"
-            style="flex:0 0 auto;width:36px;height:36px;border-radius:8px;border:none;background:var(--azul);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </button>
-        </div>
-      `;
-    }).join("");
+    const reps = (dadosPeriodoMetas && dadosPeriodoMetas.representantes) || [];
+    const dessaCesta = ((dadosPeriodoMetas && dadosPeriodoMetas.metas) || []).filter(m => m.escopo === "cesta" && m.cesta === cesta);
+    const rotulo = dadosPeriodoMetas && dadosPeriodoMetas.rotulo ? metasSel.tipo + " " + dadosPeriodoMetas.rotulo : "";
+    alvo.innerHTML = `<div style="font-size:12px;color:#5b6771;margin-bottom:8px;">Meta em R$ vendidos dos produtos desta cesta${rotulo ? " · " + escMeta(rotulo) : ""}. Vazio ou 0 remove a meta.</div>` +
+      reps.map(rep => {
+        const pr = dessaCesta.find(m => m.representante === rep);
+        const atual = pr ? pr.meta : "";
+        return `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="flex:1;font-size:13px;">${escMeta(rep)}</span>
+            <input type="number" inputmode="decimal" min="0" step="0.01" placeholder="0,00" value="${atual}" data-meta-cesta-rep="${escMeta(rep)}" data-meta-cesta-orig="${atual}" style="margin:0;width:120px;">
+          </div>
+          ${pr ? `<div style="font-size:11px;color:#5b6771;margin-top:2px;">Vendido: ${formatarMoeda(pr.realizado)} (${pr.percentual}%)</div>` : ""}
+        </div>`;
+      }).join("") +
+      `<button type="button" class="btn" data-salvar-metas-cesta="${escMeta(cesta)}" style="margin-top:4px;">Salvar metas da cesta</button>`;
     alvo.classList.remove("oculto");
-    btnVerMetas.textContent = "Esconder metas por promotor";
+    btnVerMetas.textContent = "Esconder metas por representante";
     return;
   }
 
-  const btnSalvarMetaCesta = e.target.closest("[data-salvar-meta-cesta]");
-  if (btnSalvarMetaCesta) {
-    const cesta = btnSalvarMetaCesta.getAttribute("data-salvar-meta-cesta");
-    const promotor = btnSalvarMetaCesta.getAttribute("data-promotor-meta-cesta");
-    const input = document.getElementById(btnSalvarMetaCesta.getAttribute("data-input-meta-cesta"));
-    const meta = Number(input.value);
-    if (Number.isNaN(meta) || meta < 0) {
-      mostrarMsg("msgCestas", "Informe uma meta válida para " + promotor + ".", "erro");
-      return;
-    }
-    btnSalvarMetaCesta.disabled = true;
-    try {
-      const resp = await fetch(CONFIG.URL_METAS_CESTA, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" },
-        body: JSON.stringify({ Cesta: cesta, Promotor: promotor, Meta_Semanal: meta })
-      });
-      const dados = await resp.json().catch(() => ({}));
-      if (!resp.ok) throw new Error((dados.erro || "Não foi possível salvar a meta.") + (dados.detalhe ? " — " + dados.detalhe : ""));
-      cacheMetasCesta.set(cesta + "|" + promotor, meta);
-      const linha = btnSalvarMetaCesta.closest("div");
-      linha.style.background = "#eaf6ec";
-      setTimeout(() => { linha.style.background = ""; }, 900);
-    } catch (err) {
-      mostrarMsg("msgCestas", err.message, "erro");
-    } finally {
-      btnSalvarMetaCesta.disabled = false;
+  const btnSalvarMetasCesta = e.target.closest("[data-salvar-metas-cesta]");
+  if (btnSalvarMetasCesta) {
+    const cesta = btnSalvarMetasCesta.getAttribute("data-salvar-metas-cesta");
+    const bloco = document.querySelector(`[data-metas-de="${CSS.escape(cesta)}"]`);
+    const itens = [];
+    let invalido = false;
+    bloco.querySelectorAll("[data-meta-cesta-rep]").forEach(inp => {
+      const novo = inp.value === "" ? 0 : Number(inp.value);
+      const antigo = Number(inp.getAttribute("data-meta-cesta-orig")) || 0;
+      if (Number.isNaN(novo) || novo < 0) { inp.style.borderColor = "var(--vermelho)"; invalido = true; return; }
+      inp.style.borderColor = "";
+      if (novo !== antigo) itens.push({ representante: inp.getAttribute("data-meta-cesta-rep"), cesta, valor: novo });
+    });
+    if (invalido) { mostrarMsg("msgCestas", "Há valores inválidos (marcados em vermelho).", "erro"); return; }
+    const ok = await postarMetas("cesta", itens, "msgCestas", btnSalvarMetasCesta, "Salvar metas da cesta");
+    if (ok) {
+      await recarregarPeriodoMetas();
+      mostrarMsg("msgCestas", "Metas da cesta \"" + cesta + "\" salvas ✓", "sucesso");
     }
   }
 });
@@ -6550,11 +6613,11 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
   const authHeader = { "x-api-key": CONFIG.API_KEY, "Authorization": sessao && sessao.token ? `Bearer ${sessao.token}` : "" };
 
   try {
-    const [respPedidos, respVisitas, respFazendas, respMetas, respAgenda] = await Promise.all([
+        const [respPedidos, respVisitas, respFazendas, respMetas, respAgenda] = await Promise.all([
       fetch(CONFIG.URL_API, { headers: authHeader }),
       fetch(CONFIG.URL_VISITAS, { headers: authHeader }),
       fetch(`${CONFIG.URL_PROPRIEDADES}?completo=1`, { headers: authHeader }),
-      fetch(CONFIG.URL_METAS, { headers: authHeader }),
+      fetch(`${CONFIG.URL_AGENDA}?recurso=metas&acao=vigentes`, { headers: authHeader }),
       fetch(`${CONFIG.URL_AGENDA}?tudo=1&equipe=1`, { headers: authHeader })
     ]);
 
@@ -6622,8 +6685,15 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
     }));
 
     const metas = (dadosMetas.metas || []).map(m => ({
-      Revenda: m.Revenda,
-      Meta_Semanal: m.Meta_Semanal
+      Representante: m.representante,
+      Tipo: m.tipo,
+      Periodo: m.rotulo,
+      Escopo: m.escopo === "cesta" ? "Cesta: " + m.cesta : "Geral",
+      Meta: m.meta,
+      Realizado: m.realizado,
+      Percentual: m.percentual,
+      Falta: m.falta,
+      Situacao: (SITUACAO_META[m.situacao] || {}).txt || m.situacao
     }));
 
     const agendaTodos = Object.values(dadosAgenda.PorPromotor || {}).flat();
