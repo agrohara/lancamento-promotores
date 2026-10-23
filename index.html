@@ -950,7 +950,14 @@
       <h2 class="titulo-pagina" id="tituloEscolherFazenda">Fazenda</h2>
       <div class="card">
         <div id="msgEscolherFazenda"></div>
-        <label for="buscaFazendaLanc">Buscar fazenda já cadastrada</label>
+        <div id="boxLocalVisita" class="oculto">
+          <label style="margin-top:0;">Onde foi a visita?</label>
+          <div class="filtro-historico" style="margin-bottom:12px;">
+            <button class="chip-filtro ativo" data-local-visita="fazenda" type="button">Fazenda</button>
+            <button class="chip-filtro" data-local-visita="revenda" type="button">Revenda</button>
+          </div>
+        </div>
+        <label for="buscaFazendaLanc" id="rotuloBuscaLocal">Buscar fazenda já cadastrada</label>
         <div class="input-combo">
           <input type="text" id="buscaFazendaLanc" placeholder="Toque para ver a lista ou digite para buscar..." autocomplete="off">
           <div id="sugestoesFazendaLanc" class="sugestoes oculto"></div>
@@ -3215,8 +3222,41 @@ document.getElementById("btnCadConcluir").addEventListener("click", async () => 
 /* =========================================================================
    REGISTRO: escolha de fazenda compartilhada por Visita e Pedido
    ========================================================================= */
+let localVisita = "fazenda"; // "fazenda" | "revenda" (só na Visita; Pedido é sempre fazenda)
+function listaRevendasVisita() {
+  const todas = PROMOTOR_CLIENTE.filter(p => !/^Projeto Lançamentos/i.test(p.Cliente));
+  const nome = String((sessao && sessao.nome) || "").toLowerCase();
+  const minhas = ehGestor() ? todas : todas.filter(p => p.Promotor.toLowerCase() === nome);
+  return [...new Set((minhas.length ? minhas : todas).map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+function aplicarLocalVisita() {
+  const rev = localVisita === "revenda";
+  document.querySelectorAll("[data-local-visita]").forEach(c => c.classList.toggle("ativo", c.getAttribute("data-local-visita") === localVisita));
+  document.getElementById("rotuloBuscaLocal").textContent = rev ? "Buscar revenda" : "Buscar fazenda já cadastrada";
+  document.getElementById("buscaFazendaLanc").placeholder = rev ? "Toque para ver as revendas ou digite para buscar..." : "Toque para ver a lista ou digite para buscar...";
+  document.getElementById("btnAbrirCadastroFazendaLanc").classList.toggle("oculto", rev);
+  document.getElementById("tituloEscolherFazenda").textContent = (rev ? "Revenda" : "Fazenda") + " · Nova Visita";
+  document.getElementById("buscaFazendaLanc").value = "";
+  document.getElementById("fazendaChip").textContent = "";
+  document.getElementById("fazendaEscolhidaWrap").classList.add("oculto");
+  document.getElementById("avisoSemLocalizacaoFazenda").classList.add("oculto");
+  document.getElementById("avisoProximoAssunto").classList.add("oculto");
+  document.getElementById("sugestoesFazendaLanc").classList.add("oculto");
+  limparMsg("msgEscolherFazenda");
+}
+document.querySelectorAll("[data-local-visita]").forEach(c => c.addEventListener("click", () => {
+  localVisita = c.getAttribute("data-local-visita");
+  aplicarLocalVisita();
+}));
+
 function iniciarRegistro(modo) {
   modoRegistro = modo;
+  localVisita = "fazenda";
+  document.getElementById("boxLocalVisita").classList.toggle("oculto", modo !== "visita");
+  document.getElementById("rotuloBuscaLocal").textContent = "Buscar fazenda já cadastrada";
+  document.getElementById("buscaFazendaLanc").placeholder = "Toque para ver a lista ou digite para buscar...";
+  document.getElementById("btnAbrirCadastroFazendaLanc").classList.remove("oculto");
+  document.querySelectorAll("[data-local-visita]").forEach(c => c.classList.toggle("ativo", c.getAttribute("data-local-visita") === "fazenda"));
   dataAtual = hojeISO();
   quinzenaAtual = calcularQuinzena(dataAtual);
 
@@ -3239,11 +3279,12 @@ const sugestoesFazendaLanc = document.getElementById("sugestoesFazendaLanc");
 // campo (vazio) e filtra conforme a pessoa digita, igual um <select> de verdade.
 function renderizarSugestoesFazendaLanc() {
   const termo = buscaFazendaLanc.value.trim().toLowerCase();
+  const base = localVisita === "revenda" ? listaRevendasVisita() : todasPropriedades;
   const opcoes = termo
-    ? todasPropriedades.filter(p => p.toLowerCase().includes(termo)).slice(0, 40)
-    : todasPropriedades.slice(0, 40);
+    ? base.filter(p => p.toLowerCase().includes(termo)).slice(0, 40)
+    : base.slice(0, 40);
   if (opcoes.length === 0) {
-    sugestoesFazendaLanc.innerHTML = '<div class="sugestao-vazia">Nenhuma fazenda encontrada. Cadastre uma nova abaixo.</div>';
+    sugestoesFazendaLanc.innerHTML = localVisita === "revenda" ? '<div class="sugestao-vazia">Nenhuma revenda encontrada.</div>' : '<div class="sugestao-vazia">Nenhuma fazenda encontrada. Cadastre uma nova abaixo.</div>';
   } else {
     sugestoesFazendaLanc.innerHTML = opcoes.map(p => `<div class="sugestao-item" data-nome-fazenda="${p.replace(/"/g, "&quot;")}">${p}</div>`).join("");
   }
@@ -3269,7 +3310,7 @@ function escolherFazendaLanc(nome) {
   sugestoesFazendaLanc.classList.add("oculto");
   document.getElementById("fazendaChip").textContent = nome;
   document.getElementById("fazendaEscolhidaWrap").classList.remove("oculto");
-  verificarLocalizacaoFazendaEscolhida(nome);
+  if (localVisita !== "revenda") verificarLocalizacaoFazendaEscolhida(nome);
 }
 
 // Verifica se a fazenda escolhida (pra Visita ou Pedido) já tem latitude/longitude
@@ -3356,11 +3397,12 @@ document.getElementById("btnCancelarEscolherFazenda").addEventListener("click", 
 document.getElementById("btnContinuarFazendaLanc").addEventListener("click", () => {
   const nome = document.getElementById("fazendaChip").textContent.trim();
   if (!nome) {
-    marcarCampoInvalido("buscaFazendaLanc", "Selecione uma fazenda da lista.");
-    mostrarMsg("msgEscolherFazenda", "Busque e selecione uma fazenda, ou cadastre uma nova.", "erro");
+    const rev = localVisita === "revenda";
+    marcarCampoInvalido("buscaFazendaLanc", rev ? "Selecione uma revenda da lista." : "Selecione uma fazenda da lista.");
+    mostrarMsg("msgEscolherFazenda", rev ? "Busque e selecione uma revenda." : "Busque e selecione uma fazenda, ou cadastre uma nova.", "erro");
     return;
   }
-  irParaCorpoRegistro(nome);
+  irParaCorpoRegistro(localVisita === "revenda" && modoRegistro === "visita" ? "Revenda: " + nome : nome);
 });
 
 function irParaCorpoRegistro(fazenda) {

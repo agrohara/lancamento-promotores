@@ -367,6 +367,48 @@
   @media (max-width:980px){#metasPainel{padding:14px 12px 30px;}.g-kpi-metas{grid-template-columns:1fr 1fr;}}
   @media print{#metasPainel{display:none !important;}}
   .g-kpi-metas .kpi.principal .val{font-size:28px;}
+
+  .mm-tab td small,.mm-tab th small{display:block;color:var(--suave);font-size:11.5px;font-weight:600;margin-top:1px;}
+  .mm-tab{background:#fff;border:1px solid var(--borda);border-radius:14px;overflow:hidden;}
+  .mm-tab tr.clicavel{cursor:pointer;} .mm-tab tr.clicavel:hover td{background:var(--acao-fundo);}
+  .mm-tab td{padding:10px 12px;}
+  .mm-nota{font-size:12px;color:var(--mudo);margin:6px 2px 0;}
+  .mm-tab .tag{margin:1px 2px 1px 0;}
+  .metas-mini{display:block;}
+
+  /* ---------- IMPRESSÃO / PDF (A4 paisagem) ----------
+     Paisagem mantém o layout de desktop (>980px) na folha; zoom reduz tudo para caber com
+     texto legível (~8pt). Seções não são cortadas no meio e o cabeçalho de tabela se repete. */
+  @page{size:A4 landscape;margin:8mm;}
+  @media print{
+    html,body{background:#fff !important;}
+    body{zoom:.8;font-size:13px;}
+    header.topo{padding:8px 16px;position:static;} header.topo img{height:34px;}
+    header.topo .titulo h1{font-size:18px;} .usuario{display:none;}
+    .abas,.filtros,#erro,.mm-nota,#metasPainel,#despesasPainel{display:none !important;}
+    main#conteudo{padding:6px 0 0;max-width:none;margin:0;}
+    .so-impressao{margin:8px 0;font-size:12px;line-height:1.5;}
+    .contexto{margin:6px 0 4px;} .contexto .periodo{font-size:20px;}
+    .secao{margin:16px 0 8px;break-after:avoid;page-break-after:avoid;}
+    .card,.pc,.dest,.mm-tab,.kpi{break-inside:avoid;page-break-inside:avoid;box-shadow:none !important;}
+    #kpis.grid.g-kpi{grid-template-columns:1.4fr repeat(4,1fr) !important;gap:10px;}
+    .kpi.principal{grid-column:auto !important;}
+    .secao:has(+ .grid.g-2-1){break-before:page;page-break-before:always;}
+    .secao:has(#tituloQuemVendeu){break-before:page;page-break-before:always;}
+    .legenda-secao{break-after:avoid;page-break-after:avoid;}
+    .kpi{padding:12px 14px 10px 18px;} .kpi .val{font-size:22px;margin:4px 0;} .kpi.principal .val{font-size:30px;} .kpi .ico{display:none;}
+    .dest-grid{grid-template-columns:repeat(3,1fr);gap:8px;}
+    .grid-prom{grid-template-columns:repeat(4,1fr);gap:10px;}
+    .pc{padding:10px 12px;} .pc .val-p{font-size:20px;} .pc svg{max-height:34px;}
+    .grid.g-2-1{grid-template-columns:2fr 1fr;gap:12px;}
+    table{font-size:11.5px;} thead{display:table-header-group;} tr{break-inside:avoid;page-break-inside:avoid;}
+    .tabela-wrap{overflow:visible !important;}
+    .mm-tab td{padding:6px 10px;}
+    .ex-topo .seg{display:none;}
+    #tabRegistros tbody tr:nth-child(n+13){display:none;}
+    .tabela-wrap th,.tabela-wrap td{padding:5px 8px;}
+    a,button{text-decoration:none;}
+  }
 </style>
 </head>
 <body>
@@ -671,7 +713,7 @@ function desenhar() {
     ["k-ticket", "ticket", "Ticket médio", brl(k.ticket), v.ticket, brl(a.ticket)]
   ];
   $("kpis").innerHTML = cards.map(c => `<div class="card kpi ${c[0]}"><div class="topo-kpi"><span class="rot">${c[2]}</span><span class="ico" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONES[c[1]]}</svg></span></div><div class="val">${c[3]}</div><div class="comp">${delta(c[4])}<span class="ant">antes: ${c[5]}</span></div></div>`).join("");
-  desenharDestaques(); desenharCartoesPromotores(); exReset(); desenharTipos(); desenharRegistros();
+  desenharDestaques(); desenharCartoesPromotores(); exReset(); desenharTipos(); desenharRegistros(); desenharMetasMini();
 }
 const vazio = (t, s) => `<div class="vazio"><b>${t}</b>${s || ""}</div>`;
 
@@ -955,7 +997,7 @@ function trocarAba(aba) {
   $("conteudo").classList.toggle("oculto", d || m);
   $("btnImprimir").classList.toggle("oculto", d || m);
   if (d) carregarDespesas();
-  if (m) carregarMetas();
+  if (m) { if (!modoVend && !$("mtRep").dataset.tocado && filtro.promotor && !mt.rep) mt.rep = filtro.promotor; carregarMetas(); }
 }
 document.getElementById("abas").addEventListener("click", e => { const b = e.target.closest("button[data-aba]"); if (b) trocarAba(b.dataset.aba); });
 document.getElementById("dspFiltro").addEventListener("click", e => {
@@ -1192,21 +1234,61 @@ $("mtTipo").addEventListener("click", e => {
 });
 $("mtAno").addEventListener("change", e => { mt.ano = +e.target.value; carregarMetas(); });
 $("mtPeriodo").addEventListener("change", e => { mt.periodo = +e.target.value; carregarMetas(); });
-$("mtRep").addEventListener("change", e => { mt.rep = e.target.value; carregarMetas(); });
+$("mtRep").addEventListener("change", e => { mt.rep = e.target.value; $("mtRep").dataset.tocado = "1"; carregarMetas(); });
 
-// Mini-painel na visão geral: metas vigentes (hoje) — gestor vê todos; vendedor só as dele
+// Mini-painel na visão geral: metas vigentes (hoje). Sem filtro de promotor, o gestor vê UMA linha
+// por meta (somando os representantes, com a contagem de situações); filtrando um promotor (ou como
+// vendedor) vê só as metas dele, uma por linha. Busca uma vez e filtra no navegador.
+let vigentesCache = null;
 async function carregarMetasMini() {
   try {
     const r = await fetch(URL_METAS + "&acao=vigentes", { headers: cabMt() });
     const d = await r.json().catch(() => ({}));
-    if (!r.ok || !d.metas || !d.metas.length) { $("blocoMetasMini").classList.add("oculto"); return; }
-    $("metasMini").innerHTML = d.metas.map(m => `<div class="mm"><div class="t1">${esc(m.tipo)} · ${esc(m.rotulo)}</div>
-      <div class="t2">${modoVend ? "" : esc(m.representante) + " · "}${m.escopo === "cesta" ? "Cesta: " + esc(m.cesta) : "Meta geral"}</div>
-      <div>${barraMt(m)} ${tagSit(m)}</div>
-      <div class="v"><span>${brl0(m.realizado)} de ${brl0(m.meta)}</span><span>${m.situacao === "batida" ? "Meta batida" : m.diasRestantes > 0 ? "Faltam " + brl0(m.falta) + " em " + m.diasRestantes + " dia(s)" : "Faltaram " + brl0(m.falta)}</span></div></div>`).join("");
-    $("blocoMetasMini").classList.remove("oculto");
-  } catch (e) { $("blocoMetasMini").classList.add("oculto"); }
+    vigentesCache = r.ok && d.metas ? d.metas : [];
+  } catch (e) { vigentesCache = []; }
+  desenharMetasMini();
 }
+function desenharMetasMini() {
+  if (!vigentesCache) return;
+  const f = (!modoVend && filtro.promotor) ? String(filtro.promotor).toLowerCase() : "";
+  const lista = vigentesCache.filter(m => !f || String(m.representante).toLowerCase() === f);
+  if (!lista.length) { $("blocoMetasMini").classList.add("oculto"); return; }
+  const agrega = !modoVend && !f;
+  const grupos = new Map();
+  lista.forEach(m => {
+    const k = [m.tipo, m.ano, m.periodo, m.escopo, m.cesta || ""].join("|");
+    if (!grupos.has(k)) grupos.set(k, { ...m, meta: 0, realizado: 0, n: 0, sit: {} });
+    const g = grupos.get(k); g.meta += m.meta; g.realizado += m.realizado; g.n++; g.sit[m.situacao] = (g.sit[m.situacao] || 0) + 1;
+  });
+  const linhas = [...grupos.values()].map(g => {
+    const pct = g.meta ? Math.round(g.realizado / g.meta * 1000) / 10 : 0;
+    let tags;
+    if (agrega) {
+      const ok = (g.sit.batida || 0), rit = (g.sit.no_ritmo || 0), atr = (g.sit.atrasada || 0) + (g.sit.nao_batida || 0);
+      tags = [ok && `<span class="tag ok">${ok} batida${ok > 1 ? "s" : ""}</span>`, rit && `<span class="tag ok">${rit} no ritmo</span>`, atr && `<span class="tag mal">${atr} atrasada${atr > 1 ? "s" : ""}</span>`].filter(Boolean).join(" ");
+    } else tags = tagSit(g);
+    const quem = agrega ? `${g.n} representante${g.n > 1 ? "s" : ""}` : (modoVend ? "" : esc(g.representante));
+    return `<tr class="clicavel" data-tipo="${g.tipo}" data-ano="${g.ano}" data-per="${g.periodo}" tabindex="0">
+      <td class="t"><b>${g.escopo === "cesta" ? "Cesta: " + esc(g.cesta) : "Meta geral"}</b>${quem ? `<small>${quem}</small>` : ""}</td>
+      <td class="t">${esc(g.tipo.charAt(0).toUpperCase() + g.tipo.slice(1))}<small>${esc(g.rotulo)}</small></td>
+      <td>${brl(g.realizado)}<small>de ${brl(g.meta)}</small></td>
+      <td class="barra-td">${barraMt({ percentual: pct, situacao: agrega ? (pct >= 100 ? "batida" : "no_ritmo") : g.situacao })}</td>
+      <td class="t">${tags}</td></tr>`;
+  }).join("");
+  $("metasMini").innerHTML = `<table class="mt-tab mm-tab"><thead><tr><th class="t">Meta</th><th class="t">Período</th><th>Realizado</th><th>Atingimento</th><th class="t">${agrega ? "Situação dos representantes" : "Situação"}</th></tr></thead><tbody>${linhas}</tbody></table>
+    <p class="mm-nota">Clique em uma linha para ver o detalhe por representante na aba Metas.</p>`;
+  $("blocoMetasMini").classList.remove("oculto");
+}
+$("metasMini").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-tipo]"); if (!tr) return;
+  if (!mt.ini) iniciarMetas();
+  mt.tipo = tr.dataset.tipo; mt.ano = +tr.dataset.ano; mt.periodo = +tr.dataset.per;
+  mt.rep = (!modoVend && filtro.promotor) ? filtro.promotor : "";
+  document.querySelectorAll("#mtTipo button").forEach(x => x.classList.toggle("ativo", x.dataset.t === mt.tipo));
+  $("mtAno").value = String(mt.ano); montarPeriodoMt();
+  trocarAba("metas");
+});
+
 iniciar();
 </script>
 </body>
