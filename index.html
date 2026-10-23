@@ -1755,8 +1755,8 @@ async function sincronizarFilaOffline() {
         if (resp.ok) {
           await removerDaFilaOffline(item.chave);
           enviados++;
-        } else if (resp.status >= 500) {
-          break; // problema no servidor — tenta tudo de novo mais tarde
+        } else if (resp.status >= 500 || resp.status === 401) {
+          break; // servidor com problema, ou sessão vencida (401): MANTÉM a fila — depois de entrar de novo, tudo é enviado
         } else {
           await removerDaFilaOffline(item.chave); // 4xx: descarta, reenviar não resolve
         }
@@ -2256,6 +2256,39 @@ async function realizarLogin() {
     btn.textContent = "Entrar";
   }
 }
+
+/* Sessão vencida/inválida (o servidor respondeu 401): sai sozinho e leva para o login, em vez de
+   deixar telas quebradas com "Sessão expirada". Os registros pendentes na fila NÃO são apagados:
+   são enviados assim que a pessoa entrar de novo. */
+let sessaoExpirando = false;
+function sessaoExpirada() {
+  if (sessaoExpirando || !sessao) return;
+  sessaoExpirando = true;
+  const loginAnterior = sessao.login || "";
+  limparSessao();
+  // o acesso offline guardado carrega o login velho: apaga também, para não "ressuscitar" a sessão vencida
+  try { localStorage.removeItem("loginOfflineAgroHara"); } catch (e) {}
+  idbAuthApagar("login");
+  document.getElementById("app").classList.add("oculto");
+  document.getElementById("pagLogin").classList.remove("oculto");
+  document.getElementById("inputLogin").value = loginAnterior;
+  document.getElementById("inputSenha").value = "";
+  mostrarMsg("msgLogin", "Sua sessão expirou. Entre novamente com seu usuário e senha. Registros que estavam pendentes de envio continuam guardados e serão enviados depois.", "erro");
+  setTimeout(() => { sessaoExpirando = false; }, 1500);
+}
+(function vigiarSessaoExpirada() {
+  const fetchOriginal = window.fetch.bind(window);
+  window.fetch = async function (entrada, opcoes) {
+    const resp = await fetchOriginal(entrada, opcoes);
+    try {
+      if (resp.status === 401 && sessao) {
+        const u = new URL(typeof entrada === "string" ? entrada : entrada.url, location.href);
+        if (u.origin === location.origin && u.pathname.startsWith("/api/") && u.pathname !== "/api/login") sessaoExpirada();
+      }
+    } catch (e) {}
+    return resp;
+  };
+})();
 
 document.getElementById("btnSair").addEventListener("click", () => {
   limparSessao();
