@@ -856,7 +856,7 @@
           <label for="cpPersonalidadeObs">Observação sobre a personalidade (opcional)</label>
           <textarea id="cpPersonalidadeObs" rows="2" placeholder="Alguma observação extra sobre como ele decide/se comunica"></textarea>
           <div class="cad-grupo">Responsável e localização</div>
-          <label for="cpVendedor" class="req">Vendedor responsável</label>
+          <label for="cpVendedor" class="req">Promotor responsável</label>
           <select id="cpVendedor"></select>
           <label>Localização da fazenda (opcional)</label>
           <button class="btn btn-secundario" id="btnCapturarLocalizacao" type="button" style="display:flex;align-items:center;gap:8px;justify-content:center;">
@@ -1511,6 +1511,9 @@
       <button class="folha-fechar" id="btnFecharFolhaFazenda" type="button">✕</button>
     </div>
     <div class="msg msg-erro oculto" id="folhaFazendaErro"></div>
+    <label for="ffNome">Nome da fazenda</label>
+    <input type="text" id="ffNome" maxlength="160">
+    <div id="ffNomeAviso" style="font-size:12px;color:#666;margin:-4px 0 10px"></div>
     <label for="ffMunicipio">Município</label>
     <input type="text" id="ffMunicipio">
     <label for="ffProprietario">Proprietário</label>
@@ -1521,7 +1524,7 @@
     <input type="text" id="ffPersonalidade">
     <label for="ffPersonalidadeObs">Observação (personalidade)</label>
     <input type="text" id="ffPersonalidadeObs">
-    <label for="ffVendedor">Vendedor responsável</label>
+    <label for="ffVendedor">Promotor responsável</label>
     <input type="text" id="ffVendedor">
     <label for="ffTipo">Atividade principal</label>
     <select id="ffTipo"></select>
@@ -2581,7 +2584,7 @@ function renderizarDetalheFazenda(areaDetalhe, p) {
     <div class="campo-detalhe"><span>Decisor</span><b>${p.Decisor || "—"}</b></div>
     <div class="campo-detalhe"><span>Personalidade do decisor</span><b>${p.Personalidade_Decisor || "—"}</b></div>
     ${p.Personalidade_Observacao ? `<div class="campo-detalhe"><span>Observação (personalidade)</span><b>${p.Personalidade_Observacao}</b></div>` : ""}
-    <div class="campo-detalhe"><span>Vendedor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
+    <div class="campo-detalhe"><span>Promotor responsável</span><b>${p.Vendedor_Responsavel || "—"}</b></div>
     <div class="campo-detalhe"><span>Atividade principal</span><b>${p.Tipo_Propriedade || "—"}</b></div>
     <div class="campo-detalhe"><span>Fase produtiva</span><b>${p.Fase_Produtiva || "—"}</b></div>
     <div class="campo-detalhe"><span>Sistema de produção</span><b>${p.Sistema_Producao || "—"}</b></div>
@@ -2620,6 +2623,7 @@ function renderizarDetalheFazenda(areaDetalhe, p) {
 // árvore de #listaFazendas, então nenhum clique nele pode ser "capturado" pelo toggle
 // de abrir/fechar o card (foi exatamente esse bug que fazia a edição "voltar pra trás").
 let fzPropriedadeAtual = null;
+let fzPodeRenomear = false;
 let fzLat = null;
 let fzLon = null;
 let fzAreaDetalheParaAtualizar = null;
@@ -2681,7 +2685,7 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
   document.getElementById("folhaFazendaTitulo").textContent = "Editar fazenda";
   document.getElementById("folhaFazendaOverlay").classList.remove("oculto");
 
-  const campos = ["ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo","ffFase","ffSistema"];
+  const campos = ["ffNome","ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo","ffFase","ffSistema"];
   campos.forEach(id => { document.getElementById(id).value = "Carregando..."; document.getElementById(id).disabled = true; });
   document.getElementById("ffLat").value = "";
   document.getElementById("ffLon").value = "";
@@ -2702,6 +2706,15 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
     fzLon = p.Longitude != null ? p.Longitude : null;
 
     document.getElementById("folhaFazendaTitulo").textContent = p.Propriedade;
+    document.getElementById("ffNome").value = p.Propriedade || "";
+    fzPodeRenomear = !!p.Pode_Renomear;
+    const avisoNome = document.getElementById("ffNomeAviso");
+    if (fzPodeRenomear) {
+      const ate = p.Renomear_Ate ? p.Renomear_Ate.split("-").reverse().join("/") : "";
+      avisoNome.textContent = ate ? `O nome pode ser alterado até ${ate} (30 dias após o cadastro). Precisa de internet.` : "O nome pode ser alterado. Precisa de internet.";
+    } else {
+      avisoNome.textContent = "O prazo de 30 dias após o cadastro para alterar o nome já passou.";
+    }
     document.getElementById("ffMunicipio").value = p.Municipio || "";
     document.getElementById("ffProprietario").value = p.Proprietario || "";
     document.getElementById("ffDecisor").value = p.Decisor || "";
@@ -2723,6 +2736,7 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
       if (el.value === "Carregando...") el.value = "";
       el.disabled = false;
     });
+    document.getElementById("ffNome").disabled = !fzPodeRenomear;
   }
 }
 
@@ -2767,6 +2781,13 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
   }
   fzLat = coord.lat;
   fzLon = coord.lon;
+  const nomeNovo = document.getElementById("ffNome").value.trim().replace(/\s+/g, " ");
+  const renomear = fzPodeRenomear && nomeNovo && nomeNovo !== fzPropriedadeAtual.Propriedade;
+  if (fzPodeRenomear && !nomeNovo) {
+    erroBox.textContent = "O nome da fazenda não pode ficar vazio.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
   btn.disabled = true;
   try {
     const corpo = {
@@ -2783,6 +2804,25 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
       Latitude: fzLat === null ? "" : fzLat,
       Longitude: fzLon === null ? "" : fzLon
     };
+    if (renomear) {
+      // Renomear mexe em pedidos, visitas e agenda: só online, direto no servidor.
+      corpo.Novo_Nome = nomeNovo;
+      let r;
+      try {
+        r = await fetch(CONFIG.URL_PROPRIEDADES, { method: "PATCH", headers: cabecalhosEnvio(), body: JSON.stringify(corpo) });
+      } catch (e) {
+        throw new Error("Para mudar o nome da fazenda é preciso estar com internet. Tente de novo quando conectar.");
+      }
+      const dr = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((dr && dr.erro) || "Não foi possível salvar.");
+      const pNovo = { ...fzPropriedadeAtual, ...corpo, Propriedade: nomeNovo, Latitude: fzLat, Longitude: fzLon };
+      delete pNovo.Novo_Nome;
+      try { await carregarTodasPropriedades(); } catch (e) {}
+      try { const bf = document.getElementById("buscaFazendaLista"); renderizarListaFazendas(todasPropriedades.filter(x => x.toLowerCase().includes((bf.value||"").toLowerCase().trim()))); } catch (e) {}
+      if (fzAreaDetalheParaAtualizar) renderizarDetalheFazenda(fzAreaDetalheParaAtualizar, pNovo);
+      fecharFolhaEdicaoFazenda();
+      return;
+    }
     const resultado = await enviarOuEnfileirar("Edição de fazenda", CONFIG.URL_PROPRIEDADES, "PATCH", corpo);
     const pAtualizado = { ...fzPropriedadeAtual, ...corpo, Latitude: fzLat, Longitude: fzLon };
 
@@ -3253,7 +3293,7 @@ document.getElementById("btnCadAvancar1").addEventListener("click", () => {
     // destaque visual junto de cada campo (a regra e a mensagem continuam as mesmas)
     [["cpVendedor", vendedor], ["cpProprietario", proprietario], ["cpMunicipio", municipio], ["cpNome", nome]]
       .forEach(([id, v]) => { if (!v) marcarCampoInvalido(id, "Campo obrigatório."); });
-    mostrarMsg("msgCadastroPropriedade", "Preencha nome, município, proprietário e vendedor responsável.", "erro");
+    mostrarMsg("msgCadastroPropriedade", "Preencha nome, município, proprietário e promotor responsável.", "erro");
     return;
   }
   const coordCad = lerCoordenadas(document.getElementById("cpLatInput").value, document.getElementById("cpLonInput").value);
@@ -6833,7 +6873,7 @@ document.getElementById("btnExportarExcel").addEventListener("click", async () =
       Decisor: p.Decisor,
       Personalidade_Decisor: p.Personalidade_Decisor,
       Personalidade_Observacao: p.Personalidade_Observacao,
-      Vendedor_Responsavel: p.Vendedor_Responsavel,
+      Promotor_Responsavel: p.Vendedor_Responsavel,
       Atividade_Principal: p.Tipo_Propriedade,
       Fase_Produtiva: p.Fase_Produtiva,
       Sistema_Producao: p.Sistema_Producao,
