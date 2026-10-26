@@ -48,6 +48,24 @@ const { obterSupabase, buscarTodasLinhas } = require("./_lib/supabase");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
+// RENOMEAR FAZENDA (26/10/2026): o promotor que cadastrou pode alterar o NOME da fazenda até
+// 30 dias depois da data de cadastro (a regra vale a partir de 26/10/2026: fazendas cadastradas
+// há mais de 30 dias ficam travadas para promotor). Gerente/Desenvolvedor não tem prazo.
+// O novo nome é propagado para pedidos (lancamentos), visitas e agenda, para o histórico não se perder.
+const PRAZO_RENOME_DIAS = 30;
+function hojeBrasilIso() { return new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10); }
+function limiteRenome(dataCadastro) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dataCadastro || ""))) return null;
+  const d = new Date(dataCadastro + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + PRAZO_RENOME_DIAS);
+  return d.toISOString().slice(0, 10);
+}
+function infoRenome(linha, ehGestor) {
+  if (ehGestor) return { Pode_Renomear: true, Renomear_Ate: "" };
+  const ate = limiteRenome(linha.data_cadastro);
+  return { Pode_Renomear: !!ate && hojeBrasilIso() <= ate, Renomear_Ate: ate || "" };
+}
+
 function paraObjeto(l) {
   return {
     Propriedade: l.propriedade || "",
@@ -161,7 +179,7 @@ module.exports = async function handler(req, res) {
           res.status(404).json({ erro: "Propriedade não encontrada." });
           return;
         }
-        res.status(200).json({ propriedade: paraObjeto(data) });
+        res.status(200).json({ propriedade: { ...paraObjeto(data), ...infoRenome(data, ehGestor) } });
         return;
       }
 
@@ -274,6 +292,27 @@ module.exports = async function handler(req, res) {
         return;
       }
 
+      // --- renomear (opcional): Novo_Nome ---
+      const nomeAntigo = String(existente.propriedade || "").trim();
+      const novoNome = Object.prototype.hasOwnProperty.call(corpo, "Novo_Nome") ? String(corpo.Novo_Nome || "").trim().replace(/\s+/g, " ") : "";
+      const vaiRenomear = !!novoNome && novoNome !== nomeAntigo;
+      if (vaiRenomear) {
+        if (novoNome.length > 160) { res.status(400).json({ erro: "O nome da fazenda pode ter no máximo 160 caracteres." }); return; }
+        if (/^revenda:/i.test(novoNome)) { res.status(400).json({ erro: "O nome não pode começar com \"Revenda:\"." }); return; }
+        const info = infoRenome(existente, ehGestor);
+        if (!info.Pode_Renomear) {
+          res.status(403).json({ erro: info.Renomear_Ate
+            ? `O prazo para alterar o nome desta fazenda terminou em ${info.Renomear_Ate.split("-").reverse().join("/")} (30 dias após o cadastro).`
+            : "Não foi possível confirmar a data de cadastro desta fazenda; o nome só pode ser alterado pelo gestor." });
+          return;
+        }
+        if (novoNome.toLowerCase() !== nomeAntigo.toLowerCase()) {
+          const { data: igual, error: erroIgual } = await supabase.from("propriedades").select("propriedade").ilike("propriedade", novoNome).limit(1).maybeSingle();
+          if (erroIgual) throw erroIgual;
+          if (igual) { res.status(409).json({ erro: "Já existe uma fazenda cadastrada com esse nome." }); return; }
+        }
+      }
+
       const atualizacao = {};
       for (const [chaveFront, colunaBanco] of Object.entries(CAMPOS_EDITAVEIS_PROPRIEDADE)) {
         if (!Object.prototype.hasOwnProperty.call(corpo, chaveFront)) continue;
@@ -294,18 +333,46 @@ module.exports = async function handler(req, res) {
         atualizacao[colunaBanco] = valor;
       }
 
-      if (Object.keys(atualizacao).length === 0) {
+      if (Object.keys(atualizacao).length === 0 && !vaiRenomear) {
         res.status(200).json({ status: "ok", semAlteracoes: true });
         return;
       }
+      if (vaiRenomear) atualizacao.propriedade = novoNome;
 
       const { error: erroUpdate } = await supabase
         .from("propriedades")
         .update(atualizacao)
-        .ilike("propriedade", nome);
+        .eq("propriedade", nomeAntigo);
       if (erroUpdate) throw erroUpdate;
 
-      res.status(200).json({ status: "ok" });
+      if (vaiRenomear) {
+        // Propaga o novo nome. Se algo falhar no meio, devolve o nome antigo para não deixar
+        // o cadastro e o histórico com nomes diferentes.
+        const passos = [
+          () => supabase.from("lancamentos").update({ propriedade: novoNome }).eq("propriedade", nomeAntigo),
+          () => supabase.from("visitas").update({ propriedade: novoNome }).eq("propriedade", nomeAntigo),
+          () => supabase.from("agenda_compromissos").update({ cliente_nome: novoNome }).eq("cliente_nome", nomeAntigo).in("tipo_cliente", ["propriedade", "fazenda"])
+        ];
+        const feitos = [];
+        try {
+          for (const [i, passo] of passos.entries()) {
+            const { error } = await passo();
+            if (error) throw error;
+            feitos.push(i);
+          }
+        } catch (errProp) {
+          await supabase.from("propriedades").update({ propriedade: nomeAntigo }).eq("propriedade", novoNome);
+          const volta = [
+            () => supabase.from("lancamentos").update({ propriedade: nomeAntigo }).eq("propriedade", novoNome),
+            () => supabase.from("visitas").update({ propriedade: nomeAntigo }).eq("propriedade", novoNome),
+            () => supabase.from("agenda_compromissos").update({ cliente_nome: nomeAntigo }).eq("cliente_nome", novoNome).in("tipo_cliente", ["propriedade", "fazenda"])
+          ];
+          for (const i of feitos) { try { await volta[i](); } catch (e) { /* melhor esforço */ } }
+          throw errProp;
+        }
+      }
+
+      res.status(200).json({ status: "ok", ...(vaiRenomear ? { propriedade: novoNome } : {}) });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao atualizar a propriedade.", detalhe: String(err.message || err) });
     }
