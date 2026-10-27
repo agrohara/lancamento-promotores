@@ -455,7 +455,7 @@
       </div>
       <div class="grupo"><label for="inDe">De</label><input type="date" id="inDe"></div>
       <div class="grupo"><label for="inAte">Até</label><input type="date" id="inAte"></div>
-      <div class="grupo grupo-promotor"><label for="selPromotor">Promotor</label><select id="selPromotor"><option value="">Todos</option></select></div>
+      <div class="grupo grupo-promotor"><label for="selPromotor">Consultor de Pecuária</label><select id="selPromotor"><option value="">Todos</option></select></div>
       <div class="grupo"><label for="selRevenda">Revenda</label><select id="selRevenda"><option value="">Todas</option></select></div>
     </div>
     <div class="filtros-ativos"><span class="rotulo">Recorte ativo</span><div class="chips" id="chips" style="display:contents"></div></div>
@@ -491,7 +491,7 @@
     <div class="card explorador" id="explorador">
       <div class="ex-topo">
         <div class="seg" id="exTabs" role="tablist" aria-label="Agrupar vendas por">
-          <button data-dim="promotor" type="button">Promotor</button>
+          <button data-dim="promotor" type="button">Consultor de Pecuária</button>
           <button data-dim="revenda" type="button">Revenda</button>
           <button data-dim="fazenda" type="button">Fazenda / cliente</button>
           <button data-dim="produto" type="button">Produto</button>
@@ -537,7 +537,7 @@
   </main>
 
   <main id="despesasPainel" class="oculto">
-    <div class="secao"><span class="n">$</span><h2>Despesas dos promotores (RDV e CI)</h2></div>
+    <div class="secao"><span class="n">$</span><h2>Despesas dos consultores de pecuária (RDV e CI)</h2></div>
     <div id="dspMsg" role="status"></div>
     <div class="seg dsp-filtro" id="dspFiltro">
       <button data-f="abertas" class="ativo" type="button">Para aprovar</button>
@@ -632,7 +632,7 @@ function sincronizarControles() {
   document.querySelectorAll("#presets button").forEach(b => b.classList.toggle("ativo", b.dataset.p === presetAtivo));
   $("selPromotor").value = filtro.promotor; $("selRevenda").value = filtro.revenda;
   const chips = [];
-  if (filtro.promotor) chips.push(["promotor", "Promotor: " + filtro.promotor]);
+  if (filtro.promotor) chips.push(["promotor", "Consultor de Pecuária: " + filtro.promotor]);
   if (filtro.revenda) chips.push(["revenda", "Revenda: " + filtro.revenda]);
   if (filtro.fazenda) chips.push(["fazenda", "Fazenda: " + filtro.fazenda]);
   $("chips").innerHTML = chips.length
@@ -702,7 +702,7 @@ function desenhar() {
   $("tituloPeriodo").textContent = rotuloPeriodo;
   $("subPeriodo").innerHTML = `${pr.dias} dia${pr.dias > 1 ? "s" : ""} · comparado com <b>${dataBR(pr.deAnt)} a ${dataBR(pr.ateAnt)}</b>`;
   $("avisoRevenda").classList.toggle("oculto", !d.filtros.revenda);
-  const fAtivos = [d.filtros.promotor && "Promotor: " + d.filtros.promotor, d.filtros.revenda && "Revenda: " + d.filtros.revenda, d.filtros.fazenda && "Fazenda: " + d.filtros.fazenda].filter(Boolean);
+  const fAtivos = [d.filtros.promotor && "Consultor de Pecuária: " + d.filtros.promotor, d.filtros.revenda && "Revenda: " + d.filtros.revenda, d.filtros.fazenda && "Fazenda: " + d.filtros.fazenda].filter(Boolean);
   $("blocoImpressao").innerHTML = `<b>Período:</b> ${rotuloPeriodo} (comparado com ${dataBR(pr.deAnt)} a ${dataBR(pr.ateAnt)}) · <b>Filtros:</b> ${fAtivos.length ? esc(fAtivos.join(" · ")) : "nenhum (toda a equipe)"}${d.filtros.revenda ? " · <b>Obs.:</b> visitas fora deste recorte (filtro de revenda)" : ""} · <b>Emitido em:</b> ${new Date().toLocaleString("pt-BR")}`;
   const k = d.kpi, a = d.kpiAnterior, v = d.variacao;
   const cards = [
@@ -763,7 +763,7 @@ function desenharRegistros() {
   const l = dados.registros;
   const recorte = [dados.filtros.promotor, dados.filtros.revenda, dados.filtros.fazenda].filter(Boolean).join(" · ");
   $("legRegistros").textContent = recorte ? "Recorte: " + recorte : (modoVend ? "Os seus registros mais recentes do período" : "Os mais recentes do período, de toda a equipe");
-  $("tabRegistros").innerHTML = l.length ? `<table><thead><tr><th>Data</th><th style="text-align:left;">Tipo</th><th style="text-align:left;">Promotor</th><th style="text-align:left;">Fazenda</th><th style="text-align:left;">Revenda</th><th style="text-align:left;">Detalhe</th><th>Valor</th></tr></thead><tbody>` +
+  $("tabRegistros").innerHTML = l.length ? `<table><thead><tr><th>Data</th><th style="text-align:left;">Tipo</th><th style="text-align:left;">Consultor de Pecuária</th><th style="text-align:left;">Fazenda</th><th style="text-align:left;">Revenda</th><th style="text-align:left;">Detalhe</th><th>Valor</th></tr></thead><tbody>` +
     limite("reg", l, 10).map(r => `<tr><td style="text-align:left;">${dataBR(r.data)}</td><td style="text-align:left;"><span class="tag ${r.tipo === "Pedido" ? "ok" : ""}" style="${r.tipo === "Pedido" ? "background:#e3f5f3;color:#0f766e" : "background:#eaf1ff;color:#2563eb"}">${r.tipo === "Pedido" ? "🛒" : "👁"} ${r.tipo}</span></td><td style="text-align:left;">${esc(r.promotor)}</td><td class="nome" style="text-align:left;">${esc(r.fazenda)}</td><td class="nome" style="text-align:left;">${esc(r.revenda) || "—"}</td><td class="nome" style="text-align:left;">${esc(r.detalhe)}</td><td class="c-valor">${r.valor != null ? brl(r.valor) : "—"}</td></tr>`).join("") + `</tbody></table>${botaoMais("reg", l.length, 10)}` : vazio("Sem registros neste recorte", "Ajuste o período ou limpe os filtros.");
 }
 
@@ -772,7 +772,7 @@ function desenharRegistros() {
    Os dados vêm do "cubo" agregado pelo servidor; o clique só filtra no navegador.
    ========================================================================= */
 const DIMS = {
-  promotor: { c: "p", rot: "Promotor", cor: "#3d8b28", vazio: "(sem promotor)" },
+  promotor: { c: "p", rot: "Consultor de Pecuária", cor: "#3d8b28", vazio: "(sem consultor de pecuária)" },
   revenda: { c: "r", rot: "Revenda", cor: "#0f766e", vazio: "(sem revenda)" },
   fazenda: { c: "f", rot: "Fazenda / cliente", cor: "#7c3aed", vazio: "(balcão · sem fazenda)" },
   produto: { c: "pr", rot: "Produto", cor: "#2563eb", vazio: "(sem produto)" }
@@ -799,7 +799,7 @@ function desenharCartoesPromotores() {
   const lista = dados.porPromotor.filter(p => !p.semAtividade);
   const total = dados.kpi.valor || 0;
   $("legPromotores").textContent = lista.length
-    ? (modoVend ? "Clique no cartão para ver para onde e o que você vendeu." : "Clique em um promotor para ver para onde e o que ele vendeu. Linha = evolução no período.")
+    ? (modoVend ? "Clique no cartão para ver para onde e o que você vendeu." : "Clique em um consultor de pecuária para ver para onde e o que ele vendeu. Linha = evolução no período.")
     : "";
   $("cartoesPromotores").innerHTML = lista.length ? lista.map((p, i) => {
     const part = total ? Math.round((p.valor / total) * 1000) / 10 : 0;
@@ -1112,15 +1112,15 @@ function desenharDetalheDesp(l) {
         ${l.tipo === "CI" ? `<div><label for="gNumero">Nº da CI (opcional)</label><input id="gNumero" maxlength="30" value="${esc(g.numero || "")}" placeholder="Ex.: FF0019/26"></div>` : ""}
       </div>
       <div style="margin-top:12px;"><label for="gDesc" class="req">Descrição</label><textarea id="gDesc" rows="2" maxlength="1500">${esc(desc)}</textarea></div>
-      <div id="gRecusaBox" class="oculto" style="margin-top:12px;"><label for="gMotivo">Motivo da recusa (o promotor vai ver)</label><input id="gMotivo" maxlength="400"></div>
+      <div id="gRecusaBox" class="oculto" style="margin-top:12px;"><label for="gMotivo">Motivo da recusa (o consultor de pecuária vai ver)</label><input id="gMotivo" maxlength="400"></div>
       <div id="gMsg" role="alert"></div>
       <div class="dsp-acoes">
         <button class="dsp-ok" id="btnAprovarDesp" type="button">${l.status === "erro_kanban" ? "Reenviar ao Kanban" : "OK · enviar ao Kanban"}</button>
         <button class="dsp-rec" id="btnRecusarDesp" type="button">Recusar</button>
-        <span class="dsp-dica">Ao aprovar, o formulário e os anexos são enviados ao Kanban. Ao recusar, o promotor vê o motivo e pode corrigir.</span>
+        <span class="dsp-dica">Ao aprovar, o formulário e os anexos são enviados ao Kanban. Ao recusar, o consultor de pecuária vê o motivo e pode corrigir.</span>
       </div></div>`;
   }
-  $("dspDetalhe").innerHTML = `<div class="dsp-cab"><div><h3>${esc(l.promotor)} · ${esc(titulo)}</h3><span class="st ${c}">${t}</span></div><div style="text-align:right;"><small style="color:var(--suave)">Valor do promotor</small><div style="font-size:20px;font-weight:800">${moeda2(l.valor_promotor)}</div>${l.arquivo_url ? `<a href="${esc(l.arquivo_url)}" target="_blank" rel="noopener" style="font-size:12px">Baixar Excel gerado</a>` : ""}</div></div>${aviso}${corpo}${form}`;
+  $("dspDetalhe").innerHTML = `<div class="dsp-cab"><div><h3>${esc(l.promotor)} · ${esc(titulo)}</h3><span class="st ${c}">${t}</span></div><div style="text-align:right;"><small style="color:var(--suave)">Valor do consultor de pecuária</small><div style="font-size:20px;font-weight:800">${moeda2(l.valor_promotor)}</div>${l.arquivo_url ? `<a href="${esc(l.arquivo_url)}" target="_blank" rel="noopener" style="font-size:12px">Baixar Excel gerado</a>` : ""}</div></div>${aviso}${corpo}${form}`;
 }
 
 document.getElementById("dspDetalhe").addEventListener("click", async e => {
@@ -1133,7 +1133,7 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
     const motivo = $("gMotivo").value.trim();
     if (!motivo) { msg("Escreva o motivo da recusa."); return; }
     if (dspOcupado) return; dspOcupado = true;
-    try { await apiRdv("POST", "", { acao: "recusar", id, motivo }); $("dspMsg").innerHTML = '<div class="dsp-info">Solicitação recusada. O promotor poderá corrigir e reenviar.</div>'; await carregarDespesas(false); }
+    try { await apiRdv("POST", "", { acao: "recusar", id, motivo }); $("dspMsg").innerHTML = '<div class="dsp-info">Solicitação recusada. O consultor de pecuária poderá corrigir e reenviar.</div>'; await carregarDespesas(false); }
     catch (x) { msg(x.message); } finally { dspOcupado = false; }
     return;
   }
