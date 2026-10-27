@@ -720,6 +720,12 @@
   .dsp-semana{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;}
   .dsp-semana button{width:44px;height:44px;border-radius:50%;border:1px solid var(--borda-forte,#c6ced6);background:#fff;font-size:22px;line-height:1;}
   .dsp-semana span{font-weight:700;min-width:150px;text-align:center;}
+  .dsp-ag-linha{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--borda,#e5e7eb);font-size:14px;}
+  .dsp-ag-linha:first-of-type{border-top:0;}
+  .dsp-ag-ok{color:#047857;font-weight:700;} .dsp-ag-falta{color:#b91c1c;font-weight:700;}
+  .dsp-ag-livre{display:flex;align-items:center;gap:6px;font-size:13px;margin:0;font-weight:600;}
+  .dsp-ag-livre input{width:auto;margin:0;}
+  .dsp-ag-motivo{margin:0 0 8px;}
   .dsp-grade{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .dsp-grade label{margin-top:0;}
   .dsp-dia{background:#fff;border:1px solid var(--borda,#dfe5ea);border-radius:12px;margin-bottom:10px;overflow:hidden;}
@@ -7697,6 +7703,12 @@ function dspRdvMontar() {
       <div class="dsp-kmini" id="dspKmFinalDica" style="margin-top:6px;"></div>
       <div id="dspFotoFim" style="margin-top:12px;"></div>
     </div>
+    <div class="card" id="dspAgendaProxima">
+      <p class="subtitulo" style="margin-bottom:2px;">Agenda da próxima semana <span class="dsp-obrig">(obrigatória para enviar)</span></p>
+      <p class="dsp-opcional" style="margin:0 0 8px;">Para enviar o RDV ao gestor, a agenda da semana seguinte precisa ter ao menos 1 compromisso por dia útil. Pode salvar rascunho sem isso.</p>
+      <div id="dspAgendaLinhas"><div class="carregando-lista">Carregando...</div></div>
+      <button type="button" class="btn btn-secundario" id="btnDspIrAgenda" style="margin-top:8px;">Abrir a agenda</button>
+    </div>
     <div class="card">
       <label>Observações da semana <span class="dsp-opcional">(opcional)</span></label>
       <textarea id="dspObs" rows="2" ${ro}>${escHtml((d && d.observacao) || "")}</textarea>
@@ -7732,16 +7744,64 @@ function dspRdvMontar() {
     }
   }));
   const sa = document.getElementById("dspSemAnt"), sp = document.getElementById("dspSemProx");
-  sa.addEventListener("click", () => { dsp.semana = dspSomar(dsp.semana, -7); dspRdvRecalcular(); });
-  sp.addEventListener("click", () => { if (dsp.semana < dspSegundaAtual()) { dsp.semana = dspSomar(dsp.semana, 7); dspRdvRecalcular(); } });
+  sa.addEventListener("click", () => { dsp.semana = dspSomar(dsp.semana, -7); dspRdvRecalcular(); dspAgendaProximaCarregar(); });
+  sp.addEventListener("click", () => { if (dsp.semana < dspSegundaAtual()) { dsp.semana = dspSomar(dsp.semana, 7); dspRdvRecalcular(); dspAgendaProximaCarregar(); } });
   const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", () => dspRdvGravar(false));
   const bR = document.getElementById("btnDspRascunho"); if (bR) bR.addEventListener("click", () => dspRdvGravar(true));
   const bX = document.getElementById("btnDspExcluir"); if (bX) bX.addEventListener("click", dspExcluir);
+  dsp.semAgenda = {};
+  ((d && d.diasSemAgenda) || []).forEach(x => { if (x && x.data) dsp.semAgenda[x.data] = x.motivo || ""; });
+  document.getElementById("btnDspIrAgenda").addEventListener("click", () => { const b = document.querySelector('.nav-item[data-pagina="agenda"]'); if (b) b.click(); });
+  dspAgendaProximaCarregar();
   // abre o dia de hoje (ou o primeiro)
   const hoje = dspIso(new Date()); let idxHoje = 0;
   DSP_DIAS.forEach((_, i) => { if (dspSomar(dsp.semana, i) === hoje) idxHoje = i; });
   const det = c.querySelectorAll(".dsp-dia"); if (!dsp.id && det[idxHoje]) det[idxHoje].open = true;
   dspRdvRecalcular();
+}
+
+// Quadro "Agenda da próxima semana": mostra, dia a dia, se já há compromisso e permite marcar
+// "Sem agenda neste dia" (com motivo). A trava de verdade fica no servidor.
+async function dspAgendaProximaCarregar() {
+  const box = document.getElementById("dspAgendaLinhas");
+  if (!box || !dsp) return;
+  const semana = dsp.semana;
+  try {
+    const r = await dspApi("GET", `&acao=agenda_proxima&semana=${semana}`);
+    if (!dsp || dsp.semana !== semana) return;
+    dsp.agendaProx = r;
+    if (!r.travaAtiva) { document.getElementById("dspAgendaProxima").classList.add("oculto"); return; }
+    document.getElementById("dspAgendaProxima").classList.remove("oculto");
+    dspAgendaProximaDesenhar();
+  } catch (e) {
+    box.innerHTML = '<p class="dsp-opcional">Não consegui conferir a agenda agora (sem internet?). Ao enviar, o sistema confere de novo.</p>';
+  }
+}
+function dspAgendaProximaDesenhar() {
+  const box = document.getElementById("dspAgendaLinhas"), r = dsp && dsp.agendaProx;
+  if (!box || !r) return;
+  const ro = dsp.somenteLeitura ? "disabled" : "";
+  const CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+  box.innerHTML = r.dias.map((x, i) => {
+    const livre = Object.prototype.hasOwnProperty.call(dsp.semAgenda, x.data);
+    let estado;
+    if (!x.exigido) estado = '<span class="dsp-opcional">dia já passou</span>';
+    else if (x.compromissos > 0) estado = `<span class="dsp-ag-ok">✓ ${x.compromissos} compromisso${x.compromissos > 1 ? "s" : ""}</span>`;
+    else if (livre) estado = '<span class="dsp-ag-ok">sem agenda (justificado)</span>';
+    else estado = '<span class="dsp-ag-falta">faltam compromissos</span>';
+    const podeLivre = x.exigido && x.compromissos === 0;
+    return `<div class="dsp-ag-linha"><span>${CURTO[i]} ${dspBr(x.data).slice(0, 5)}</span>${estado}</div>
+      ${podeLivre ? `<label class="dsp-ag-livre"><input type="checkbox" data-livre="${x.data}" ${livre ? "checked" : ""} ${ro}> Sem agenda neste dia</label>
+      ${livre ? `<input type="text" class="dsp-ag-motivo" data-motivo="${x.data}" maxlength="200" value="${escHtml(dsp.semAgenda[x.data] || "")}" ${ro} placeholder="Motivo (ex.: férias, feriado, treinamento)">` : ""}` : ""}`;
+  }).join("");
+  box.querySelectorAll("[data-livre]").forEach(el => el.addEventListener("change", () => {
+    dsp.sujo = true;
+    const k = el.getAttribute("data-livre");
+    if (el.checked) dsp.semAgenda[k] = dsp.semAgenda[k] || ""; else delete dsp.semAgenda[k];
+    dspAgendaProximaDesenhar();
+    if (el.checked) { const m = box.querySelector(`[data-motivo="${k}"]`); if (m) m.focus(); }
+  }));
+  box.querySelectorAll("[data-motivo]").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; dsp.semAgenda[el.getAttribute("data-motivo")] = el.value; el.classList.remove("campo-invalido"); }));
 }
 
 function dspRdvLer() {
@@ -7825,6 +7885,14 @@ async function dspRdvGravar(rascunho) {
         }
       }
     }
+    for (const k of Object.keys(dsp.semAgenda || {})) {
+      const ativo = dsp.agendaProx && dsp.agendaProx.dias.some(x => x.data === k && x.exigido && x.compromissos === 0);
+      if (ativo && String(dsp.semAgenda[k] || "").trim().length < 5) {
+        const campo = document.querySelector(`[data-motivo="${k}"]`);
+        if (campo) { campo.classList.add("campo-invalido"); campo.focus(); }
+        msg(`Informe o motivo de não ter agenda em ${dspBr(k).slice(0, 5)} (mínimo 5 letras).`, "erro"); return;
+      }
+    }
     if (dsp.fotos.ini.quantidade() === 0) { msg("Tire a foto do hodômetro inicial.", "erro"); return; }
     if (dsp.fotos.fim.quantidade() === 0) { msg("Tire a foto do hodômetro final antes de enviar. Se a semana ainda não acabou, use Salvar rascunho.", "erro"); return; }
   }
@@ -7843,9 +7911,18 @@ async function dspRdvGravar(rascunho) {
     if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
     try { localStorage.setItem("dspVeiculo", veiculo); localStorage.setItem("dspPlaca", placa); } catch (e) {}
-    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini || "", fotoHodometroFim: fim || "", kmFinalHodometro: kmFinal === "" ? null : dspNum(kmFinal), dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa };
+    const dados = { semana: dsp.semana, kmInicial: dspNum(kmIni), fotoHodometroIni: ini || "", fotoHodometroFim: fim || "", kmFinalHodometro: kmFinal === "" ? null : dspNum(kmFinal), dias: lista, observacao: document.getElementById("dspObs").value.trim(), veiculo, placa,
+      diasSemAgenda: Object.keys(dsp.semAgenda || {}).map(k => ({ data: k, motivo: String(dsp.semAgenda[k] || "").trim() })) };
     const r = await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "RDV", rascunho, dados });
     dsp.id = r.id; dsp.sujo = false;
+    if (!rascunho && r.bloqueio) {
+      dsp.status = "rascunho"; dspGarantirExcluir();
+      msg(escHtml(r.bloqueio.mensagem), "erro");
+      dspBotoes(false); if (bR) bR.textContent = txtR || "💾 Salvar rascunho";
+      dspAgendaProximaCarregar();
+      const cx = document.getElementById("dspAgendaProxima"); if (cx) cx.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     if (rascunho) {
       dsp.status = "rascunho"; dspGarantirExcluir();
       msg("Rascunho salvo. Você pode voltar depois e completar os outros dias.", "sucesso");

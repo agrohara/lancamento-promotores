@@ -1070,13 +1070,14 @@ function desenharDetalheDesp(l) {
   let corpo = "";
   if (l.tipo === "RDV") {
     const tot = l.totais || {};
-    const linhas = (d.dias || []).map((x, i) => `<tr class="${(x.kmRodado || x.hotel || x.almoco || x.jantar || x.aviso) ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${num(x.kmIni)}</td><td>${num(x.kmFim)}</td><td>${num(x.kmRodado)}</td><td>${moeda2(x.hotel)}</td><td>${moeda2(x.almoco)}</td><td>${moeda2(x.jantar)}</td><td>${moeda2(x.aviso)}</td><td class="t">${esc(x.descricao)}</td></tr>`).join("");
+    const linhas = (d.dias || []).map((x, i) => `<tr class="${(x.kmRodado || x.hotel || x.almoco || x.jantar || x.aviso) ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${num(x.kmIni)}</td><td>${num(x.kmFim)}</td><td>${num(x.kmRodado)}</td><td>${moeda2(x.hotel)}</td><td>${moeda2(x.almoco)}</td><td>${moeda2(x.jantar)}</td><td>${moeda2(x.aviso)}</td><td class="t">${esc(x.descricao)}${x.almoco > 0 && x.almocoPessoas > 1 && (x.participantes || []).length ? `<small style="display:block;color:var(--suave);margin-top:3px;">Almoço com ${x.almocoPessoas} pessoas: ${x.participantes.map(q => esc(q.nome) + " (" + esc(q.cargo) + ", " + esc(q.local) + ")").join("; ")}</small>` : ""}</td></tr>`).join("");
     const fotos = [{ url: d.fotoHodometroIni, rot: "Hodômetro inicial" }];
     (d.dias || []).forEach((x, i) => (x.fotos || []).forEach((u, k) => fotos.push({ url: u, rot: `Nota ${DIAS_CURTO[i]} ${k + 1}` })));
     fotos.push({ url: d.fotoHodometroFim, rot: "Hodômetro final" });
     corpo = `<div class="tabela-wrap"><table class="dsp-tab"><thead><tr><th>Dia</th><th>KM ini</th><th>KM fim</th><th>Rodado</th><th>Hotel</th><th>Almoço</th><th>Jantar</th><th>Aviso</th><th class="t">Descrição</th></tr></thead><tbody>${linhas}</tbody>
       <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td>${moeda2(tot.hotel)}</td><td>${moeda2(tot.almoco)}</td><td>${moeda2(tot.jantar)}</td><td>${moeda2(tot.aviso)}</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${(tot.vkm || 0).toFixed(2).replace(".", ",")}/km) · <b>Total ${moeda2(tot.total)}</b></td></tr></tfoot></table></div>
       ${blocoDemanda(l)}
+      ${(d.diasSemAgenda || []).length ? `<dl class="dsp-kv"><dt>Sem agenda na próxima semana</dt><dd>${d.diasSemAgenda.map(x => dm(x.data) + ": " + esc(x.motivo)).join("; ")}</dd></dl>` : ""}
       ${d.observacao ? `<dl class="dsp-kv"><dt>Observações</dt><dd>${esc(d.observacao)}</dd></dl>` : ""}
       ${d.veiculo || d.placa ? `<dl class="dsp-kv"><dt>Veículo / placa</dt><dd>${esc(d.veiculo)} ${esc(d.placa)}</dd></dl>` : ""}
       ${fotosHtml(fotos)}`;
