@@ -97,10 +97,21 @@ function normalizarRdv(d, rascunho) {
       jantar: cent(numero(dia.jantar, "jantar", { max: 100000 })),
       aviso: cent(numero(dia.aviso, "despesa com aviso prévio", { max: 100000 })),
       descricao: txt(dia.descricao, 400),
+      almocoPessoas: [1, 2, 3].includes(Number(dia.almocoPessoas)) ? Number(dia.almocoPessoas) : 1,
       fotos: urlsDoStorage(dia.fotos, 8)
     };
+    // Almoço acompanhado: quem estava (nome, função, loja/propriedade). Só guarda os n-1 acompanhantes.
+    const CARGOS_PART = ["Proprietário", "Veterinário", "Balconista", "Outro"];
+    reg.participantes = (Array.isArray(dia.participantes) ? dia.participantes : []).slice(0, reg.almocoPessoas - 1)
+      .map(p => ({ nome: txt(p && p.nome, 120), cargo: CARGOS_PART.includes(p && p.cargo) ? p.cargo : "", local: txt(p && p.local, 160) }));
+    if (!rascunho && reg.almoco > 0 && reg.almocoPessoas > 1) {
+      for (let k = 0; k < reg.almocoPessoas - 1; k++) {
+        const pp = reg.participantes[k] || {};
+        if (!pp.nome || !pp.cargo || !pp.local) falha(`Almoço de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}): informe nome, função e loja/propriedade de quem almoçou com você (pessoa ${k + 1}).`);
+      }
+    }
     const gastou = reg.hotel + reg.almoco + reg.jantar + reg.aviso;
-    if (!rascunho && (rod > 0 || gastou > 0) && !reg.descricao) falha(`Descreva a atividade de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && (rod > 0 || gastou > 0) && !reg.descricao) falha(`Informe a descrição da despesa de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (!rascunho && gastou > 0 && reg.fotos.length === 0) falha(`Anexe a foto da nota de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (rod > 0 || gastou > 0) temMovimento = true;
     kmAnterior = kmFim;
@@ -115,8 +126,35 @@ function normalizarRdv(d, rascunho) {
   return {
     semana, kmInicial, kmFinal: kmAnterior, kmFinalHodometro: kmHodFinal || null, fotoHodometroIni: hodIni, fotoHodometroFim: hodFim,
     veiculo: txt(d.veiculo, 60), placa: txt(d.placa, 12).toUpperCase(),
-    observacao: txtLongo(d.observacao, 800), dias
+    observacao: txtLongo(d.observacao, 800), dias,
+    diasSemAgenda: (Array.isArray(d.diasSemAgenda) ? d.diasSemAgenda : []).slice(0, 7)
+      .map(x => ({ data: String((x && x.data) || "").slice(0, 10), motivo: txt(x && x.motivo, 200) }))
+      .filter(x => ISO.test(x.data))
   };
+}
+
+/* ---------- trava: agenda da próxima semana ---------- */
+// Para ENVIAR o RDV ao gestor, o promotor precisa ter a agenda da semana seguinte (seg–sex)
+// preenchida: ao menos 1 compromisso por dia útil, ou o dia marcado como "sem agenda" com
+// motivo. Rascunho não é afetado. Dias da semana seguinte que já passaram não são exigidos
+// (RDV enviado com atraso). Gestor/desenvolvedor não têm a trava.
+const hojeBrasil = () => new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+async function situacaoAgendaProxima(supabase, nomePromotor, semana, diasSemAgenda) {
+  const proxima = paraIso(ms(semana) + 7 * 86400000);
+  const hoje = hojeBrasil();
+  const datas = [0, 1, 2, 3, 4].map(i => paraIso(ms(proxima) + i * 86400000));
+  const { data, error } = await supabase.from("agenda_compromissos").select("data").ilike("nome_promotor", nomePromotor).gte("data", datas[0]).lte("data", datas[4]);
+  if (error) throw error;
+  const contagem = {};
+  for (const l of data || []) contagem[l.data] = (contagem[l.data] || 0) + 1;
+  const livres = {};
+  for (const x of diasSemAgenda || []) if (x.motivo && x.motivo.length >= 5) livres[x.data] = x.motivo;
+  const dias = datas.map((d, i) => ({
+    data: d, dia: DIAS_SEMANA[i], compromissos: contagem[d] || 0,
+    exigido: d >= hoje, semAgenda: !!livres[d], motivo: livres[d] || ""
+  }));
+  const faltam = dias.filter(x => x.exigido && x.compromissos === 0 && !x.semAgenda).map(x => x.data);
+  return { proxima, dias, faltam };
 }
 
 function totaisRdv(d) {
@@ -158,6 +196,7 @@ function normalizarCi(d, rascunho) {
   if (!rascunho) {
     if (!reg.acao) falha("Descreva a ação.");
     if (!reg.cliente) falha("Informe o cliente.");
+    if (!reg.fotos.length) falha("Anexe ao menos uma foto ou comprovante da CI.");
     if (!reg.centroCusto) falha("Informe o centro de custo (ex.: Pecuária, PET).");
     if (cartao && !reg.titular) falha("Informe o nome do titular do cartão presente.");
   }
@@ -246,8 +285,11 @@ function planilhaRdv(sol, extra) {
     p.cel("H" + l, x.almoco, { borda: true, fmt: "moeda" });
     p.cel("I" + l, x.jantar, { borda: true, fmt: "moeda" });
     p.cel("J" + l, x.aviso, { borda: true, fmt: "moeda" });
-    p.cel("K" + l, x.descricao, caixa);
-    p.altura(l, x.descricao.length > 70 ? 45 : 30);
+    const comQuem = x.almoco > 0 && x.almocoPessoas > 1 && x.participantes && x.participantes.length
+      ? ` | Almoço com ${x.almocoPessoas} pessoas: ` + x.participantes.map(q => `${q.nome} (${q.cargo}, ${q.local})`).join("; ") : "";
+    const textoK = (x.descricao || "") + comQuem;
+    p.cel("K" + l, textoK, caixa);
+    p.altura(l, textoK.length > 70 ? 15 * Math.min(6, Math.ceil(textoK.length / 70)) + 15 : 30);
   });
   // linhas 16-20 em branco com borda (padrão do modelo)
   for (let l = 16; l <= 20; l++) p.estiloIntervalo(`A${l}:K${l}`, { borda: true });
@@ -368,6 +410,13 @@ async function tratarRdv(req, res, ctx) {
 
   try {
     if (req.method === "GET") {
+      if (q.acao === "agenda_proxima") {
+        const semana = dataIso(q.semana, "a semana", true);
+        if (new Date(semana + "T00:00:00Z").getUTCDay() !== 1) falha("A semana deve começar na segunda-feira.");
+        const sit = await situacaoAgendaProxima(supabase, nomeUsuario, semana, []);
+        res.status(200).json({ semana, proxima: sit.proxima, dias: sit.dias, travaAtiva: !ehGestor });
+        return;
+      }
       if (q.id) {
         const { data, error } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(q.id)).maybeSingle();
         if (error) throw error;
@@ -395,13 +444,21 @@ async function tratarRdv(req, res, ctx) {
       const tipo = b.tipo === "CI" ? "CI" : b.tipo === "RDV" ? "RDV" : falha("Escolha RDV ou CI.");
       const rascunho = b.rascunho === true;
       const dados = tipo === "RDV" ? normalizarRdv(b.dados, rascunho) : normalizarCi(b.dados, rascunho);
+      let bloqueio = null;
+      if (tipo === "RDV" && !rascunho && !ehGestor) {
+        const sit = await situacaoAgendaProxima(supabase, nomeUsuario, dados.semana, dados.diasSemAgenda);
+        if (sit.faltam.length) {
+          const lista = sit.faltam.map(d => `${DIAS_SEMANA[sit.dias.findIndex(x => x.data === d)].toLowerCase()} (${br(d)})`).join(", ");
+          bloqueio = { faltam: sit.faltam, mensagem: `O RDV foi salvo como rascunho, mas não foi enviado ao gestor: preencha antes a agenda da próxima semana (${br(sit.proxima)} a ${br(paraIso(ms(sit.proxima) + 4 * 86400000))}). Faltam compromissos em: ${lista}. Se não houver visita em algum dia, marque "Sem agenda neste dia" e informe o motivo.` };
+        }
+      }
       const periodoIni = tipo === "RDV" ? dados.semana : null;
       const periodoFim = tipo === "RDV" ? paraIso(ms(dados.semana) + 5 * 86400000) : null;
       let valorPromotor = 0;
       try { valorPromotor = tipo === "RDV" ? totaisRdv(dados).total : dados.valor; } catch (e) { valorPromotor = 0; }
       const base = {
         tipo, dados, periodo_ini: periodoIni, periodo_fim: periodoFim, valor_promotor: valorPromotor,
-        status: rascunho ? "rascunho" : "pendente", motivo_recusa: null, atualizado_em: new Date().toISOString()
+        status: (rascunho || bloqueio) ? "rascunho" : "pendente", motivo_recusa: null, atualizado_em: new Date().toISOString()
       };
       if (b.id) {
         const { data: atual, error: e1 } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
@@ -410,9 +467,10 @@ async function tratarRdv(req, res, ctx) {
         if (atual.promotor_login !== loginUsuario) { res.status(403).json({ erro: "Só quem criou pode alterar." }); return; }
         if (!["rascunho", "pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Esta solicitação já foi aprovada e não pode mais ser alterada." }); return; }
         if (atual.tipo !== tipo) { res.status(400).json({ erro: "Não é possível trocar o tipo." }); return; }
+        if (bloqueio && atual.status === "pendente") { bloqueio = null; base.status = "pendente"; } // já estava enviado: só edição
         const { data, error } = await supabase.from("solicitacoes_despesa").update(base).eq("id", atual.id).select().single();
         if (error) throw error;
-        res.status(200).json(detalheLinha(data));
+        res.status(200).json({ ...detalheLinha(data), ...(bloqueio ? { bloqueio } : {}) });
         return;
       }
       if (tipo === "RDV") {
@@ -423,7 +481,7 @@ async function tratarRdv(req, res, ctx) {
       const { data, error } = await supabase.from("solicitacoes_despesa")
         .insert({ ...base, promotor_login: loginUsuario, promotor_nome: nomeUsuario, criado_em: new Date().toISOString() }).select().single();
       if (error) throw error;
-      res.status(201).json(detalheLinha(data));
+      res.status(201).json({ ...detalheLinha(data), ...(bloqueio ? { bloqueio } : {}) });
       return;
     }
 
