@@ -192,11 +192,15 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade, cadastrada_por", "propriedade");
+      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade, cadastrada_por, proprietario", "propriedade");
       const visiveis = ehGestor
         ? data
         : data.filter(l => String(l.cadastrada_por || "").toLowerCase() === usuario.nome.toLowerCase());
-      res.status(200).json({ propriedades: visiveis.map(l => l.propriedade).filter(Boolean) });
+      // "proprietarios": nome da fazenda -> proprietário (para a busca por dono, já que
+      // um mesmo proprietário pode ter mais de uma fazenda).
+      const proprietarios = {};
+      for (const l of visiveis) if (l.propriedade && l.proprietario) proprietarios[l.propriedade] = String(l.proprietario).trim();
+      res.status(200).json({ propriedades: visiveis.map(l => l.propriedade).filter(Boolean), proprietarios });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler propriedades no banco.", detalhe: String(err.message || err) });
     }
@@ -379,5 +383,39 @@ module.exports = async function handler(req, res) {
     return;
   }
 
-  res.status(405).json({ erro: "Use GET, POST ou PATCH." });
+  // DELETE /api/propriedades?nome=X -> exclui SÓ o cadastro da fazenda (Gerente/Desenvolvedor).
+  // Pedidos, visitas e agenda já lançados continuam com o nome gravado, para não mexer em
+  // relatórios, metas e vendas históricas.
+  if (req.method === "DELETE") {
+    const usuario = usuarioDaRequisicao(req);
+    if (!usuario) {
+      res.status(401).json({ erro: "Sessão expirada ou inválida. Faça login novamente." });
+      return;
+    }
+    if (!CARGOS_GESTAO.includes(String(usuario.cargo || "").toLowerCase())) {
+      res.status(403).json({ erro: "Só o gestor pode excluir uma fazenda." });
+      return;
+    }
+    const nome = String((req.query && req.query.nome) || "").trim();
+    if (!nome) {
+      res.status(400).json({ erro: "Informe a fazenda." });
+      return;
+    }
+    try {
+      const { data: existente, error: erroBusca } = await supabase.from("propriedades").select("propriedade").ilike("propriedade", nome).limit(1).maybeSingle();
+      if (erroBusca) throw erroBusca;
+      if (!existente) {
+        res.status(404).json({ erro: "Propriedade não encontrada." });
+        return;
+      }
+      const { error } = await supabase.from("propriedades").delete().eq("propriedade", existente.propriedade);
+      if (error) throw error;
+      res.status(200).json({ status: "ok", excluida: existente.propriedade });
+    } catch (err) {
+      res.status(502).json({ erro: "Falha ao excluir a propriedade.", detalhe: String(err.message || err) });
+    }
+    return;
+  }
+
+  res.status(405).json({ erro: "Use GET, POST, PATCH ou DELETE." });
 };
