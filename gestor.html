@@ -409,6 +409,45 @@
     .tabela-wrap th,.tabela-wrap td{padding:5px 8px;}
     a,button{text-decoration:none;}
   }
+
+  /* ---------- RDV: visualizador em meia tela, hodômetro, categorias ---------- */
+  .dsp-lado{position:fixed;top:0;right:0;bottom:0;width:50vw;min-width:340px;background:#fff;border-left:3px solid var(--acao);box-shadow:-8px 0 30px rgba(0,0,0,.18);z-index:60;display:flex;flex-direction:column;}
+  .dsp-lado.oculto{display:none;}
+  .dsp-lado-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--borda);background:var(--neutro-fundo);}
+  .dsp-lado-cab button{border:1px solid var(--borda-forte);background:#fff;border-radius:999px;padding:6px 14px;font-weight:700;min-height:36px;}
+  #dspLadoCorpo{overflow:auto;padding:12px 14px;flex:1;}
+  #dspLadoCorpo img{max-width:100%;border:1px solid var(--borda);border-radius:8px;margin-bottom:10px;cursor:zoom-in;display:block;}
+  #dspLadoCorpo img.zoom{max-width:none;width:auto;cursor:zoom-out;}
+  body.dsp-lado-aberto #despesasPainel{margin-right:calc(50vw);max-width:none;}
+  @media (max-width:980px){.dsp-lado{width:100vw;}body.dsp-lado-aberto #despesasPainel{margin-right:0;}}
+  .dsp-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:10px 0;}
+  .dsp-cat{border:1px solid var(--borda);border-radius:10px;padding:9px 12px;background:#fff;}
+  .dsp-cat small{color:var(--suave);display:block;}
+  .dsp-cat b{font-size:17px;display:block;}
+  .dsp-cat.tot{background:var(--acao-fundo);border-color:var(--acao);}
+  .dsp-valor{background:none;border:none;border-bottom:1px dashed var(--acao);color:var(--marca);font-weight:700;font-size:inherit;padding:0;cursor:pointer;font-family:inherit;}
+  .dsp-valor:hover{background:var(--acao-fundo);}
+  .dsp-tab input.km{width:84px;padding:4px 6px;border:1.5px solid var(--borda-forte);border-radius:8px;text-align:right;font-size:13px;}
+  .dsp-tab td.t small{display:block;color:var(--suave);margin-top:2px;}
+  .dsp-hod{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0;}
+  .dsp-hod>div{text-align:center;}
+  .dsp-hod .rot{display:inline-block;border:1.5px solid #222;padding:2px 14px;font-weight:700;font-size:12px;margin-bottom:6px;}
+  .dsp-hod img{width:100%;max-height:260px;object-fit:contain;border:4px solid #222;border-radius:22px;background:#111;cursor:pointer;}
+  .dsp-hod .kmv{display:inline-block;border:1.5px solid #222;padding:2px 24px;font-weight:700;margin-top:6px;}
+  .dsp-hod-dif{text-align:center;margin-bottom:10px;}
+  .dsp-hod-dif span{display:inline-block;background:#e2efda;font-weight:800;padding:6px 40px;border-radius:4px;}
+  .dsp-agenda{border:1px solid var(--borda);border-radius:10px;padding:10px 12px;margin:8px 0;}
+  .dsp-agenda h5{margin:8px 0 4px;font-size:13px;}
+  .dsp-agenda li{font-size:13px;margin:2px 0;}
+  .dsp-barra{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
+  .dsp-barra button{border:1.5px solid var(--acao);background:#fff;color:var(--marca);border-radius:999px;padding:8px 16px;font-weight:700;min-height:40px;}
+  .dsp-barra button:hover{background:var(--acao-fundo);}
+  body.dsp-lado-aberto .dsp-layout{grid-template-columns:1fr;}
+  body.dsp-lado-aberto .dsp-lista-card{display:none;}
+  body.dsp-lado-aberto #despesasPainel{padding-right:14px;}
+  .dsp-tab{min-width:1500px;}
+  .dsp-cab h3{font-size:16px;}
+  .dsp-tab th{white-space:normal;min-width:78px;max-width:170px;vertical-align:bottom;}
 </style>
 </head>
 <body>
@@ -536,6 +575,7 @@
     <p class="legenda-secao">As metas são cadastradas no app, em Início › Metas (Gerente/Desenvolvedor). Realizado = valor dos pedidos lançados no período; "esperado" = ritmo linear até hoje.</p>
   </main>
 
+  <aside id="dspLado" class="dsp-lado oculto" aria-label="Visualizador de anexos"><div class="dsp-lado-cab"><b id="dspLadoTit"></b><button type="button" id="dspLadoFechar" aria-label="Fechar">Fechar ✕</button></div><div id="dspLadoCorpo"></div></aside>
   <main id="despesasPainel" class="oculto">
     <div class="secao"><span class="n">$</span><h2>Despesas dos consultores de pecuária (RDV e CI)</h2></div>
     <div id="dspMsg" role="status"></div>
@@ -1043,7 +1083,7 @@ async function abrirDetalheDesp(id) {
 }
 
 function fotosHtml(lista) {
-  return lista.length ? `<div class="dsp-sec">Anexos (${lista.length})</div><div class="dsp-fotos">${lista.map(f => `<a href="${esc(f.url)}" target="_blank" rel="noopener"><img loading="lazy" src="${esc(f.url)}" alt="${esc(f.rot)}"><span>${esc(f.rot)}</span></a>`).join("")}</div>` : "";
+  return lista.length ? `<div class="dsp-sec">Anexos (${lista.length})</div><div class="dsp-fotos">${lista.map(f => `<a href="${esc(f.url)}" data-ver="anexo" title="Abrir ao lado"><img loading="lazy" src="${esc(f.url)}" alt="${esc(f.rot)}"><span>${esc(f.rot)}</span></a>`).join("")}</div>` : "";
 }
 const DIAS_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -1070,13 +1110,52 @@ function desenharDetalheDesp(l) {
   let corpo = "";
   if (l.tipo === "RDV") {
     const tot = l.totais || {};
-    const linhas = (d.dias || []).map((x, i) => `<tr class="${(x.kmRodado || x.hotel || x.almoco || x.jantar || x.aviso) ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${num(x.kmIni)}</td><td>${num(x.kmFim)}</td><td>${num(x.kmRodado)}</td><td>${moeda2(x.hotel)}</td><td>${moeda2(x.almoco)}</td><td>${moeda2(x.jantar)}</td><td>${moeda2(x.aviso)}</td><td class="t">${esc(x.descricao)}${x.almoco > 0 && x.almocoPessoas > 1 && (x.participantes || []).length ? `<small style="display:block;color:var(--suave);margin-top:3px;">Almoço com ${x.almocoPessoas} pessoas: ${x.participantes.map(q => esc(q.nome) + " (" + esc(q.cargo) + ", " + esc(q.local) + ")").join("; ")}</small>` : ""}</td></tr>`).join("");
-    const fotos = [{ url: d.fotoHodometroIni, rot: "Hodômetro inicial" }];
+    const editavel = l.status === "pendente" || l.status === "erro_kanban";
+    window._dspRdv = l;
+    const vkm = (tot.vkm || 0).toFixed(2).replace(".", ",");
+    const linhas = (d.dias || []).map((x, i) => {
+      const mov = x.kmRodado || x.hotel || x.almoco || x.jantar || x.aviso;
+      const vb = (v, tipo) => v > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="${tipo}" title="Ver a nota">${moeda2(v)}</button>` : moeda2(0);
+      const aConj = x.almocoPessoas > 1 ? x.almoco : 0, jConj = x.jantarPessoas > 1 ? x.jantar : 0;
+      const pess = [];
+      if (x.almoco > 0 && x.almocoPessoas > 1) pess.push(`<b>Almoço — ${x.almocoPessoas} pessoas (ele e mais ${x.almocoPessoas - 1}):</b> ` + (x.participantes || []).map(q => esc(q.nome) + " (" + esc(q.cargo) + ", " + esc(q.local) + ")").join("; "));
+      if (x.jantar > 0 && x.jantarPessoas > 1) pess.push(`<b>Jantar — ${x.jantarPessoas} pessoas (ele e mais ${x.jantarPessoas - 1}):</b> ` + (x.jantarParticipantes || []).map(q => esc(q.nome) + " (" + esc(q.cargo) + ", " + esc(q.local) + ")").join("; "));
+      const kmIni = editavel ? `<input class="km" inputmode="numeric" data-k="ini" data-i="${i}" data-orig="${x.kmIni}" value="${x.kmIni}">` : num(x.kmIni);
+      const kmFim = editavel ? `<input class="km" inputmode="numeric" data-k="fim" data-i="${i}" data-orig="${x.kmFimInformado == null ? "" : x.kmFimInformado}" value="${x.kmFimInformado == null ? "" : x.kmFimInformado}">` : num(x.kmFim);
+      return `<tr class="${mov ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${kmIni}</td><td>${kmFim}</td><td>${num(x.kmRodado)}</td><td class="t">${esc(x.kmDescricao)}</td>
+        <td>${vb(x.hotel, "hotel")}</td><td class="t">${esc(x.hotelDescricao)}</td>
+        <td>${vb(x.almoco - aConj, "almoco")}</td><td>${vb(x.jantar - jConj, "jantar")}</td>
+        <td>${vb(aConj, "almoco")}</td><td>${vb(jConj, "jantar")}</td>
+        <td class="t">${pess.join("<br>")}</td><td>${vb(x.aviso, "aviso")}</td>
+        <td class="t">${esc(x.descricao)}</td><td><b>${moeda2((tot.porDia || [])[i])}</b></td></tr>`;
+    }).join("");
+    const kmHod = d.kmFinalHodometro != null ? d.kmFinalHodometro : d.kmFinal;
+    const difHod = (Number(kmHod) || 0) - (Number(d.kmInicial) || 0);
+    const hod = `<div class="dsp-sec">Hodômetro (conferência)</div>
+      <div class="dsp-hod">
+        <div><span class="rot">HODÔMETRO INICIAL</span>${d.fotoHodometroIni ? `<img data-ver="hod" src="${esc(d.fotoHodometroIni)}" alt="Hodômetro inicial">` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(d.kmInicial)}</span></div></div>
+        <div><span class="rot">HODÔMETRO FINAL</span>${d.fotoHodometroFim ? `<img data-ver="hod" src="${esc(d.fotoHodometroFim)}" alt="Hodômetro final">` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(kmHod)}</span></div></div>
+      </div>
+      <div class="dsp-hod-dif"><span>${num(difHod)} km</span></div>
+      ${d.kmFinal != null && Number(d.kmFinal) !== Number(kmHod) ? `<div class="dsp-aviso">Atenção: o último KM dos dias (${num(d.kmFinal)}) não bate com o hodômetro final (${num(kmHod)}).</div>` : ""}`;
+    const cats = `<div class="dsp-cats">
+      <div class="dsp-cat tot"><small>Total do RDV</small><b>${moeda2(tot.total)}</b></div>
+      <div class="dsp-cat"><small>Rodagem (${num(tot.km)} km · R$ ${vkm}/km)</small><b>KM: ${moeda2(tot.valorKm)}</b></div>
+      <div class="dsp-cat"><small>Hotel</small><b>${moeda2(tot.hotel)}</b></div>
+      <div class="dsp-cat"><small>Refeições individuais</small><b>${moeda2(tot.refeicoesInd)}</b></div>
+      <div class="dsp-cat"><small>Em conjunto (pré-aprovadas)</small><b>${moeda2(tot.refeicoesConj)}</b></div>
+      <div class="dsp-cat"><small>Aviso prévio / outros</small><b>${moeda2(tot.aviso)}</b></div></div>`;
+    const fotos = [];
     (d.dias || []).forEach((x, i) => (x.fotos || []).forEach((u, k) => fotos.push({ url: u, rot: `Nota ${DIAS_CURTO[i]} ${k + 1}` })));
-    fotos.push({ url: d.fotoHodometroFim, rot: "Hodômetro final" });
-    corpo = `<div class="tabela-wrap"><table class="dsp-tab"><thead><tr><th>Dia</th><th>KM ini</th><th>KM fim</th><th>Rodado</th><th>Hotel</th><th>Almoço</th><th>Jantar</th><th>Aviso</th><th class="t">Descrição</th></tr></thead><tbody>${linhas}</tbody>
-      <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td>${moeda2(tot.hotel)}</td><td>${moeda2(tot.almoco)}</td><td>${moeda2(tot.jantar)}</td><td>${moeda2(tot.aviso)}</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${(tot.vkm || 0).toFixed(2).replace(".", ",")}/km) · <b>Total ${moeda2(tot.total)}</b></td></tr></tfoot></table></div>
+    const ajustes = (d.ajustesGestor || []).length ? `<div class="dsp-sec">Ajustes de KM feitos pelo gestor</div><ul class="dsp-aj">${d.ajustesGestor.map(a => `<li><b>${esc(a.por)}</b> em ${esc(String(a.em).slice(0, 16).replace("T", " "))}: ${a.mudancas.map(esc).join("; ")}</li>`).join("")}</ul>` : "";
+    corpo = `${cats}
+      <div class="dsp-barra"><button type="button" id="btnExcelPrevia">Baixar Excel (prévia do layout)</button><button type="button" id="btnAgendaRdv">Ver agenda da semana e da próxima</button>${editavel ? '<button type="button" id="btnSalvarKm">Salvar ajuste de KM</button>' : ""}</div>
+      <div id="dspAgenda"></div><div id="dspKmMsg"></div>
+      <div class="tabela-wrap"><table class="dsp-tab" id="dspTabRdv"><thead><tr><th>Dia</th><th>KM inicial</th><th>KM final</th><th>Rodado</th><th class="t">Descrição do KM rodado</th><th>Hotel</th><th class="t">Hotel (nome e cidade)</th><th>Almoço</th><th>Jantar</th><th>Despesa pré aprovada (Almoço com mais de uma pessoa)</th><th>Despesa pré aprovada (Jantar com mais de uma pessoa)</th><th class="t">Pessoas / quem participou</th><th>Aviso</th><th class="t">Descrição da despesa</th><th>Total do dia</th></tr></thead><tbody>${linhas}</tbody>
+      <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${vkm}/km)</td><td>${moeda2(tot.hotel)}</td><td></td><td>${moeda2(tot.almocoInd)}</td><td>${moeda2(tot.jantarInd)}</td><td>${moeda2(tot.almocoConj)}</td><td>${moeda2(tot.jantarConj)}</td><td></td><td>${moeda2(tot.aviso)}</td><td class="t"></td><td>Total ${moeda2(tot.total)}</td></tr></tfoot></table></div>
+      ${hod}
       ${blocoDemanda(l)}
+      ${ajustes}
       ${(d.diasSemAgenda || []).length ? `<dl class="dsp-kv"><dt>Sem agenda na próxima semana</dt><dd>${d.diasSemAgenda.map(x => dm(x.data) + ": " + esc(x.motivo)).join("; ")}</dd></dl>` : ""}
       ${d.observacao ? `<dl class="dsp-kv"><dt>Observações</dt><dd>${esc(d.observacao)}</dd></dl>` : ""}
       ${d.veiculo || d.placa ? `<dl class="dsp-kv"><dt>Veículo / placa</dt><dd>${esc(d.veiculo)} ${esc(d.placa)}</dd></dl>` : ""}
@@ -1100,7 +1179,7 @@ function desenharDetalheDesp(l) {
   if (l.status === "pendente" || l.status === "erro_kanban") {
     let ult = ""; try { ult = localStorage.getItem("dspUltClass") || ""; } catch (x) { }
     const valor = g.valor != null ? g.valor : l.valor_promotor;
-    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? `RDV semanal ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)} - ${l.promotor}` : `CI - ${l.promotor} - ${d.cliente || ""}`);
+    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? (l.titulo || `RDV - CONSULTOR ${String(l.promotor).toUpperCase()} | ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}`) : `CI - ${l.promotor} - ${d.cliente || ""}`);
     form = `<div class="dsp-form" id="dspForm" data-id="${l.id}" data-tipo="${l.tipo}">
       <h4>Dados para o Kanban</h4>
       <div class="lin">
@@ -1157,6 +1236,75 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
   }
 });
 
+
+/* ---------- RDV: painel lateral (meia tela), Excel, agenda e ajuste de KM ---------- */
+function abrirLado(titulo, html) {
+  $("dspLadoTit").textContent = titulo; $("dspLadoCorpo").innerHTML = html;
+  $("dspLado").classList.remove("oculto"); document.body.classList.add("dsp-lado-aberto");
+}
+function fecharLado() { $("dspLado").classList.add("oculto"); document.body.classList.remove("dsp-lado-aberto"); }
+document.getElementById("dspLadoFechar").addEventListener("click", fecharLado);
+document.getElementById("dspLadoCorpo").addEventListener("click", e => { if (e.target.tagName === "IMG") e.target.classList.toggle("zoom"); });
+const ROT_TP = { hotel: "Hotel", almoco: "Almoço", jantar: "Jantar", aviso: "Aviso prévio / outros" };
+document.getElementById("dspDetalhe").addEventListener("click", async e => {
+  const l = window._dspRdv;
+  const vb = e.target.closest(".dsp-valor");
+  if (vb && l) {
+    const i = Number(vb.dataset.dia), x = (l.dados.dias || [])[i] || {};
+    const fs = x.fotos || [];
+    abrirLado(`${ROT_TP[vb.dataset.tp]} · ${DIAS_CURTO[i]} ${dm(x.data)}`,
+      `<p style="margin:0 0 8px;font-size:13px;">${x.descricao ? "<b>Descrição:</b> " + esc(x.descricao) : ""}${x.hotelDescricao && vb.dataset.tp === "hotel" ? "<br><b>Hotel:</b> " + esc(x.hotelDescricao) : ""}</p>` +
+      (fs.length ? fs.map(u => `<img src="${esc(u)}" alt="Nota">`).join("") : '<div class="vazio">Sem foto de nota neste dia.</div>'));
+    return;
+  }
+  const im = e.target.closest("img[data-ver=hod]");
+  if (im && l) {
+    const d = l.dados;
+    abrirLado("Hodômetro inicial e final", `<p style="margin:0 0 6px;"><b>Inicial:</b> ${num(d.kmInicial)}</p>${d.fotoHodometroIni ? `<img src="${esc(d.fotoHodometroIni)}" alt="">` : ""}<p style="margin:0 0 6px;"><b>Final:</b> ${num(d.kmFinalHodometro != null ? d.kmFinalHodometro : d.kmFinal)}</p>${d.fotoHodometroFim ? `<img src="${esc(d.fotoHodometroFim)}" alt="">` : ""}`);
+    return;
+  }
+  const an = e.target.closest("a[data-ver=anexo]");
+  if (an) { e.preventDefault(); abrirLado("Anexo", `<img src="${esc(an.getAttribute("href"))}" alt="">`); return; }
+  if (!l) return;
+  if (e.target.id === "btnExcelPrevia") {
+    const b = e.target; b.disabled = true; const t0 = b.textContent; b.textContent = "Gerando Excel...";
+    try {
+      const r = await apiRdv("POST", "", { acao: "excel", id: l.id, demanda: $("gDemanda") ? numBR($("gDemanda").value) : undefined });
+      const bin = atob(r.base64), arr = new Uint8Array(bin.length); for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+      const url = URL.createObjectURL(new Blob([arr], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+      const a = document.createElement("a"); a.href = url; a.download = r.nome; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (x) { $("dspKmMsg").innerHTML = `<div class="dsp-aviso">${esc(x.message)}</div>`; }
+    finally { b.disabled = false; b.textContent = t0; }
+    return;
+  }
+  if (e.target.id === "btnAgendaRdv") {
+    const box = $("dspAgenda"); if (box.innerHTML) { box.innerHTML = ""; return; }
+    box.innerHTML = '<div class="vazio">Carregando agenda...</div>';
+    try {
+      const r = await apiRdv("GET", "&acao=agenda&id=" + l.id);
+      const lista = (blk, tit) => `<h5>${tit} (${dm(blk.de)} a ${dm(blk.ate)})</h5>` + (blk.itens.length ? `<ul>${blk.itens.map(c => `<li><b>${dm(c.data)} ${esc(c.hora)}</b> · ${esc(c.tipo || "")} · ${esc(c.cliente || "")}${c.assunto ? " — " + esc(c.assunto) : ""}${c.realizada ? ` <span style="color:var(--c-ok)">(realizada${c.assuntoRealizado ? ": " + esc(c.assuntoRealizado) : ""})</span>` : ""}</li>`).join("")}</ul>` : '<div class="vazio">Nada agendado.</div>');
+      box.innerHTML = `<div class="dsp-agenda"><b>Agenda de ${esc(r.promotor)}</b>${lista(r.semana, "Semana do RDV")}${lista(r.proxima, "Próxima semana (planejamento)")}</div>`;
+    } catch (x) { box.innerHTML = `<div class="dsp-aviso">${esc(x.message)}</div>`; }
+    return;
+  }
+  if (e.target.id === "btnSalvarKm") {
+    const dias = {};
+    document.querySelectorAll("#dspTabRdv input.km").forEach(inp => {
+      if (inp.value.trim() === inp.dataset.orig) return;
+      const x = l.dados.dias[Number(inp.dataset.i)]; const o = dias[x.data] || (dias[x.data] = { data: x.data });
+      o[inp.dataset.k === "ini" ? "kmIni" : "kmFim"] = inp.value.trim() === "" ? "" : numBR(inp.value);
+    });
+    const lista = Object.values(dias);
+    if (!lista.length) { $("dspKmMsg").innerHTML = '<div class="dsp-info">Nenhuma alteração de KM para salvar.</div>'; return; }
+    if (dspOcupado) return; dspOcupado = true; e.target.disabled = true;
+    try {
+      const r = await apiRdv("POST", "", { acao: "ajustar_km", id: l.id, dias: lista });
+      await carregarDespesas(true); desenharDetalheDesp(r);
+      $("dspKmMsg").innerHTML = '<div class="dsp-info">KM ajustado. Os totais foram recalculados — confira o valor antes de aprovar.</div>';
+    } catch (x) { $("dspKmMsg").innerHTML = `<div class="dsp-aviso">${esc(x.message)}</div>`; e.target.disabled = false; }
+    finally { dspOcupado = false; }
+  }
+});
 
 /* ---------- Metas por representante (tipo mensal/trimestral/semestral/anual) ---------- */
 const URL_METAS = "/api/agenda?recurso=metas";

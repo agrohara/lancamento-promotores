@@ -1310,6 +1310,13 @@
           <button class="btn btn-secundario ativo" id="btnAgendaGestorHoje" type="button">Hoje</button>
           <button class="btn btn-secundario" id="btnAgendaGestorSemana" type="button">Semana</button>
         </div>
+        <div id="agendaGestorNav" class="oculto" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0;">
+          <button class="btn btn-secundario" id="btnAgGestSemAnt" type="button" aria-label="Semana anterior">‹</button>
+          <b id="agGestSemLabel" style="min-width:150px;text-align:center;"></b>
+          <button class="btn btn-secundario" id="btnAgGestSemProx" type="button" aria-label="Próxima semana">›</button>
+          <button class="btn btn-secundario" id="btnAgGestSemQue" type="button">Próxima semana (planejamento)</button>
+          <button class="btn btn-secundario" id="btnAgGestSemHoje" type="button">Semana atual</button>
+        </div>
         <select id="selectAgendaGestorConsultor">
           <option value="">Todos os consultores</option>
         </select>
@@ -7608,8 +7615,24 @@ document.getElementById("btnAgendaGestorSemana").addEventListener("click", () =>
   carregarAgendaGestor();
 });
 
+function atualizarNavAgendaGestor() {
+  const nav = document.getElementById("agendaGestorNav");
+  const ver = agendaGestorModo === "semana";
+  nav.classList.toggle("oculto", !ver);
+  nav.style.display = ver ? "flex" : "none";
+  if (ver && agendaSemanaAtual) {
+    const f = iso => iso.slice(8, 10) + "/" + iso.slice(5, 7);
+    document.getElementById("agGestSemLabel").textContent = f(agendaSemanaAtual) + " a " + f(agendaSomarDias(agendaSemanaAtual, 4));
+  }
+}
+[["btnAgGestSemAnt", () => agendaSomarDias(agendaSemanaAtual, -7)], ["btnAgGestSemProx", () => agendaSomarDias(agendaSemanaAtual, 7)],
+ ["btnAgGestSemQue", () => agendaSomarDias(agendaSegundaFeiraISO(hojeISO()), 7)], ["btnAgGestSemHoje", () => agendaSegundaFeiraISO(hojeISO())]].forEach(([id, f]) => {
+  document.getElementById(id).addEventListener("click", () => { agendaSemanaAtual = f(); agendaDiaSelecionado = agendaSemanaAtual; carregarAgendaGestor(); });
+});
+
 async function carregarAgendaGestor() {
   const container = document.getElementById("agendaGestorConteudo");
+  atualizarNavAgendaGestor();
   container.innerHTML = '<div class="carregando-lista">Carregando...</div>';
   try {
     const url = new URL(CONFIG.URL_AGENDA, window.location.origin);
@@ -7817,14 +7840,21 @@ function dspRdvMontar() {
         <div class="dsp-kmini">KM inicial do dia: <b data-r="kmini">—</b></div>
         <label>KM final do dia</label>
         <input type="number" inputmode="numeric" min="0" step="1" data-f="kmFim" value="${x.kmFimInformado !== undefined ? (x.kmFimInformado === null ? "" : x.kmFimInformado) : (x.kmRodado > 0 ? x.kmFim : "")}" ${ro} placeholder="Deixe vazio se não rodou">
+        <label style="margin-top:12px;">Descrição do KM rodado <span class="dsp-opcional">(obrigatório se rodou)</span></label>
+        <input type="text" data-f="kmDescricao" maxlength="300" value="${escHtml(x.kmDescricao || "")}" ${ro} placeholder="Ex.: Londrina → Cambé (Agropecuária Boa Safra) → Fazenda Santa Rita, em Rolândia">
         <div class="dsp-grade" style="margin-top:12px;">
           <div><label>Hotel (R$)</label><input type="text" inputmode="decimal" data-f="hotel" value="${v("hotel")}" ${ro} placeholder="0,00"></div>
+          <div><label>Hotel: nome e cidade</label><input type="text" data-f="hotelDescricao" maxlength="200" value="${escHtml(x.hotelDescricao || "")}" ${ro} placeholder="Ex.: Hotel Central – Maringá/PR"></div>
           <div><label>Almoço (R$)</label><input type="text" inputmode="decimal" data-f="almoco" value="${v("almoco")}" ${ro} placeholder="0,00"></div>
-          <div style="grid-column:1/-1;"><label>Almoço: individual ou acompanhado?</label><select data-f="almocoPessoas" ${ro}>
+          <div style="grid-column:1/-1;"><label>Almoço: individual ou com mais de uma pessoa? <span class="dsp-opcional">(despesa pré aprovada)</span></label><select data-f="almocoPessoas" ${ro}>
             <option value="1" ${(x.almocoPessoas || 1) == 1 ? "selected" : ""}>Individual</option>
-            <option value="2" ${x.almocoPessoas == 2 ? "selected" : ""}>Com 2 pessoas</option>
-            <option value="3" ${x.almocoPessoas == 3 ? "selected" : ""}>Com 3 pessoas</option></select></div>
+            <option value="2" ${x.almocoPessoas == 2 ? "selected" : ""}>Com 2 pessoas (você + 1)</option>
+            <option value="3" ${x.almocoPessoas == 3 ? "selected" : ""}>Com 3 pessoas (você + 2)</option></select></div>
           <div><label>Jantar (R$)</label><input type="text" inputmode="decimal" data-f="jantar" value="${v("jantar")}" ${ro} placeholder="0,00"></div>
+          <div style="grid-column:1/-1;"><label>Jantar: individual ou com mais de uma pessoa? <span class="dsp-opcional">(despesa pré aprovada)</span></label><select data-f="jantarPessoas" ${ro}>
+            <option value="1" ${(x.jantarPessoas || 1) == 1 ? "selected" : ""}>Individual</option>
+            <option value="2" ${x.jantarPessoas == 2 ? "selected" : ""}>Com 2 pessoas (você + 1)</option>
+            <option value="3" ${x.jantarPessoas == 3 ? "selected" : ""}>Com 3 pessoas (você + 2)</option></select></div>
           <div><label>Aviso prévio (R$)</label><input type="text" inputmode="decimal" data-f="aviso" value="${v("aviso")}" ${ro} placeholder="0,00"></div>
         </div>
         <div class="dsp-part ${(x.almocoPessoas || 1) > 1 ? "" : "oculto"}" data-r="part" style="margin-top:12px;">
@@ -7839,8 +7869,20 @@ function dspRdvMontar() {
               <div><label>Qual loja / propriedade</label><input type="text" data-p="local" maxlength="160" value="${escHtml(pp.local || "")}" ${ro} placeholder="Ex.: Agropecuária X / Fazenda Y"></div>
             </div></div>`; }).join("")}
         </div>
-        <label style="margin-top:12px;">Descrição da despesa <span class="dsp-opcional">(justifique a despesa)</span></label>
-        <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Almoço com o proprietário da Fazenda X em Loanda – negociação de vacinas">
+        <div class="dsp-part ${(x.jantarPessoas || 1) > 1 ? "" : "oculto"}" data-r="jpart" style="margin-top:12px;">
+          <p class="subtitulo" style="margin:0 0 4px;">Jantar com participantes <span class="dsp-obrig">(obrigatório)</span></p>
+          <p class="dsp-opcional" style="margin:0 0 8px;">Informe quem jantou com você: nome, função e de qual loja ou propriedade.</p>
+          ${[0, 1].map(k => { const pp = (x.jantarParticipantes && x.jantarParticipantes[k]) || {}; return `<div class="dsp-pessoa ${k === 1 && (x.jantarPessoas || 1) < 3 ? "oculto" : ""}" data-jpessoa="${k}">
+            <label>Pessoa ${k + 1} – nome</label><input type="text" data-jp="nome" maxlength="120" value="${escHtml(pp.nome || "")}" ${ro} placeholder="Nome completo">
+            <div class="dsp-grade" style="margin-top:8px;">
+              <div><label>Função</label><select data-jp="cargo" ${ro}>
+                <option value="">Selecione...</option>
+                ${["Proprietário", "Veterinário", "Balconista", "Outro"].map(o => `<option value="${o}" ${pp.cargo === o ? "selected" : ""}>${o}</option>`).join("")}</select></div>
+              <div><label>Qual loja / propriedade</label><input type="text" data-jp="local" maxlength="160" value="${escHtml(pp.local || "")}" ${ro} placeholder="Ex.: Agropecuária X / Fazenda Y"></div>
+            </div></div>`; }).join("")}
+        </div>
+        <label style="margin-top:12px;">Descrição da despesa <span class="dsp-opcional">(obrigatória se houver almoço, jantar ou aviso)</span></label>
+        <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Almoço de geração de demanda com o veterinário Dr. Carlos e o proprietário da Fazenda Santa Rita – apresentação do programa de reprodução">
         <div id="dspFotosD${i}" style="margin-top:12px;"></div>
       </div></details>`;
   }).join("");
@@ -7904,6 +7946,11 @@ function dspRdvMontar() {
       const dia = el.closest(".dsp-dia"), n = Number(el.value) || 1;
       dia.querySelector('[data-r="part"]').classList.toggle("oculto", n < 2);
       dia.querySelector('[data-pessoa="1"]').classList.toggle("oculto", n < 3);
+    }
+    if (el.getAttribute("data-f") === "jantarPessoas") {
+      const dia = el.closest(".dsp-dia"), n = Number(el.value) || 1;
+      dia.querySelector('[data-r="jpart"]').classList.toggle("oculto", n < 2);
+      dia.querySelector('[data-jpessoa="1"]').classList.toggle("oculto", n < 3);
     }
   }));
   const sa = document.getElementById("dspSemAnt"), sp = document.getElementById("dspSemProx");
@@ -7974,7 +8021,10 @@ function dspRdvLer() {
     const g = (n) => el.querySelector(`[data-f="${n}"]`).value;
     return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim(),
       almocoPessoas: Number(g("almocoPessoas")) || 1,
-      participantes: [...el.querySelectorAll("[data-pessoa]")].slice(0, (Number(g("almocoPessoas")) || 1) - 1).map(b => { const q = (n) => b.querySelector(`[data-p="${n}"]`).value.trim(); return { nome: q("nome"), cargo: q("cargo"), local: q("local") }; }) };
+      participantes: [...el.querySelectorAll("[data-pessoa]")].slice(0, (Number(g("almocoPessoas")) || 1) - 1).map(b => { const q = (n) => b.querySelector(`[data-p="${n}"]`).value.trim(); return { nome: q("nome"), cargo: q("cargo"), local: q("local") }; }),
+      kmDescricao: g("kmDescricao").trim(), hotelDescricao: g("hotelDescricao").trim(),
+      jantarPessoas: Number(g("jantarPessoas")) || 1,
+      jantarParticipantes: [...el.querySelectorAll("[data-jpessoa]")].slice(0, (Number(g("jantarPessoas")) || 1) - 1).map(b => { const q = (n) => b.querySelector(`[data-jp="${n}"]`).value.trim(); return { nome: q("nome"), cargo: q("cargo"), local: q("local") }; }) };
   });
   return { kmIni, dias, kmFinal: c.querySelector("#dspKmFinal").value };
 }
@@ -8034,6 +8084,17 @@ async function dspRdvGravar(rascunho) {
     if (kmFinal === "") { marcarCampoInvalido("dspKmFinal", "Informe o KM final."); msg("Informe o KM final do hodômetro (como está no painel).", "erro"); return; }
     for (let i = 0; i < dias.length; i++) {
       const x = dias[i];
+      const detD = document.querySelectorAll("#dspConteudo .dsp-dia")[i];
+      const foco = (campo, texto) => { detD.open = true; campo.classList.add("campo-invalido"); campo.focus(); msg(texto, "erro"); };
+      if (x.hotel > 0 && !x.hotelDescricao) { foco(detD.querySelector('[data-f="hotelDescricao"]'), `Hotel de ${DSP_DIAS[i].toLowerCase()}: informe o nome e a cidade do hotel.`); return; }
+      if ((x.almoco + x.jantar + x.aviso) > 0 && !x.descricao) { foco(detD.querySelector('[data-f="descricao"]'), `${DSP_DIAS[i]}: escreva a descrição da despesa (ação ou justificativa).`); return; }
+      if (x.jantar > 0 && x.jantarPessoas > 1) {
+        for (let k = 0; k < x.jantarParticipantes.length; k++) {
+          const pp = x.jantarParticipantes[k], blk = detD.querySelector(`[data-jpessoa="${k}"]`);
+          const falta = !pp.nome ? "nome" : !pp.cargo ? "função" : !pp.local ? "loja/propriedade" : "";
+          if (falta) { foco(blk.querySelector(!pp.nome ? '[data-jp="nome"]' : !pp.cargo ? '[data-jp="cargo"]' : '[data-jp="local"]'), `Jantar de ${DSP_DIAS[i].toLowerCase()}: informe ${falta} da pessoa ${k + 1}.`); return; }
+        }
+      }
       if (x.almoco > 0 && x.almocoPessoas > 1) {
         const det = document.querySelectorAll("#dspConteudo .dsp-dia")[i];
         for (let k = 0; k < x.participantes.length; k++) {
@@ -8069,7 +8130,7 @@ async function dspRdvGravar(rascunho) {
     for (let i = 0; i < dias.length; i++) {
       const fotos = await dsp.fotos.dias[i].enviar();
       const x = dias[i];
-      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, almocoPessoas: x.almocoPessoas, participantes: x.participantes, fotos });
+      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, almocoPessoas: x.almocoPessoas, participantes: x.participantes, kmDescricao: x.kmDescricao, hotelDescricao: x.hotelDescricao, jantarPessoas: x.jantarPessoas, jantarParticipantes: x.jantarParticipantes, fotos });
     }
     if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
