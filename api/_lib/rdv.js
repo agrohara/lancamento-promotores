@@ -86,7 +86,10 @@ function normalizarRdv(d, rascunho) {
     const dia = entrada.find(x => x && x.data === paraIso(ms(semana) + i * 86400000)) || entrada[i] || {};
     const data = paraIso(ms(semana) + i * 86400000);
     const kmFimBruto = dia.kmFim === "" || dia.kmFim === undefined || dia.kmFim === null ? null : numero(dia.kmFim, `o KM final de ${DIAS_SEMANA[i].toLowerCase()}`, { max: 9999999 });
-    const kmIni = kmAnterior;
+    // O KM inicial do dia normalmente é o KM final do dia anterior; o gestor pode corrigi-lo
+    // dia a dia (kmIniManual), e a cadeia dos dias seguintes continua a partir do que ele ajustou.
+    const manual = dia.kmIniManual === "" || dia.kmIniManual === undefined || dia.kmIniManual === null ? null : numero(dia.kmIniManual, `o KM inicial de ${DIAS_SEMANA[i].toLowerCase()}`, { max: 9999999 });
+    const kmIni = manual !== null ? manual : kmAnterior;
     if (!rascunho && kmFimBruto !== null && kmFimBruto < kmIni) falha(`KM final de ${DIAS_SEMANA[i].toLowerCase()} (${kmFimBruto}) é menor que o inicial (${kmIni}).`);
     const kmFim = kmFimBruto === null ? kmIni : kmFimBruto;
     const rod = Math.max(0, kmFim - kmIni);
@@ -97,6 +100,9 @@ function normalizarRdv(d, rascunho) {
       jantar: cent(numero(dia.jantar, "jantar", { max: 100000 })),
       aviso: cent(numero(dia.aviso, "despesa com aviso prévio", { max: 100000 })),
       descricao: txt(dia.descricao, 400),
+      kmDescricao: txt(dia.kmDescricao, 300),
+      hotelDescricao: txt(dia.hotelDescricao, 200),
+      ...(manual !== null ? { kmIniManual: manual } : {}),
       almocoPessoas: [1, 2, 3].includes(Number(dia.almocoPessoas)) ? Number(dia.almocoPessoas) : 1,
       fotos: urlsDoStorage(dia.fotos, 8)
     };
@@ -104,6 +110,16 @@ function normalizarRdv(d, rascunho) {
     const CARGOS_PART = ["Proprietário", "Veterinário", "Balconista", "Outro"];
     reg.participantes = (Array.isArray(dia.participantes) ? dia.participantes : []).slice(0, reg.almocoPessoas - 1)
       .map(p => ({ nome: txt(p && p.nome, 120), cargo: CARGOS_PART.includes(p && p.cargo) ? p.cargo : "", local: txt(p && p.local, 160) }));
+    // Jantar acompanhado: mesma regra do almoço (quem estava), segmentado no Excel.
+    reg.jantarPessoas = [1, 2, 3].includes(Number(dia.jantarPessoas)) ? Number(dia.jantarPessoas) : 1;
+    reg.jantarParticipantes = (Array.isArray(dia.jantarParticipantes) ? dia.jantarParticipantes : []).slice(0, reg.jantarPessoas - 1)
+      .map(p => ({ nome: txt(p && p.nome, 120), cargo: CARGOS_PART.includes(p && p.cargo) ? p.cargo : "", local: txt(p && p.local, 160) }));
+    if (!rascunho && reg.jantar > 0 && reg.jantarPessoas > 1) {
+      for (let k = 0; k < reg.jantarPessoas - 1; k++) {
+        const pp = reg.jantarParticipantes[k] || {};
+        if (!pp.nome || !pp.cargo || !pp.local) falha(`Jantar de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}): informe nome, função e loja/propriedade de quem jantou com você (pessoa ${k + 1}).`);
+      }
+    }
     if (!rascunho && reg.almoco > 0 && reg.almocoPessoas > 1) {
       for (let k = 0; k < reg.almocoPessoas - 1; k++) {
         const pp = reg.participantes[k] || {};
@@ -111,7 +127,9 @@ function normalizarRdv(d, rascunho) {
       }
     }
     const gastou = reg.hotel + reg.almoco + reg.jantar + reg.aviso;
-    if (!rascunho && (rod > 0 || gastou > 0) && !reg.descricao) falha(`Informe a descrição da despesa de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && rod > 0 && !reg.kmDescricao) falha(`Informe para onde foi o deslocamento de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}): cidades, fazendas ou revendas.`);
+    if (!rascunho && reg.hotel > 0 && !reg.hotelDescricao) falha(`Informe o nome e a cidade do hotel de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && (reg.almoco + reg.jantar + reg.aviso) > 0 && !reg.descricao) falha(`Informe a descrição (justificativa) da despesa de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (!rascunho && gastou > 0 && reg.fotos.length === 0) falha(`Anexe a foto da nota de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (rod > 0 || gastou > 0) temMovimento = true;
     kmAnterior = kmFim;
@@ -165,7 +183,15 @@ function totaisRdv(d) {
   const almoco = cent(d.dias.reduce((s, x) => s + x.almoco, 0));
   const jantar = cent(d.dias.reduce((s, x) => s + x.jantar, 0));
   const aviso = cent(d.dias.reduce((s, x) => s + x.aviso, 0));
-  return { km, valorKm, hotel, almoco, jantar, aviso, total: cent(valorKm + hotel + almoco + jantar + aviso), vkm };
+  // Refeições segmentadas: individual x "em conjunto" (almoço/jantar com mais de uma pessoa,
+  // que é a Despesa Pré Aprovada).
+  const conjA = cent(d.dias.reduce((s, x) => s + ((x.almocoPessoas || 1) > 1 ? x.almoco : 0), 0));
+  const conjJ = cent(d.dias.reduce((s, x) => s + ((x.jantarPessoas || 1) > 1 ? x.jantar : 0), 0));
+  const almocoInd = cent(almoco - conjA), jantarInd = cent(jantar - conjJ);
+  const total = cent(valorKm + hotel + almoco + jantar + aviso);
+  const porDia = d.dias.map(x => cent(x.kmRodado * vkm + x.hotel + x.almoco + x.jantar + x.aviso));
+  return { km, valorKm, hotel, almoco, jantar, aviso, almocoInd, almocoConj: conjA, jantarInd, jantarConj: conjJ,
+    refeicoesInd: cent(almocoInd + jantarInd), refeicoesConj: cent(conjA + conjJ), porDia, total, vkm };
 }
 
 function normalizarCi(d, rascunho) {
@@ -225,88 +251,138 @@ async function anexarDemanda(supabase, l, det) {
   return det;
 }
 
+/* ---------- título "RDV - CONSULTOR (NOME) | período" ---------- */
+// Usado no Kanban (descrição), no título e no nome do Excel. O período vai da segunda-feira
+// até o último dia da semana que teve movimento (km ou despesa); sem movimento, até o fim da semana.
+function periodoTextoRdv(sol) {
+  const d = sol.dados || {};
+  const ini = d.semana || sol.periodo_ini;
+  let fim = sol.periodo_fim || paraIso(ms(ini) + 5 * 86400000);
+  const movidos = (d.dias || []).filter(x => x.kmRodado > 0 || x.hotel > 0 || x.almoco > 0 || x.jantar > 0 || x.aviso > 0);
+  if (movidos.length) fim = movidos[movidos.length - 1].data;
+  const [ai, mi, di] = [ini.slice(0, 4), ini.slice(5, 7), ini.slice(8, 10)];
+  const [af, mf, df] = [fim.slice(0, 4), fim.slice(5, 7), fim.slice(8, 10)];
+  if (ini === fim) return `${di}/${mi}/${ai}`;
+  if (ai !== af) return `${di}/${mi}/${ai} a ${df}/${mf}/${af}`;
+  if (mi !== mf) return `${di}/${mi} a ${df}/${mf}/${af}`;
+  return `${di} a ${df}/${mf}/${af}`;
+}
+function tituloRdv(sol) { return `RDV - CONSULTOR ${String(sol.promotor_nome || "").toUpperCase()} | ${periodoTextoRdv(sol)}`; }
+const nomeArquivoSeguro = (t, ext) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\|/g, "-").replace(/\//g, "-").replace(/[^A-Za-z0-9 _-]/g, "").replace(/\s+/g, "_") + "." + ext;
+
 /* ---------- Excel ---------- */
 const AZUL = "1F4D2E";
 function planilhaRdv(sol, extra) {
   const d = sol.dados, t = totaisRdv(d);
   const p = new Planilha("RDV");
   p.paisagem = true;
-  const larg = { A: 16, B: 12, C: 11, D: 11, E: 11, F: 13, G: 13, H: 13, I: 13, J: 19, K: 60 };
+  const larg = { A: 15, B: 11, C: 10, D: 10, E: 9, F: 12, G: 34, H: 12, I: 28, J: 12, K: 12, L: 20, M: 20, N: 40, O: 14, P: 46, Q: 14 };
   Object.keys(larg).forEach(c => p.largura(c, larg[c]));
   const cab = { b: true, borda: true, fill: "E8F0E8", h: "center", wrap: true };
   const caixa = { borda: true, wrap: true };
+  const money = { borda: true, fmt: "moeda" };
+  const ULT = "Q";
 
-  p.cel("A1", "RELATÓRIO DE DESPESAS DE VIAGEM - RDV SEMANAL", { b: true, sz: 14, h: "center", fill: AZUL, cor: "FFFFFF" });
-  p.mescla("A1:K1"); p.estiloIntervalo("A1:K1", { fill: AZUL }); p.altura(1, 28);
+  p.cel("A1", tituloRdv(sol), { b: true, sz: 14, h: "center", fill: AZUL, cor: "FFFFFF" });
+  p.mescla(`A1:${ULT}1`); p.estiloIntervalo(`A1:${ULT}1`, { fill: AZUL }); p.altura(1, 28);
+  p.cel("A2", "RELATÓRIO DE DESPESAS DE VIAGEM - RDV SEMANAL", { b: true, sz: 9, h: "center", cor: "666666" }); p.mescla(`A2:${ULT}2`);
 
   p.cel("A3", "NOME CONSULTOR/RDV", cab); p.mescla("A3:C3");
-  p.cel("D3", "NOME COORDENADOR", cab); p.mescla("D3:F3");
-  p.cel("G3", "PERÍODO", cab); p.mescla("G3:H3");
-  p.cel("I3", "VEÍCULO", cab); p.mescla("I3:J3");
-  p.cel("K3", "PLACA", cab);
+  p.cel("D3", "NOME COORDENADOR", cab); p.mescla("D3:G3");
+  p.cel("H3", "PERÍODO", cab); p.mescla("H3:I3");
+  p.cel("J3", "VEÍCULO", cab); p.mescla("J3:M3");
+  p.cel("N3", "PLACA", cab);
   p.cel("A4", sol.promotor_nome.toUpperCase(), caixa); p.mescla("A4:C4");
-  p.cel("D4", COORDENADOR, caixa); p.mescla("D4:F4");
-  p.cel("G4", `${br(d.semana)} A ${br(paraIso(ms(d.semana) + 5 * 86400000))}`, caixa); p.mescla("G4:H4");
-  p.cel("I4", d.veiculo, caixa); p.mescla("I4:J4");
-  p.cel("K4", d.placa, caixa);
-  ["A3:C3", "D3:F3", "G3:H3", "I3:J3", "A4:C4", "D4:F4", "G4:H4", "I4:J4"].forEach(r => p.estiloIntervalo(r, { borda: true }));
+  p.cel("D4", COORDENADOR, caixa); p.mescla("D4:G4");
+  p.cel("H4", `${br(d.semana)} A ${br(paraIso(ms(d.semana) + 5 * 86400000))}`, caixa); p.mescla("H4:I4");
+  p.cel("J4", d.veiculo, caixa); p.mescla("J4:M4");
+  p.cel("N4", d.placa, caixa);
+  ["A3:C3", "D3:G3", "H3:I3", "J3:M3", "A4:C4", "D4:G4", "H4:I4", "J4:M4"].forEach(r => p.estiloIntervalo(r, { borda: true }));
+
+  // linhas da tabela: cabeçalho 10-11, dias 12-17, subtotais 18
+  const L0 = 12, LF = L0 + d.dias.length - 1, LS = LF + 1;
 
   p.cel("A6", "PRESTAÇÃO DE CONTAS", { b: true, fill: "E8F0E8", borda: true, h: "center" }); p.mescla("A6:C6");
   p.cel("D6", "DESPESA DESTE RDV:", cab); p.mescla("D6:F6");
-  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: "I21+J21+F21+G21+H21" }); p.mescla("G6:H6");
-  p.estiloIntervalo("A6:H6", { borda: true });
-
-  // custo x demanda da semana (linha 7)
+  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: `Q${LS}` });
+  p.estiloIntervalo("A6:G6", { borda: true });
   const dem = Number(extra.demanda) || 0;
   p.cel("D7", "DEMANDA DA SEMANA:", cab); p.mescla("D7:F7");
-  p.cel("G7", dem > 0 ? dem : null, { b: true, fmt: "moeda", borda: true, h: "center" }); p.mescla("G7:H7");
-  p.cel("I7", "% RDV / DEMANDA:", cab); p.mescla("I7:J7");
-  p.cel("K7", dem > 0 ? t.total / dem : "sem demanda informada", { b: true, fmt: "pct", borda: true, h: "left" }, dem > 0 ? { f: "G6/G7" } : undefined);
+  p.cel("G7", dem > 0 ? dem : null, { b: true, fmt: "moeda", borda: true, h: "center" });
+  p.cel("H7", "% RDV / DEMANDA:", cab); p.mescla("H7:I7");
+  p.cel("J7", dem > 0 ? t.total / dem : "sem demanda informada", { b: true, fmt: "pct", borda: true, h: "left" }, dem > 0 ? { f: "G6/G7" } : undefined); p.mescla("J7:K7");
   p.estiloIntervalo("D7:K7", { borda: true });
-  // cabeçalho da tabela (linhas 8-9)
-  p.cel("A8", "DIA DA SEMANA", cab); p.mescla("A8:A9");
-  p.cel("B8", "DATA", cab); p.mescla("B8:B9");
-  p.cel("C8", "DESPESAS DE VIAGEM A SERVIÇO DA EMPRESA", cab); p.mescla("C8:J8");
-  p.cel("K8", "DESCRIÇÃO (DETALHAR AS AÇÕES, ATIVIDADES OU JUSTIFICATIVAS QUE ORIGINARAM AS DESPESAS)", cab); p.mescla("K8:K9");
-  const sub = ["KM INICIAL", "KM FINAL", "KM RODADO", `VALOR KM (R$ ${t.vkm.toFixed(2).replace(".", ",")})`, "HOTEL", "ALMOÇO", "JANTAR", "AVISO PRÉVIO (EX.: ALMOÇO COM VETERINÁRIO)"];
-  sub.forEach((s, i) => p.cel(String.fromCharCode(67 + i) + "9", s, cab));
-  p.estiloIntervalo("A8:K9", { borda: true, fill: "E8F0E8" });
-  p.altura(8, 22); p.altura(9, 58);
 
+  // custo por categoria (linhas 8-9)
+  const cats = [
+    ["A", "B", "RODAGEM (KM)", t.valorKm], ["C", "E", "HOTEL", t.hotel], ["F", "G", "REFEIÇÕES INDIVIDUAIS", t.refeicoesInd],
+    ["H", "I", "PRÉ APROVADAS (REFEIÇÃO EM CONJUNTO)", t.refeicoesConj], ["J", "K", "AVISO PRÉVIO / OUTROS", t.aviso]
+  ];
+  cats.forEach(([c1, c2, nome, v]) => {
+    p.cel(c1 + "8", nome, cab); p.cel(c1 + "9", v, { b: true, fmt: "moeda", borda: true, h: "center" });
+    if (c1 !== c2) { p.mescla(`${c1}8:${c2}8`); p.mescla(`${c1}9:${c2}9`); }
+    p.estiloIntervalo(`${c1}8:${c2}8`, { borda: true, fill: "E8F0E8" }); p.estiloIntervalo(`${c1}9:${c2}9`, { borda: true });
+  });
+  p.altura(8, 30);
+
+  // cabeçalho da tabela (linhas 10-11)
+  p.cel("A10", "DIA DA SEMANA", cab); p.mescla("A10:A11");
+  p.cel("B10", "DATA", cab); p.mescla("B10:B11");
+  p.cel("C10", "QUILOMETRAGEM", cab); p.mescla("C10:G10");
+  p.cel("H10", "HOTEL", cab); p.mescla("H10:I10");
+  p.cel("J10", "REFEIÇÕES INDIVIDUAIS", cab); p.mescla("J10:K10");
+  p.cel("L10", "DESPESA PRÉ APROVADA (REFEIÇÃO COM MAIS DE UMA PESSOA)", cab); p.mescla("L10:N10");
+  p.cel("O10", "OUTROS", cab);
+  p.cel("P10", "DESCRIÇÃO DA DESPESA", cab);
+  p.cel("Q10", "TOTAL DO DIA", cab); p.mescla("Q10:Q11");
+  const sub = {
+    C: "KM INICIAL", D: "KM FINAL", E: "KM RODADO", F: `VALOR KM (R$ ${t.vkm.toFixed(2).replace(".", ",")})`, G: "DESCRIÇÃO DO KM RODADO (CIDADES / FAZENDAS / REVENDAS)",
+    H: "HOTEL (R$)", I: "DESCRIÇÃO DO HOTEL (NOME E CIDADE)", J: "ALMOÇO (R$)", K: "JANTAR (R$)",
+    L: "DESPESA PRÉ APROVADA (ALMOÇO COM MAIS DE UMA PESSOA)", M: "DESPESA PRÉ APROVADA (JANTAR COM MAIS DE UMA PESSOA)", N: "QUANTIDADE DE PESSOAS E QUEM PARTICIPOU",
+    O: "AVISO PRÉVIO (R$)", P: "(AÇÃO, ATIVIDADE OU JUSTIFICATIVA QUE ORIGINOU A DESPESA)"
+  };
+  Object.keys(sub).forEach(c => p.cel(c + "11", sub[c], cab));
+  p.estiloIntervalo(`A10:${ULT}11`, { borda: true, fill: "E8F0E8" });
+  p.altura(10, 22); p.altura(11, 66);
+
+  const quem = (rotulo, n, lista) => n > 1
+    ? `${rotulo}: ${n} pessoas (você + ${n - 1}) — ` + (lista || []).map(q => `${q.nome} (${q.cargo}, ${q.local})`).join("; ") : "";
   d.dias.forEach((x, i) => {
-    const l = 10 + i;
+    const l = L0 + i;
+    const almConj = (x.almocoPessoas || 1) > 1, janConj = (x.jantarPessoas || 1) > 1;
     p.cel("A" + l, DIAS_SEMANA[i], { ...caixa, b: true });
     p.cel("B" + l, null, { borda: true, h: "center" }, { data: x.data });
     p.cel("C" + l, x.kmIni, { borda: true, fmt: "km" });
     p.cel("D" + l, x.kmFim, { borda: true, fmt: "km" });
     p.cel("E" + l, x.kmRodado, { borda: true, fmt: "km" }, { f: `D${l}-C${l}` });
-    p.cel("F" + l, cent(x.kmRodado * t.vkm), { borda: true, fmt: "moeda" }, { f: `E${l}*${t.vkm}` });
-    p.cel("G" + l, x.hotel, { borda: true, fmt: "moeda" });
-    p.cel("H" + l, x.almoco, { borda: true, fmt: "moeda" });
-    p.cel("I" + l, x.jantar, { borda: true, fmt: "moeda" });
-    p.cel("J" + l, x.aviso, { borda: true, fmt: "moeda" });
-    const comQuem = x.almoco > 0 && x.almocoPessoas > 1 && x.participantes && x.participantes.length
-      ? ` | Almoço com ${x.almocoPessoas} pessoas: ` + x.participantes.map(q => `${q.nome} (${q.cargo}, ${q.local})`).join("; ") : "";
-    const textoK = (x.descricao || "") + comQuem;
-    p.cel("K" + l, textoK, caixa);
-    p.altura(l, textoK.length > 70 ? 15 * Math.min(6, Math.ceil(textoK.length / 70)) + 15 : 30);
+    p.cel("F" + l, cent(x.kmRodado * t.vkm), money, { f: `E${l}*${t.vkm}` });
+    p.cel("G" + l, x.kmDescricao || "", caixa);
+    p.cel("H" + l, x.hotel, money);
+    p.cel("I" + l, x.hotelDescricao || "", caixa);
+    p.cel("J" + l, almConj ? 0 : x.almoco, money);
+    p.cel("K" + l, janConj ? 0 : x.jantar, money);
+    p.cel("L" + l, almConj ? x.almoco : 0, money);
+    p.cel("M" + l, janConj ? x.jantar : 0, money);
+    const pessoas = [quem("Almoço", x.almocoPessoas || 1, x.participantes), quem("Jantar", x.jantarPessoas || 1, x.jantarParticipantes)].filter(Boolean).join("\n");
+    p.cel("N" + l, pessoas, caixa);
+    p.cel("O" + l, x.aviso, money);
+    p.cel("P" + l, x.descricao || "", caixa);
+    p.cel("Q" + l, t.porDia[i], { ...money, b: true }, { f: `F${l}+H${l}+J${l}+K${l}+L${l}+M${l}+O${l}` });
+    const maior = Math.max((x.kmDescricao || "").length / 34, (x.hotelDescricao || "").length / 28, pessoas.length / 40, (x.descricao || "").length / 46);
+    p.altura(l, Math.min(120, Math.max(30, Math.ceil(maior) * 15 + 6)));
   });
-  // linhas 16-20 em branco com borda (padrão do modelo)
-  for (let l = 16; l <= 20; l++) p.estiloIntervalo(`A${l}:K${l}`, { borda: true });
-  p.cel("A21", "SUBTOTAIS", { b: true, borda: true, fill: "E8F0E8" }); p.mescla("A21:B21"); p.estiloIntervalo("A21:K21", { borda: true, fill: "E8F0E8" });
-  p.cel("E21", t.km, { b: true, borda: true, fmt: "km", fill: "E8F0E8" }, { f: "SUM(E10:E20)" });
-  p.cel("F21", t.valorKm, { b: true, borda: true, fmt: "moeda", fill: "E8F0E8" }, { f: "SUM(F10:F20)" });
-  p.cel("G21", t.hotel, { b: true, borda: true, fmt: "moeda", fill: "E8F0E8" }, { f: "SUM(G10:G20)" });
-  p.cel("H21", t.almoco, { b: true, borda: true, fmt: "moeda", fill: "E8F0E8" }, { f: "SUM(H10:H20)" });
-  p.cel("I21", t.jantar, { b: true, borda: true, fmt: "moeda", fill: "E8F0E8" }, { f: "SUM(I10:I20)" });
-  p.cel("J21", t.aviso, { b: true, borda: true, fmt: "moeda", fill: "E8F0E8" }, { f: "SUM(J10:J20)" });
-  // a fórmula do total em G6 usa as colunas F..J da linha 21
-  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: "SUM(F21:J21)" });
+  p.estiloIntervalo(`A${LS}:${ULT}${LS}`, { borda: true, fill: "E8F0E8" });
+  p.cel("A" + LS, "SUBTOTAIS", { b: true, borda: true, fill: "E8F0E8" }); p.mescla(`A${LS}:B${LS}`);
+  const sf = { b: true, borda: true, fill: "E8F0E8" };
+  const soma = (c, v, fmt) => p.cel(c + LS, v, { ...sf, fmt }, { f: `SUM(${c}${L0}:${c}${LF})` });
+  soma("E", t.km, "km"); soma("F", t.valorKm, "moeda"); soma("H", t.hotel, "moeda"); soma("J", t.almocoInd, "moeda"); soma("K", t.jantarInd, "moeda");
+  soma("L", t.almocoConj, "moeda"); soma("M", t.jantarConj, "moeda"); soma("O", t.aviso, "moeda"); soma("Q", t.total, "moeda");
 
-  p.cel("A23", "INFORMAÇÕES DE RELEVÂNCIA SOBRE AS DESPESAS", cab); p.mescla("A23:K23");
-  p.cel("A24", d.observacao || "", { borda: true, wrap: true, v: "top" }); p.mescla("A24:K27"); p.estiloIntervalo("A24:K27", { borda: true });
-  p.cel("A29", `Hodômetro inicial: ${d.kmInicial}  |  Hodômetro final: ${d.kmFinalHodometro || d.kmFinal}  |  Fotos do hodômetro e das notas seguem anexas no Kanban.`, { sz: 9, cor: "666666" }); p.mescla("A29:K29");
-  p.cel("A30", `Enviado pelo app Gestão de Campo em ${br(extra.hoje)}${extra.aprovador ? " | Aprovado por " + extra.aprovador : ""}.`, { sz: 9, cor: "666666" }); p.mescla("A30:K30");
+  const LI = LS + 2;
+  p.cel("A" + LI, "INFORMAÇÕES DE RELEVÂNCIA SOBRE AS DESPESAS", cab); p.mescla(`A${LI}:${ULT}${LI}`);
+  p.cel("A" + (LI + 1), d.observacao || "", { borda: true, wrap: true, v: "top" }); p.mescla(`A${LI + 1}:${ULT}${LI + 4}`); p.estiloIntervalo(`A${LI + 1}:${ULT}${LI + 4}`, { borda: true });
+  p.cel("A" + (LI + 6), `Hodômetro inicial: ${d.kmInicial}  |  Hodômetro final: ${d.kmFinalHodometro || d.kmFinal}  |  Fotos do hodômetro e das notas seguem anexas no Kanban.`, { sz: 9, cor: "666666" }); p.mescla(`A${LI + 6}:${ULT}${LI + 6}`);
+  p.cel("A" + (LI + 7), `Enviado pelo app Gestão de Campo em ${br(extra.hoje)}${extra.aprovador ? " | " + (extra.previa ? "Prévia gerada por " : "Aprovado por ") + extra.aprovador : ""}.`, { sz: 9, cor: "666666" }); p.mescla(`A${LI + 7}:${ULT}${LI + 7}`);
   return p.gerar();
 }
 
@@ -397,7 +473,7 @@ function resumoLinha(l) {
 function detalheLinha(l) {
   const o = resumoLinha(l);
   o.dados = l.dados;
-  if (l.tipo === "RDV") { try { o.totais = totaisRdv(l.dados); } catch (e) { o.totais = null; } }
+  if (l.tipo === "RDV") { try { o.totais = totaisRdv(l.dados); } catch (e) { o.totais = null; } try { o.titulo = tituloRdv(l); } catch (e) { o.titulo = ""; } }
   return o;
 }
 
@@ -415,6 +491,26 @@ async function tratarRdv(req, res, ctx) {
         if (new Date(semana + "T00:00:00Z").getUTCDay() !== 1) falha("A semana deve começar na segunda-feira.");
         const sit = await situacaoAgendaProxima(supabase, nomeUsuario, semana, []);
         res.status(200).json({ semana, proxima: sit.proxima, dias: sit.dias, travaAtiva: !ehGestor });
+        return;
+      }
+      if (q.acao === "agenda") {
+        // Agenda do consultor: semana do RDV (o que foi planejado/realizado) e a semana seguinte.
+        if (!ehGestor) { res.status(403).json({ erro: "Acesso restrito à gestão." }); return; }
+        const { data: sol, error: eS } = await supabase.from("solicitacoes_despesa").select("promotor_nome,periodo_ini,tipo").eq("id", Number(q.id)).maybeSingle();
+        if (eS) throw eS;
+        if (!sol || sol.tipo !== "RDV" || !sol.periodo_ini) { res.status(404).json({ erro: "RDV não encontrado." }); return; }
+        const busca = async (de, ate) => {
+          const padrao = String(sol.promotor_nome).replace(/[\\%_]/g, m => "\\" + m);
+          const { data, error } = await supabase.from("agenda_compromissos").select("*").ilike("nome_promotor", padrao).gte("data", de).lte("data", ate).order("data", { ascending: true }).order("hora_inicio", { ascending: true });
+          if (error) throw error;
+          return (data || []).map(c => ({ data: c.data, hora: String(c.hora_inicio || "").slice(0, 5), tipo: c.tipo_cliente, cliente: c.cliente_nome, assunto: c.assunto || "", realizada: !!c.realizada, assuntoRealizado: c.assunto_realizado || "" }));
+        };
+        const proxIni = paraIso(ms(sol.periodo_ini) + 7 * 86400000);
+        res.status(200).json({
+          promotor: sol.promotor_nome,
+          semana: { de: sol.periodo_ini, ate: paraIso(ms(sol.periodo_ini) + 5 * 86400000), itens: await busca(sol.periodo_ini, paraIso(ms(sol.periodo_ini) + 5 * 86400000)) },
+          proxima: { de: proxIni, ate: paraIso(ms(proxIni) + 4 * 86400000), itens: await busca(proxIni, paraIso(ms(proxIni) + 4 * 86400000)) }
+        });
         return;
       }
       if (q.id) {
@@ -499,6 +595,64 @@ async function tratarRdv(req, res, ctx) {
     /* ----- gestor ----- */
     if (!ehGestor) { res.status(403).json({ erro: "Acesso restrito à gestão." }); return; }
 
+    // Baixar o Excel do layout ANTES de aprovar (prévia). Não altera nada.
+    if (acao === "excel") {
+      const { data: sol, error: eX } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
+      if (eX) throw eX;
+      if (!sol) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
+      if (sol.status === "rascunho") { res.status(409).json({ erro: "Este RDV ainda é rascunho do consultor." }); return; }
+      const anterior = sol.gestor || {};
+      const hoje = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
+      let demanda = b.demanda !== undefined && b.demanda !== "" ? Number(b.demanda) : (anterior.demanda != null ? Number(anterior.demanda) : null);
+      if (sol.tipo === "RDV" && (demanda === null || !isFinite(demanda))) { try { demanda = await demandaDaSemana(supabase, sol.promotor_nome, sol.periodo_ini); } catch (e) { demanda = 0; } }
+      const extra = { hoje, aprovador: nomeUsuario, previa: sol.status !== "enviada_kanban", emissao: anterior.emissao || hoje, valor: anterior.valor, numero: anterior.numero || "", demanda: demanda || 0 };
+      const buf = sol.tipo === "RDV" ? planilhaRdv(sol, extra) : planilhaCi(sol, extra);
+      const rotuloArq = sol.tipo === "RDV" ? tituloRdv(sol) : `CI ${sol.promotor_nome} ${hoje}`;
+      res.status(200).json({ nome: nomeArquivoSeguro(rotuloArq, "xlsx"), base64: Buffer.from(buf).toString("base64") });
+      return;
+    }
+
+    // Gestor corrige a quilometragem dia a dia (KM inicial da semana, KM inicial/final de cada dia).
+    if (acao === "ajustar_km") {
+      const { data: sol, error: eA } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
+      if (eA) throw eA;
+      if (!sol || sol.tipo !== "RDV") { res.status(404).json({ erro: "RDV não encontrado." }); return; }
+      if (!["pendente", "erro_kanban"].includes(sol.status)) { res.status(409).json({ erro: "Só dá para ajustar a quilometragem antes da aprovação." }); return; }
+      const d0 = sol.dados;
+      const porData = {};
+      (Array.isArray(b.dias) ? b.dias : []).forEach(x => { if (x && x.data) porData[String(x.data).slice(0, 10)] = x; });
+      const entrada = d0.dias.map(x => {
+        const aj = porData[x.data];
+        return { ...x,
+          kmFim: aj && aj.kmFim !== undefined ? aj.kmFim : x.kmFimInformado,
+          kmIniManual: aj && aj.kmIni !== undefined ? aj.kmIni : x.kmIniManual };
+      });
+      const kmInicialNovo = b.kmInicial !== undefined && b.kmInicial !== "" ? b.kmInicial : d0.kmInicial;
+      const novo = normalizarRdv({ ...d0, kmInicial: kmInicialNovo, dias: entrada }, true);
+      novo.dias.forEach((n, i) => {
+        if (n.kmFimInformado !== null && n.kmFimInformado < n.kmIni) falha(`KM final de ${DIAS_SEMANA[i].toLowerCase()} (${n.kmFimInformado}) é menor que o inicial (${n.kmIni}).`);
+      });
+      // mantém os campos que o normalizador não recalcula
+      novo.fotoHodometroIni = d0.fotoHodometroIni; novo.fotoHodometroFim = d0.fotoHodometroFim;
+      novo.kmFinalHodometro = d0.kmFinalHodometro;
+      const mud = [];
+      if (Number(d0.kmInicial) !== Number(novo.kmInicial)) mud.push(`KM inicial da semana ${d0.kmInicial} → ${novo.kmInicial}`);
+      d0.dias.forEach((x, i) => {
+        const n = novo.dias[i];
+        if (x.kmIni !== n.kmIni) mud.push(`${DIAS_SEMANA[i].toLowerCase()} KM inicial ${x.kmIni} → ${n.kmIni}`);
+        if (x.kmFim !== n.kmFim) mud.push(`${DIAS_SEMANA[i].toLowerCase()} KM final ${x.kmFim} → ${n.kmFim}`);
+      });
+      if (!mud.length) { res.status(200).json(await anexarDemanda(supabase, sol, detalheLinha(sol))); return; }
+      novo.ajustesGestor = [...(Array.isArray(d0.ajustesGestor) ? d0.ajustesGestor : []), { por: nomeUsuario, em: new Date().toISOString(), mudancas: mud }].slice(-20);
+      let valorNovo = 0; try { valorNovo = totaisRdv(novo).total; } catch (e) { valorNovo = sol.valor_promotor; }
+      // valor digitado antes (g.valor) deixa de valer: o total mudou
+      const gNovo = sol.gestor ? { ...sol.gestor } : null; if (gNovo) delete gNovo.valor;
+      const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: novo, valor_promotor: valorNovo, gestor: gNovo, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
+      if (error) throw error;
+      res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
+      return;
+    }
+
     if (acao === "recusar") {
       const motivo = txt(b.motivo, 400);
       if (!motivo) { res.status(400).json({ erro: "Informe o motivo da recusa." }); return; }
@@ -541,9 +695,9 @@ async function tratarRdv(req, res, ctx) {
       const extra = { hoje: new Date().toISOString().slice(0, 10), aprovador: nomeUsuario, emissao: g.emissao, valor: g.valor, numero: g.numero, demanda: g.demanda };
       const buffer = sol.tipo === "RDV" ? planilhaRdv(sol, extra) : planilhaCi(sol, extra);
       const rotulo = sol.tipo === "RDV"
-        ? `RDV ${sol.promotor_nome} ${sol.periodo_ini}`
+        ? tituloRdv(sol)
         : `CI ${sol.promotor_nome} ${g.emissao}`;
-      const nomeArq = rotulo.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 _-]/g, "").replace(/\s+/g, "_") + ".xlsx";
+      const nomeArq = nomeArquivoSeguro(rotulo, "xlsx");
       const arquivoUrl = await subirArquivo(supabase, buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");
 
       // anexos: planilha primeiro, depois fotos
@@ -565,7 +719,7 @@ async function tratarRdv(req, res, ctx) {
       }
 
       const resumoCurto = sol.tipo === "RDV"
-        ? `RDV semanal ${br(sol.periodo_ini)} a ${br(sol.periodo_fim)} - ${sol.promotor_nome}`
+        ? tituloRdv(sol)
         : `CI - ${sol.promotor_nome} - ${txt(sol.dados.cliente, 60)}`;
       const campos = {
         establishment: KANBAN_ESTABELECIMENTO(),
@@ -596,4 +750,4 @@ async function tratarRdv(req, res, ctx) {
   }
 }
 
-module.exports = { tratarRdv, normalizarRdv, totaisRdv, planilhaRdv, planilhaCi, normalizarCi };
+module.exports = { tituloRdv, periodoTextoRdv, tratarRdv, normalizarRdv, totaisRdv, planilhaRdv, planilhaCi, normalizarCi };
