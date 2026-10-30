@@ -33,13 +33,16 @@ async function tratarGestor(req, res, opcoes) {
 
   const supabase = obterSupabase();
   const [linL, linV, usuarios] = await Promise.all([
-    buscarTodasLinhas(supabase, "lancamentos", "id,nome_promotor,revenda,propriedade,produto,unidade,volume,valor_total,dia_lancamento,id_envio", null),
+    // "revenda_origem" (Projeto AGD's) só existe depois de rodar sql_revenda_origem_agd.sql;
+    // se a coluna ainda não existir, cai para a consulta antiga em vez de quebrar o painel.
+    buscarTodasLinhas(supabase, "lancamentos", "id,nome_promotor,revenda,revenda_origem,propriedade,produto,unidade,volume,valor_total,dia_lancamento,id_envio", null)
+      .catch(() => buscarTodasLinhas(supabase, "lancamentos", "id,nome_promotor,revenda,propriedade,produto,unidade,volume,valor_total,dia_lancamento,id_envio", null)),
     buscarTodasLinhas(supabase, "visitas", "nome_promotor,propriedade,tipo_visita,dia_visita", null),
     supabase.from("usuarios").select("nome, cargo").ilike("cargo", "promotor").then(r => r.data || []).catch(() => [])
   ]);
 
   const todosPed = linL.map(l => ({
-    promotor: String(l.nome_promotor || "").trim(), revenda: String(l.revenda || "").trim(),
+    promotor: String(l.nome_promotor || "").trim(), revenda: String(l.revenda || "").trim(), origem: String(l.revenda_origem || "").trim(),
     fazenda: String(l.propriedade || "").trim(), produto: String(l.produto || "").trim(),
     unidade: String(l.unidade || "").trim(), volume: Number(l.volume) || 0,
     // chave do pedido: um pedido tem vários itens (linhas) com o mesmo id_envio; registros
@@ -146,7 +149,7 @@ async function tratarGestor(req, res, opcoes) {
 
   // Últimos registros do recorte atual
   const registros = [
-    ...pedA.map(p => ({ tipo: "Pedido", data: p.data, promotor: p.promotor, fazenda: p.fazenda, revenda: p.revenda, detalhe: p.produto, valor: p.valor })),
+    ...pedA.map(p => ({ tipo: "Pedido", data: p.data, promotor: p.promotor, fazenda: p.fazenda, revenda: p.revenda, origem: p.origem, detalhe: p.produto, valor: p.valor })),
     ...visA.map(v => ({ tipo: "Visita", data: v.data, promotor: v.promotor, fazenda: v.fazenda, revenda: "", detalhe: v.tipo, valor: null }))
   ].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 40);
 
