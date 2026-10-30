@@ -448,6 +448,17 @@
   .dsp-tab{min-width:1500px;}
   .dsp-cab h3{font-size:16px;}
   .dsp-tab th{white-space:normal;min-width:78px;max-width:170px;vertical-align:bottom;}
+
+  /* cores por categoria (iguais às do Excel) */
+  .c-km{background:#dce9f7;} .c-hotel{background:#fce5cd;} .c-ref{background:#fff2cc;} .c-pre{background:#e4daf2;} .c-out{background:#f8d7da;} .c-tot{background:#e8f0e8;}
+  .dsp-tab th.c-km,.dsp-tab td.c-km,.dsp-tab tfoot td.c-km{background:#dce9f7;}
+  .dsp-tab th.c-hotel,.dsp-tab td.c-hotel,.dsp-tab tfoot td.c-hotel{background:#fce5cd;}
+  .dsp-tab th.c-ref,.dsp-tab td.c-ref,.dsp-tab tfoot td.c-ref{background:#fff2cc;}
+  .dsp-tab th.c-pre,.dsp-tab td.c-pre,.dsp-tab tfoot td.c-pre{background:#e4daf2;}
+  .dsp-tab th.c-out,.dsp-tab td.c-out,.dsp-tab tfoot td.c-out{background:#f8d7da;}
+  .dsp-tab th.c-tot,.dsp-tab td.c-tot,.dsp-tab tfoot td.c-tot{background:#e8f0e8;}
+  .dsp-tab tr.zero td.c-km,.dsp-tab tr.zero td.c-hotel,.dsp-tab tr.zero td.c-ref,.dsp-tab tr.zero td.c-pre,.dsp-tab tr.zero td.c-out{opacity:.6;}
+  .dsp-cat.c-km{border-left:6px solid #5b8fd1;} .dsp-cat.c-hotel{border-left:6px solid #e69138;} .dsp-cat.c-ref{border-left:6px solid #e0b400;} .dsp-cat.c-pre{border-left:6px solid #8e6bbf;} .dsp-cat.c-out{border-left:6px solid #d9534f;}
 </style>
 </head>
 <body>
@@ -1122,12 +1133,13 @@ function desenharDetalheDesp(l) {
       if (x.jantar > 0 && x.jantarPessoas > 1) pess.push(`<b>Jantar — ${x.jantarPessoas} pessoas (ele e mais ${x.jantarPessoas - 1}):</b> ` + (x.jantarParticipantes || []).map(q => esc(q.nome) + " (" + esc(q.cargo) + ", " + esc(q.local) + ")").join("; "));
       const kmIni = editavel ? `<input class="km" inputmode="numeric" data-k="ini" data-i="${i}" data-orig="${x.kmIni}" value="${x.kmIni}">` : num(x.kmIni);
       const kmFim = editavel ? `<input class="km" inputmode="numeric" data-k="fim" data-i="${i}" data-orig="${x.kmFimInformado == null ? "" : x.kmFimInformado}" value="${x.kmFimInformado == null ? "" : x.kmFimInformado}">` : num(x.kmFim);
-      return `<tr class="${mov ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td>${kmIni}</td><td>${kmFim}</td><td>${num(x.kmRodado)}</td><td class="t">${esc(x.kmDescricao)}</td>
-        <td>${vb(x.hotel, "hotel")}</td><td class="t">${esc(x.hotelDescricao)}</td>
-        <td>${vb(x.almoco - aConj, "almoco")}</td><td>${vb(x.jantar - jConj, "jantar")}</td>
-        <td>${vb(aConj, "almoco")}</td><td>${vb(jConj, "jantar")}</td>
-        <td class="t">${pess.join("<br>")}</td><td>${vb(x.aviso, "aviso")}</td>
-        <td class="t">${esc(x.descricao)}</td><td><b>${moeda2((tot.porDia || [])[i])}</b></td></tr>`;
+      const conjBtns = [aConj > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="almoco" title="Ver a nota">Almoço ${moeda2(aConj)}</button>` : "", jConj > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="jantar" title="Ver a nota">Jantar ${moeda2(jConj)}</button>` : ""].filter(Boolean).join("<br>") || moeda2(0);
+      return `<tr class="${mov ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td class="c-km">${kmIni}</td><td class="c-km">${kmFim}</td><td class="c-km">${num(x.kmRodado)}</td><td class="t c-km">${esc(x.kmDescricao)}</td>
+        <td class="c-hotel">${vb(x.hotel, "hotel")}</td><td class="t c-hotel">${esc(x.hotelDescricao)}</td>
+        <td class="c-ref">${vb(x.almoco - aConj, "almoco")}</td><td class="c-ref">${vb(x.jantar - jConj, "jantar")}</td>
+        <td class="c-pre">${conjBtns}</td>
+        <td class="t c-pre">${pess.join("<br>")}</td><td class="c-out">${vb(x.aviso, "aviso")}</td>
+        <td class="t">${esc(x.descricao)}</td><td class="c-tot"><b>${moeda2((tot.porDia || [])[i])}</b></td></tr>`;
     }).join("");
     const kmHod = d.kmFinalHodometro != null ? d.kmFinalHodometro : d.kmFinal;
     const difHod = (Number(kmHod) || 0) - (Number(d.kmInicial) || 0);
@@ -1140,19 +1152,19 @@ function desenharDetalheDesp(l) {
       ${d.kmFinal != null && Number(d.kmFinal) !== Number(kmHod) ? `<div class="dsp-aviso">Atenção: o último KM dos dias (${num(d.kmFinal)}) não bate com o hodômetro final (${num(kmHod)}).</div>` : ""}`;
     const cats = `<div class="dsp-cats">
       <div class="dsp-cat tot"><small>Total do RDV</small><b>${moeda2(tot.total)}</b></div>
-      <div class="dsp-cat"><small>Rodagem (${num(tot.km)} km · R$ ${vkm}/km)</small><b>KM: ${moeda2(tot.valorKm)}</b></div>
-      <div class="dsp-cat"><small>Hotel</small><b>${moeda2(tot.hotel)}</b></div>
-      <div class="dsp-cat"><small>Refeições individuais</small><b>${moeda2(tot.refeicoesInd)}</b></div>
-      <div class="dsp-cat"><small>Em conjunto (pré-aprovadas)</small><b>${moeda2(tot.refeicoesConj)}</b></div>
-      <div class="dsp-cat"><small>Aviso prévio / outros</small><b>${moeda2(tot.aviso)}</b></div></div>`;
+      <div class="dsp-cat c-km"><small>Rodagem (${num(tot.km)} km · R$ ${vkm}/km)</small><b>KM: ${moeda2(tot.valorKm)}</b></div>
+      <div class="dsp-cat c-hotel"><small>Hotel</small><b>${moeda2(tot.hotel)}</b></div>
+      <div class="dsp-cat c-ref"><small>Refeições individuais</small><b>${moeda2(tot.refeicoesInd)}</b></div>
+      <div class="dsp-cat c-pre"><small>Em conjunto (pré-aprovadas)</small><b>${moeda2(tot.refeicoesConj)}</b></div>
+      <div class="dsp-cat c-out"><small>Aviso prévio / outros</small><b>${moeda2(tot.aviso)}</b></div></div>`;
     const fotos = [];
     (d.dias || []).forEach((x, i) => (x.fotos || []).forEach((u, k) => fotos.push({ url: u, rot: `Nota ${DIAS_CURTO[i]} ${k + 1}` })));
     const ajustes = (d.ajustesGestor || []).length ? `<div class="dsp-sec">Ajustes de KM feitos pelo gestor</div><ul class="dsp-aj">${d.ajustesGestor.map(a => `<li><b>${esc(a.por)}</b> em ${esc(String(a.em).slice(0, 16).replace("T", " "))}: ${a.mudancas.map(esc).join("; ")}</li>`).join("")}</ul>` : "";
     corpo = `${cats}
       <div class="dsp-barra"><button type="button" id="btnExcelPrevia">Baixar Excel (prévia do layout)</button><button type="button" id="btnAgendaRdv">Ver agenda da semana e da próxima</button>${editavel ? '<button type="button" id="btnSalvarKm">Salvar ajuste de KM</button>' : ""}</div>
       <div id="dspAgenda"></div><div id="dspKmMsg"></div>
-      <div class="tabela-wrap"><table class="dsp-tab" id="dspTabRdv"><thead><tr><th>Dia</th><th>KM inicial</th><th>KM final</th><th>Rodado</th><th class="t">Descrição do KM rodado</th><th>Hotel</th><th class="t">Hotel (nome e cidade)</th><th>Almoço</th><th>Jantar</th><th>Despesa pré aprovada (Almoço com mais de uma pessoa)</th><th>Despesa pré aprovada (Jantar com mais de uma pessoa)</th><th class="t">Pessoas / quem participou</th><th>Aviso</th><th class="t">Descrição da despesa</th><th>Total do dia</th></tr></thead><tbody>${linhas}</tbody>
-      <tfoot><tr><td>Total</td><td></td><td></td><td>${num(tot.km)} km</td><td class="t">KM: ${moeda2(tot.valorKm)} (R$ ${vkm}/km)</td><td>${moeda2(tot.hotel)}</td><td></td><td>${moeda2(tot.almocoInd)}</td><td>${moeda2(tot.jantarInd)}</td><td>${moeda2(tot.almocoConj)}</td><td>${moeda2(tot.jantarConj)}</td><td></td><td>${moeda2(tot.aviso)}</td><td class="t"></td><td>Total ${moeda2(tot.total)}</td></tr></tfoot></table></div>
+      <div class="tabela-wrap"><table class="dsp-tab" id="dspTabRdv"><thead><tr><th>Dia</th><th class="c-km">KM inicial</th><th class="c-km">KM final</th><th class="c-km">Rodado</th><th class="t c-km">Descrição do KM rodado</th><th class="c-hotel">Hotel</th><th class="t c-hotel">Hotel (nome e cidade)</th><th class="c-ref">Almoço</th><th class="c-ref">Jantar</th><th class="c-pre">Despesa pré aprovada (Almoço ou Jantar com mais de uma pessoa)</th><th class="t c-pre">Pessoas / quem participou</th><th class="c-out">Aviso</th><th class="t">Descrição da despesa</th><th class="c-tot">Total do dia</th></tr></thead><tbody>${linhas}</tbody>
+      <tfoot><tr><td>Total</td><td class="c-km"></td><td class="c-km"></td><td class="c-km">${num(tot.km)} km</td><td class="t c-km">KM: ${moeda2(tot.valorKm)} (R$ ${vkm}/km)</td><td class="c-hotel">${moeda2(tot.hotel)}</td><td class="c-hotel"></td><td class="c-ref">${moeda2(tot.almocoInd)}</td><td class="c-ref">${moeda2(tot.jantarInd)}</td><td class="c-pre">${moeda2(tot.refeicoesConj)}</td><td class="c-pre"></td><td class="c-out">${moeda2(tot.aviso)}</td><td class="t"></td><td class="c-tot">Total ${moeda2(tot.total)}</td></tr></tfoot></table></div>
       ${hod}
       ${blocoDemanda(l)}
       ${ajustes}
