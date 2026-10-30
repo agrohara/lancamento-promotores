@@ -53,11 +53,17 @@ const { quinzenaChave } = require("./_lib/quinzenas");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
 
+// Projeto AGD's: pedido tirado "via projeto" precisa dizer de qual revenda ou cooperativa
+// ele veio (coluna lancamentos.revenda_origem — sql_revenda_origem_agd.sql). Reconhece o nome
+// novo único ("Projeto Lançamentos - AGD's") e os antigos por consultor ("... - AROLDO").
+const ehProjetoAgd = (revenda) => /AGD'?s/i.test(String(revenda || ""));
+
 function paraObjeto(l) {
   return {
     Id: l.id,
     Nome_Promotor: l.nome_promotor || "",
     Revenda: l.revenda || "",
+    Revenda_Origem: l.revenda_origem || "",
     Propriedade: l.propriedade || "",
     Produto: l.produto || "",
     Unidade: l.unidade || "",
@@ -78,6 +84,7 @@ function validarRegistro(r) {
   if (!r || typeof r !== "object") return false;
   if (!r.Nome_Promotor || !r.Revenda || !r.Produto || !r.Dia_Lancamento || !r.Quinzena) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(r.Dia_Lancamento))) return false;
+  if (ehProjetoAgd(r.Revenda) && String(r.Revenda_Origem || "").trim().length < 2) return false;
 
   // O promotor precisa descrever o que foi tratado na visita SE o pedido estiver
   // vinculado a uma fazenda. Pedido balcão (sem Propriedade) não passa por essa exigência,
@@ -99,6 +106,7 @@ function validarRegistro(r) {
 // errado deve pedir pro gestor cancelar/relançar, não "mover" o registro.
 const CAMPOS_EDITAVEIS_LANCAMENTO = {
   Revenda: "revenda",
+  Revenda_Origem: "revenda_origem",
   Propriedade: "propriedade",
   Produto: "produto",
   Unidade: "unidade",
@@ -250,6 +258,23 @@ module.exports = async function handler(req, res) {
         return;
       }
 
+      // Projeto AGD's: se a revenda (ou a origem) foi mexida e o resultado é AGD, a origem
+      // é obrigatória; se saiu do AGD, a origem é limpa. Editar só o volume de um pedido AGD
+      // antigo (sem origem) continua liberado.
+      const revendaFinal = atualizacao.revenda !== undefined ? atualizacao.revenda : (existente.revenda || "");
+      const origemFinal = atualizacao.revenda_origem !== undefined ? atualizacao.revenda_origem : (existente.revenda_origem || "");
+      if (ehProjetoAgd(revendaFinal)) {
+        if ((atualizacao.revenda !== undefined || atualizacao.revenda_origem !== undefined) && String(origemFinal).trim().length < 2) {
+          res.status(400).json({ erro: "Pedido do Projeto AGD's precisa informar a revenda ou cooperativa de origem." });
+          return;
+        }
+        if (atualizacao.revenda_origem !== undefined) atualizacao.revenda_origem = String(atualizacao.revenda_origem).slice(0, 120);
+      } else if (atualizacao.revenda !== undefined && existente.revenda_origem) {
+        atualizacao.revenda_origem = "";
+      } else {
+        delete atualizacao.revenda_origem;
+      }
+
       if (Object.keys(atualizacao).length === 0) {
         res.status(200).json({ status: "ok", semAlteracoes: true });
         return;
@@ -346,7 +371,7 @@ module.exports = async function handler(req, res) {
   const invalidos = lancamentos.filter(r => !validarRegistro(r));
   if (invalidos.length > 0) {
     res.status(400).json({
-      erro: "Um ou mais registros estão incompletos (falta revenda/produto/data), sem a descrição do que foi tratado na visita quando vinculados a uma fazenda, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
+      erro: "Um ou mais registros estão incompletos (falta revenda/produto/data; pedido do Projeto AGD's também exige a revenda ou cooperativa de origem), sem a descrição do que foi tratado na visita quando vinculados a uma fazenda, com data em formato inválido (esperado AAAA-MM-DD) ou preço/volume inválidos.",
       invalidos
     });
     return;
@@ -369,6 +394,9 @@ module.exports = async function handler(req, res) {
       // Só inclui "fotos" quando há foto: assim o envio sem foto continua funcionando
       // mesmo antes de a coluna ser criada (sql_fotos_pedido.sql).
       ...(String(r.Fotos || "").trim() ? { fotos: String(r.Fotos).trim() } : {}),
+      // Só envia "revenda_origem" quando é pedido do Projeto AGD's (coluna criada por
+      // sql_revenda_origem_agd.sql); os demais pedidos não dependem dela.
+      ...(ehProjetoAgd(r.Revenda) && String(r.Revenda_Origem || "").trim() ? { revenda_origem: String(r.Revenda_Origem).trim().slice(0, 120) } : {}),
       id_envio: r.Id_Envio ? String(r.Id_Envio).trim() : null
     }));
 
