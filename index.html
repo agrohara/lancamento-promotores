@@ -1030,6 +1030,7 @@
         <textarea id="inputObservacaoVisita" rows="4" placeholder="Ex: cliente satisfeito, negociação em andamento, pontos de atenção..."></textarea>
         <div id="fotosVisita"></div>
         <button class="btn" id="btnEnviarVisita">Enviar visita</button>
+        <button class="btn btn-secundario oculto" id="btnPedidoDaVisita" type="button" style="margin-top:10px;">🛒 Lançar pedido desta visita</button>
       </div>
     </section>
 
@@ -1052,6 +1053,11 @@
         <select id="selectRevendaItem">
           <option value="">Selecione...</option>
         </select>
+        <div id="boxOrigemAgd" class="oculto" style="margin-top:12px;">
+          <label for="selectOrigemAgd">Revenda ou cooperativa de origem <span class="dsp-obrig">(obrigatório no Projeto AGD's)</span></label>
+          <select id="selectOrigemAgd"></select>
+          <input type="text" id="inputOrigemAgdOutra" class="oculto" maxlength="120" placeholder="Digite o nome da revenda ou cooperativa" style="margin-top:8px;">
+        </div>
       </div>
 
       <div class="card">
@@ -1538,6 +1544,17 @@
     <select id="ffFase"></select>
     <label for="ffSistema">Sistema de produção</label>
     <select id="ffSistema"></select>
+    <label style="margin-top:14px;">Rebanho (tamanho do lote)</label>
+    <div class="grid-numeros">
+      <div class="campo-numero"><label for="ffMatrizes">Matrizes</label><input type="number" id="ffMatrizes" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffPrimiparas">Primíparas</label><input type="number" id="ffPrimiparas" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffNovilhas">Novilhas</label><input type="number" id="ffNovilhas" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffBezerrosMachos">Bezerros machos</label><input type="number" id="ffBezerrosMachos" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffBezerrosFemeas">Bezerros fêmeas</label><input type="number" id="ffBezerrosFemeas" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffGarrotes">Garrotes</label><input type="number" id="ffGarrotes" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffTouros">Touros</label><input type="number" id="ffTouros" min="0" step="1" inputmode="numeric"></div>
+      <div class="campo-numero"><label for="ffEquinos">Equinos</label><input type="number" id="ffEquinos" min="0" step="1" inputmode="numeric"></div>
+    </div>
     <label>Localização (latitude e longitude)</label>
     <div class="coord-par">
       <input type="text" inputmode="decimal" id="ffLat" placeholder="Latitude (ex: -23.31234)" autocomplete="off">
@@ -1580,6 +1597,10 @@
     <div class="msg msg-erro oculto" id="folhaPedidoErro"></div>
     <label for="fpRevenda">Revenda (cliente)</label>
     <select id="fpRevenda"></select>
+    <div id="fpBoxOrigemAgd" class="oculto">
+      <label for="fpRevendaOrigem">Revenda ou cooperativa de origem <span class="dsp-obrig">(Projeto AGD's)</span></label>
+      <input type="text" id="fpRevendaOrigem" maxlength="120" placeholder="Nome da revenda ou cooperativa de origem">
+    </div>
     <label for="fpPropriedade">Fazenda</label>
     <div class="input-combo">
       <input type="text" id="fpPropriedade" placeholder="Buscar fazenda, ou deixe vazio para pedido balcão" autocomplete="off">
@@ -1823,7 +1844,11 @@ async function aquecerCacheOffline() {
 }
 
 /* Lista de promotores e revendas (clientes) vinculados */
-const PROMOTOR_CLIENTE = [{"Promotor": "AROLDO", "Cliente": "CASA RURAL AGROPECUARIA LOANDA LTDA"}, {"Promotor": "AROLDO", "Cliente": "EPA PIRES & PIRES LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRACIOSA AGROPECUARIA LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRUPO POMARO"}, {"Promotor": "AROLDO", "Cliente": "GRUPO VIUDES"}, {"Promotor": "AROLDO", "Cliente": "Projeto Lançamentos - AGD's - AROLDO"}, {"Promotor": "GUSTAVO", "Cliente": "CLEISO CELLA & CIA LTDA  - ME"}, {"Promotor": "GUSTAVO", "Cliente": "COASUL COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GUSTAVO", "Cliente": "COMERCIAL AGROVETERINARIA MALYS LTDA"}, {"Promotor": "GUSTAVO", "Cliente": "H P AGRONUTRI COMERCIO E REPRESENTAÇÃO LTDA  - ME"}, {"Promotor": "GUSTAVO", "Cliente": "Projeto Lançamentos - AGD's - GUSTAVO"}, {"Promotor": "GABRIEL", "Cliente": "COOPERATIVA AGRICOLA MISTA SAO CRISTOVAO LTDA"}, {"Promotor": "GABRIEL", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL"}, {"Promotor": "GABRIEL", "Cliente": "VALE NUTRICAO E SAUDE ANIMAL LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "BOFF & BOFF LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "CARLOS ROBERTO BUENO & CIA LTDA - ME"}, {"Promotor": "GABRIEL S", "Cliente": "COAGRO COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GABRIEL S", "Cliente": "COOPERATIVA DE LEITE DA AGRICULTURA FAMILIAR DE SALTO DO LONTRA"}, {"Promotor": "GABRIEL S", "Cliente": "D. C. DE LIMA AGROCENTER EIRELI"}, {"Promotor": "GABRIEL S", "Cliente": "Projeto Lançamentos - AGD's - GABRIEL S"}, {"Promotor": "GIANCARLO", "Cliente": "COOPERATIVA DE DESENVOLVIMENTO E PRODUCAO AGROPECUARIA - CODEPA"}, {"Promotor": "GIANCARLO", "Cliente": "GRUPO PASQUALOTO"}, {"Promotor": "GIANCARLO", "Cliente": "MARTINS DISTRIBUIDORA DE PRODUTOS AGROPECUARIOS LTDA - ME"}, {"Promotor": "GIANCARLO", "Cliente": "Projeto Lançamentos - AGD's - GIANCARLO"}, {"Promotor": "JOAO TALES", "Cliente": "AGRO-MANICA COMERCIO E REPRESENTACOES DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "AGROPECUARIA APOEMA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "COAMIG AGROINDUSTRIAL COOPERATIVA"}, {"Promotor": "JOAO TALES", "Cliente": "D L DA SILVA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "FEMAGRI COMERCIO DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "GRUPO SIMIONATO"}, {"Promotor": "JOAO TALES", "Cliente": "Projeto Lançamentos - AGD's - JOAO TALES"}, {"Promotor": "KAUANA", "Cliente": "3B AGRO LTDA"}, {"Promotor": "KAUANA", "Cliente": "AMIGOS DO CAMPO AGROPECUARIA LTDA"}, {"Promotor": "KAUANA", "Cliente": "DAZAK BROCARDO LTDA - ME"}, {"Promotor": "KAUANA", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "KAUANA", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "KAUANA", "Cliente": "Projeto Lançamentos - AGD's - KAUANA"}, {"Promotor": "KAUANA", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LEONARDO", "Cliente": "COAGRU COOPERATIVA AGROINDUSTRIAL UNIAO"}, {"Promotor": "LEONARDO", "Cliente": "KATUAGRO COMERCIO DE PRODUTOS AGROPECUARIOS LTDA - EPP"}, {"Promotor": "LEONARDO", "Cliente": "P BODNAR AGROPECUARIA - ME"}, {"Promotor": "LEONARDO", "Cliente": "Projeto Lançamentos - AGD's - LEONARDO"}, {"Promotor": "LEONARDO", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LUCAS", "Cliente": "COCARI - COOPERATIVA AGROPECUARIA E INDUSTRIAL"}, {"Promotor": "LUCAS", "Cliente": "COMERCIAL IBAITI"}, {"Promotor": "LUCAS", "Cliente": "GRUPO AGROCAMPO"}, {"Promotor": "LUCAS", "Cliente": "HARA AGRONEGOCIOS PR-445"}, {"Promotor": "LUCAS", "Cliente": "Projeto Lançamentos - AGD's - LUCAS"}, {"Promotor": "LUCAS", "Cliente": "RURAL NORTE DISTRIBUIDORA DE INSUMOS AGRICOLAS LTDA"}, {"Promotor": "LUCAS", "Cliente": "SOLUCAO PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "MARIANA", "Cliente": "AGRO PECUARIA ALIANCA LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ARROBA NUTRICAO ANIMAL LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ASSOCIACAO DOS PRODUTORES DE LEITE DE PEROLA - APEROLEITE"}, {"Promotor": "MARIANA", "Cliente": "COOPERATIVA DOS PRODUTORES DE LEITE DO TERRITORIO ENTRE RIOS - COOPELE"}, {"Promotor": "MARIANA", "Cliente": "FABRICIO G. RAZENTE & CIA. LTDA."}, {"Promotor": "MARIANA", "Cliente": "Projeto Lançamentos - AGD's - MARIANA"}, {"Promotor": "PEDRO", "Cliente": "FELIPE MENEGAS ME"}, {"Promotor": "PEDRO", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "PEDRO", "Cliente": "GRUPO GALERA"}, {"Promotor": "PEDRO", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "PEDRO", "Cliente": "Projeto Lançamentos - AGD's - PEDRO"}, {"Promotor": "PEDRO", "Cliente": "RL PRODUTOS AGROPECUARIOS"}, {"Promotor": "PEDRO", "Cliente": "SIMIONATTO & SANSIGOLO LTDA"}, {"Promotor": "PEDRO", "Cliente": "TERRAGRZ COMERCIO DE PRODUTOS AGROPECUARIOS EIRELLE- ME"}, {"Promotor": "PEDRO", "Cliente": "VICTOR LUIZ ZAGO ME"}];
+const PROJETO_AGD = "Projeto Lançamentos - AGD's";
+// Pedido "via Projeto AGD's": nome único para todos os consultores (os nomes antigos por
+// consultor, "… AGD's - FULANO", continuam reconhecidos nos registros já lançados).
+function ehProjetoAgd(revenda) { return /AGD'?s/i.test(String(revenda || "")); }
+const PROMOTOR_CLIENTE = [{"Promotor": "AROLDO", "Cliente": "CASA RURAL AGROPECUARIA LOANDA LTDA"}, {"Promotor": "AROLDO", "Cliente": "EPA PIRES & PIRES LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRACIOSA AGROPECUARIA LTDA"}, {"Promotor": "AROLDO", "Cliente": "GRUPO POMARO"}, {"Promotor": "AROLDO", "Cliente": "GRUPO VIUDES"}, {"Promotor": "AROLDO", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "GUSTAVO", "Cliente": "CLEISO CELLA & CIA LTDA  - ME"}, {"Promotor": "GUSTAVO", "Cliente": "COASUL COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GUSTAVO", "Cliente": "COMERCIAL AGROVETERINARIA MALYS LTDA"}, {"Promotor": "GUSTAVO", "Cliente": "H P AGRONUTRI COMERCIO E REPRESENTAÇÃO LTDA  - ME"}, {"Promotor": "GUSTAVO", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "GABRIEL", "Cliente": "COOPERATIVA AGRICOLA MISTA SAO CRISTOVAO LTDA"}, {"Promotor": "GABRIEL", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "GABRIEL", "Cliente": "VALE NUTRICAO E SAUDE ANIMAL LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "BOFF & BOFF LTDA"}, {"Promotor": "GABRIEL S", "Cliente": "CARLOS ROBERTO BUENO & CIA LTDA - ME"}, {"Promotor": "GABRIEL S", "Cliente": "COAGRO COOPERATIVA AGROINDUSTRIAL"}, {"Promotor": "GABRIEL S", "Cliente": "COOPERATIVA DE LEITE DA AGRICULTURA FAMILIAR DE SALTO DO LONTRA"}, {"Promotor": "GABRIEL S", "Cliente": "D. C. DE LIMA AGROCENTER EIRELI"}, {"Promotor": "GABRIEL S", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "GIANCARLO", "Cliente": "COOPERATIVA DE DESENVOLVIMENTO E PRODUCAO AGROPECUARIA - CODEPA"}, {"Promotor": "GIANCARLO", "Cliente": "GRUPO PASQUALOTO"}, {"Promotor": "GIANCARLO", "Cliente": "MARTINS DISTRIBUIDORA DE PRODUTOS AGROPECUARIOS LTDA - ME"}, {"Promotor": "GIANCARLO", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "JOAO TALES", "Cliente": "AGRO-MANICA COMERCIO E REPRESENTACOES DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "AGROPECUARIA APOEMA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "COAMIG AGROINDUSTRIAL COOPERATIVA"}, {"Promotor": "JOAO TALES", "Cliente": "D L DA SILVA LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "FEMAGRI COMERCIO DE PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "JOAO TALES", "Cliente": "GRUPO SIMIONATO"}, {"Promotor": "JOAO TALES", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "KAUANA", "Cliente": "3B AGRO LTDA"}, {"Promotor": "KAUANA", "Cliente": "AMIGOS DO CAMPO AGROPECUARIA LTDA"}, {"Promotor": "KAUANA", "Cliente": "DAZAK BROCARDO LTDA - ME"}, {"Promotor": "KAUANA", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "KAUANA", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "KAUANA", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "KAUANA", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LEONARDO", "Cliente": "COAGRU COOPERATIVA AGROINDUSTRIAL UNIAO"}, {"Promotor": "LEONARDO", "Cliente": "KATUAGRO COMERCIO DE PRODUTOS AGROPECUARIOS LTDA - EPP"}, {"Promotor": "LEONARDO", "Cliente": "P BODNAR AGROPECUARIA - ME"}, {"Promotor": "LEONARDO", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "LEONARDO", "Cliente": "RANCHO DO LEITE"}, {"Promotor": "LUCAS", "Cliente": "COCARI - COOPERATIVA AGROPECUARIA E INDUSTRIAL"}, {"Promotor": "LUCAS", "Cliente": "COMERCIAL IBAITI"}, {"Promotor": "LUCAS", "Cliente": "GRUPO AGROCAMPO"}, {"Promotor": "LUCAS", "Cliente": "HARA AGRONEGOCIOS PR-445"}, {"Promotor": "LUCAS", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "LUCAS", "Cliente": "RURAL NORTE DISTRIBUIDORA DE INSUMOS AGRICOLAS LTDA"}, {"Promotor": "LUCAS", "Cliente": "SOLUCAO PRODUTOS AGROPECUARIOS LTDA"}, {"Promotor": "MARIANA", "Cliente": "AGRO PECUARIA ALIANCA LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ARROBA NUTRICAO ANIMAL LTDA - EPP"}, {"Promotor": "MARIANA", "Cliente": "ASSOCIACAO DOS PRODUTORES DE LEITE DE PEROLA - APEROLEITE"}, {"Promotor": "MARIANA", "Cliente": "COOPERATIVA DOS PRODUTORES DE LEITE DO TERRITORIO ENTRE RIOS - COOPELE"}, {"Promotor": "MARIANA", "Cliente": "FABRICIO G. RAZENTE & CIA. LTDA."}, {"Promotor": "MARIANA", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "PEDRO", "Cliente": "FELIPE MENEGAS ME"}, {"Promotor": "PEDRO", "Cliente": "GRUPO BRANDIELLI"}, {"Promotor": "PEDRO", "Cliente": "GRUPO GALERA"}, {"Promotor": "PEDRO", "Cliente": "OLADIR ANTONIO COMELLI LTDA"}, {"Promotor": "PEDRO", "Cliente": "Projeto Lançamentos - AGD's"}, {"Promotor": "PEDRO", "Cliente": "RL PRODUTOS AGROPECUARIOS"}, {"Promotor": "PEDRO", "Cliente": "SIMIONATTO & SANSIGOLO LTDA"}, {"Promotor": "PEDRO", "Cliente": "TERRAGRZ COMERCIO DE PRODUTOS AGROPECUARIOS EIRELLE- ME"}, {"Promotor": "PEDRO", "Cliente": "VICTOR LUIZ ZAGO ME"}];
 
 
 
@@ -1834,6 +1859,15 @@ let quinzenaAtual = null;
 let propriedadeAtual = null;
 let produtoSelecionado = null;
 let todasPropriedades = [];
+// Revendas/clientes da carteira de um consultor + o Projeto AGD's, que vale para todos.
+function clientesDoPromotor(promotor) {
+  return [...new Set([...PROMOTOR_CLIENTE.filter(p => p.Promotor === promotor).map(p => p.Cliente), PROJETO_AGD])]
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+// Todas as revendas/cooperativas conhecidas (para informar a origem de um pedido do AGD's).
+function revendasDeOrigemAgd() {
+  return [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente).filter(c => !ehProjetoAgd(c)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
 let proprietariosPorFazenda = {};
 // O cargo gravado no banco continua "Promotor" (a lógica depende disso); só o rótulo exibido muda.
 function rotuloCargo(c) { return /^promotor$/i.test(String(c || "").trim()) ? "Consultor de Pecuária" : c; }
@@ -2709,7 +2743,7 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
   document.getElementById("folhaFazendaTitulo").textContent = "Editar fazenda";
   document.getElementById("folhaFazendaOverlay").classList.remove("oculto");
 
-  const campos = ["ffNome","ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo","ffFase","ffSistema"];
+  const campos = ["ffMatrizes","ffPrimiparas","ffNovilhas","ffBezerrosMachos","ffBezerrosFemeas","ffGarrotes","ffTouros","ffEquinos","ffNome","ffMunicipio","ffProprietario","ffDecisor","ffPersonalidade","ffPersonalidadeObs","ffVendedor","ffTipo","ffFase","ffSistema"];
   campos.forEach(id => { document.getElementById(id).value = "Carregando..."; document.getElementById(id).disabled = true; });
   document.getElementById("ffLat").value = "";
   document.getElementById("ffLon").value = "";
@@ -2749,6 +2783,14 @@ async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
     preencherOpcoesSelect("ffTipo", OPCOES_ATIVIDADE, p.Tipo_Propriedade || "");
     preencherOpcoesSelect("ffFase", OPCOES_FASE, p.Fase_Produtiva || "");
     preencherOpcoesSelect("ffSistema", OPCOES_SISTEMA, p.Sistema_Producao || "");
+    document.getElementById("ffMatrizes").value = p.Matrizes != null ? p.Matrizes : 0;
+    document.getElementById("ffPrimiparas").value = p.Primiparas != null ? p.Primiparas : 0;
+    document.getElementById("ffNovilhas").value = p.Novilhas != null ? p.Novilhas : 0;
+    document.getElementById("ffBezerrosMachos").value = p.Bezerros_Machos != null ? p.Bezerros_Machos : 0;
+    document.getElementById("ffBezerrosFemeas").value = p.Bezerros_Femeas != null ? p.Bezerros_Femeas : 0;
+    document.getElementById("ffGarrotes").value = p.Garrotes != null ? p.Garrotes : 0;
+    document.getElementById("ffTouros").value = p.Touros != null ? p.Touros : 0;
+    document.getElementById("ffEquinos").value = p.Equinos != null ? p.Equinos : 0;
     document.getElementById("ffLat").value = fzLat != null ? fzLat : "";
     document.getElementById("ffLon").value = fzLon != null ? fzLon : "";
     document.getElementById("ffLocalizacaoTexto").textContent = fzLat != null && fzLon != null ? "" : "Esta fazenda ainda não tem localização marcada.";
@@ -2853,6 +2895,14 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
       Tipo_Propriedade: document.getElementById("ffTipo").value.trim(),
       Fase_Produtiva: document.getElementById("ffFase").value.trim(),
       Sistema_Producao: document.getElementById("ffSistema").value.trim(),
+      Matrizes: Math.max(0, parseInt(document.getElementById("ffMatrizes").value, 10) || 0),
+      Primiparas: Math.max(0, parseInt(document.getElementById("ffPrimiparas").value, 10) || 0),
+      Novilhas: Math.max(0, parseInt(document.getElementById("ffNovilhas").value, 10) || 0),
+      Bezerros_Machos: Math.max(0, parseInt(document.getElementById("ffBezerrosMachos").value, 10) || 0),
+      Bezerros_Femeas: Math.max(0, parseInt(document.getElementById("ffBezerrosFemeas").value, 10) || 0),
+      Garrotes: Math.max(0, parseInt(document.getElementById("ffGarrotes").value, 10) || 0),
+      Touros: Math.max(0, parseInt(document.getElementById("ffTouros").value, 10) || 0),
+      Equinos: Math.max(0, parseInt(document.getElementById("ffEquinos").value, 10) || 0),
       Latitude: fzLat === null ? "" : fzLat,
       Longitude: fzLon === null ? "" : fzLon
     };
@@ -2923,9 +2973,7 @@ let pdUnidadeSelecionada = "";
 // "sumir" o valor atual silenciosamente.
 function preencherRevendaEdicaoPedido(promotor, valorAtual) {
   const select = document.getElementById("fpRevenda");
-  const revendas = [...new Set(
-    PROMOTOR_CLIENTE.filter(p => p.Promotor === promotor).map(p => p.Cliente)
-  )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const revendas = clientesDoPromotor(promotor);
   if (valorAtual && !revendas.includes(valorAtual)) revendas.unshift(valorAtual);
   select.innerHTML = revendas.map(r => `<option value="${r.replace(/"/g, "&quot;")}">${r}</option>`).join("");
   select.value = valorAtual || "";
@@ -2945,6 +2993,8 @@ async function abrirFolhaEdicaoPedido(item, aoSalvar, aoExcluir) {
   if (todasPropriedades.length === 0) await carregarTodasPropriedades();
   if (todosProdutos.length === 0) await carregarTodosProdutos();
   preencherRevendaEdicaoPedido(item.Nome_Promotor, item.Revenda || "");
+  document.getElementById("fpRevendaOrigem").value = item.Revenda_Origem || "";
+  document.getElementById("fpBoxOrigemAgd").classList.toggle("oculto", !ehProjetoAgd(item.Revenda || ""));
   document.getElementById("fpPropriedade").value = item.Propriedade || "";
   document.getElementById("fpProduto").value = item.Produto || "";
   document.getElementById("fpVolume").value = item.Volume;
@@ -2963,6 +3013,9 @@ function fecharFolhaEdicaoPedido() {
   pdAoExcluir = null;
 }
 
+document.getElementById("fpRevenda").addEventListener("change", () => {
+  document.getElementById("fpBoxOrigemAgd").classList.toggle("oculto", !ehProjetoAgd(document.getElementById("fpRevenda").value));
+});
 document.getElementById("btnFecharFolhaPedido").addEventListener("click", fecharFolhaEdicaoPedido);
 document.getElementById("folhaPedidoOverlay").addEventListener("click", (e) => {
   if (e.target.id === "folhaPedidoOverlay") fecharFolhaEdicaoPedido();
@@ -3048,6 +3101,12 @@ document.getElementById("btnSalvarPedido").addEventListener("click", async () =>
     erroBox.classList.remove("oculto");
     return;
   }
+  const origemEdicao = document.getElementById("fpRevendaOrigem").value.trim();
+  if (ehProjetoAgd(revenda) && origemEdicao.length < 2 && (revenda !== pdPedidoAtual.Revenda || (pdPedidoAtual.Revenda_Origem || ""))) {
+    erroBox.textContent = "Pedido do Projeto AGD's: informe a revenda ou cooperativa de origem.";
+    erroBox.classList.remove("oculto");
+    return;
+  }
   if (!produto) {
     erroBox.textContent = "Informe o produto.";
     erroBox.classList.remove("oculto");
@@ -3067,6 +3126,7 @@ document.getElementById("btnSalvarPedido").addEventListener("click", async () =>
     const corpo = {
       Id: pdPedidoAtual.Id,
       Revenda: revenda,
+      ...(ehProjetoAgd(revenda) || pdPedidoAtual.Revenda_Origem ? { Revenda_Origem: ehProjetoAgd(revenda) ? origemEdicao : "" } : {}),
       Propriedade: propriedade,
       Produto: produto,
       Unidade: unidadeFinal,
@@ -4857,6 +4917,7 @@ function prepararVisitaCorpo(fazenda) {
   document.getElementById("resumoQuinzenaVisita").textContent = quinzenaAtual;
   document.getElementById("selectTipoVisita").value = "";
   document.getElementById("inputObservacaoVisita").value = "";
+  document.getElementById("btnPedidoDaVisita").classList.add("oculto");
   iniciarCamposFotos();
   campoFotosVisita.limpar();
   limparMsg("msgVisita");
@@ -4874,6 +4935,27 @@ document.getElementById("btnCancelarVisita").addEventListener("click", () => {
   mostrarPagina("inicio");
 });
 
+// Depois de enviar a visita, "Lançar pedido desta visita" abre o pedido já com a mesma
+// fazenda (ou revenda), data e semana; a observação da visita vem como sugestão.
+let observacaoUltimaVisita = "";
+document.getElementById("btnPedidoDaVisita").addEventListener("click", async () => {
+  const doLocalRevenda = String(propriedadeAtual || "").startsWith("Revenda: ");
+  const nomeRevenda = doLocalRevenda ? propriedadeAtual.replace(/^Revenda:\s*/, "") : "";
+  document.getElementById("btnPedidoDaVisita").classList.add("oculto");
+  if (doLocalRevenda) {
+    // Visita em revenda: o pedido é "balcão" (sem fazenda), na revenda visitada.
+    modoRegistro = "pedidoBalcao";
+    propriedadeAtual = "";
+    await prepararPedidoCorpo("");
+    const sel = document.getElementById("selectRevendaItem");
+    if ([...sel.options].some(o => o.value === nomeRevenda)) { sel.value = nomeRevenda; atualizarOrigemAgd(); }
+  } else {
+    modoRegistro = "pedido";
+    await prepararPedidoCorpo(propriedadeAtual);
+  }
+  document.getElementById("inputObservacaoPedido").value = observacaoUltimaVisita;
+  mostrarPagina("pedidoCorpo");
+});
 document.getElementById("btnEnviarVisita").addEventListener("click", async () => {
   limparMsg("msgVisita");
   const tipo = document.getElementById("selectTipoVisita").value;
@@ -4902,6 +4984,7 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
     const resultado = await enviarOuEnfileirar("Visita", CONFIG.URL_VISITAS, "POST", corpo);
     if (resultado.enfileirado) {
       mostrarMsg("msgVisita", "Sem conexão — a visita foi salva neste aparelho e será enviada quando a internet voltar.", "sucesso");
+      observacaoUltimaVisita = observacao; document.getElementById("btnPedidoDaVisita").classList.remove("oculto");
       document.getElementById("inputObservacaoVisita").value = "";
       document.getElementById("selectTipoVisita").value = "";
       campoFotosVisita.limpar();
@@ -4911,6 +4994,7 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
     if (!resultado.resp.ok) throw new Error((dados && dados.erro) || "Não foi possível enviar a visita.");
 
     mostrarMsg("msgVisita", "Visita registrada com sucesso!", "sucesso");
+    observacaoUltimaVisita = observacao; document.getElementById("btnPedidoDaVisita").classList.remove("oculto");
     document.getElementById("inputObservacaoVisita").value = "";
     document.getElementById("selectTipoVisita").value = "";
     campoFotosVisita.limpar();
@@ -4927,11 +5011,33 @@ document.getElementById("btnEnviarVisita").addEventListener("click", async () =>
    ========================================================================= */
 function preencherRevendasItem(promotor) {
   const select = document.getElementById("selectRevendaItem");
-  const revendas = [...new Set(
-    PROMOTOR_CLIENTE.filter(p => p.Promotor === promotor).map(p => p.Cliente)
-  )].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const revendas = clientesDoPromotor(promotor);
   select.innerHTML = '<option value="">Selecione...</option>' + revendas.map(r => `<option value="${r}">${r}</option>`).join("");
+  atualizarOrigemAgd();
 }
+
+// Projeto AGD's: ao escolher essa revenda, aparece a pergunta "de qual revenda ou cooperativa
+// veio o pedido?" (obrigatória). Lista = todas as revendas conhecidas + "Outra (digitar)".
+const ORIGEM_AGD_OUTRA = "__outra__";
+function atualizarOrigemAgd() {
+  const box = document.getElementById("boxOrigemAgd");
+  if (!box) return;
+  const agd = ehProjetoAgd(document.getElementById("selectRevendaItem").value);
+  box.classList.toggle("oculto", !agd);
+  if (!agd) return;
+  const sel = document.getElementById("selectOrigemAgd");
+  if (!sel.options.length) {
+    sel.innerHTML = '<option value="">Selecione...</option>' + revendasDeOrigemAgd().map(r => `<option value="${escHtml(r)}">${escHtml(r)}</option>`).join("") + `<option value="${ORIGEM_AGD_OUTRA}">Outra (digitar o nome)</option>`;
+  }
+}
+function lerOrigemAgd() {
+  const sel = document.getElementById("selectOrigemAgd");
+  return sel.value === ORIGEM_AGD_OUTRA ? document.getElementById("inputOrigemAgdOutra").value.trim() : sel.value;
+}
+document.getElementById("selectRevendaItem").addEventListener("change", atualizarOrigemAgd);
+document.getElementById("selectOrigemAgd").addEventListener("change", () => {
+  document.getElementById("inputOrigemAgdOutra").classList.toggle("oculto", document.getElementById("selectOrigemAgd").value !== ORIGEM_AGD_OUTRA);
+});
 
 async function prepararPedidoCorpo(fazenda) {
   carrinho = [];
@@ -4945,6 +5051,9 @@ async function prepararPedidoCorpo(fazenda) {
     ? "O que foi tratado no balcão (opcional)"
     : "O que foi tratado nesta visita";
   preencherRevendasItem(promotorAtual);
+  document.getElementById("selectOrigemAgd").value = "";
+  document.getElementById("inputOrigemAgdOutra").value = "";
+  document.getElementById("inputOrigemAgdOutra").classList.add("oculto");
   if (todosProdutos.length === 0) await carregarTodosProdutos();
   limparSelecaoProduto();
   atualizarCarrinho();
@@ -5045,12 +5154,19 @@ document.getElementById("btnAdicionarItem").addEventListener("click", () => {
   const volume = Number(document.getElementById("inputVolume").value);
 
   if (!revenda) { mostrarMsg("msgPedido", "Selecione a revenda deste pedido.", "erro"); return; }
+  const origemAgd = ehProjetoAgd(revenda) ? lerOrigemAgd() : "";
+  if (ehProjetoAgd(revenda) && origemAgd.length < 2) {
+    marcarCampoInvalido(document.getElementById("selectOrigemAgd").value === ORIGEM_AGD_OUTRA ? "inputOrigemAgdOutra" : "selectOrigemAgd", "Informe a revenda ou cooperativa de origem.");
+    mostrarMsg("msgPedido", "Pedido do Projeto AGD's: informe de qual revenda ou cooperativa ele veio.", "erro");
+    return;
+  }
   if (!produtoSelecionado) { mostrarMsg("msgPedido", "Selecione um produto.", "erro"); return; }
   if (Number.isNaN(preco) || preco < 0) { mostrarMsg("msgPedido", "Informe um preço unitário válido.", "erro"); return; }
   if (Number.isNaN(volume) || volume <= 0) { mostrarMsg("msgPedido", "Informe um volume válido.", "erro"); return; }
 
   carrinho.push({
     Revenda: revenda,
+    Revenda_Origem: origemAgd,
     Produto: produtoSelecionado.Produto,
     Unidade: produtoSelecionado.Unidade,
     Preco_Unitario: preco,
@@ -5072,7 +5188,7 @@ function atualizarCarrinho() {
       <div class="item-carrinho">
         <div class="item-carrinho-info">
           <div><b>${item.Produto}</b></div>
-          <div class="item-carrinho-detalhe">${item.Revenda} · ${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)} = ${formatarMoeda(item.Preco_Unitario * item.Volume)}</div>
+          <div class="item-carrinho-detalhe">${item.Revenda}${item.Revenda_Origem ? " (via " + escHtml(item.Revenda_Origem) + ")" : ""} · ${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)} = ${formatarMoeda(item.Preco_Unitario * item.Volume)}</div>
         </div>
         <button class="btn-remover" data-indice="${i}" type="button">×</button>
       </div>
@@ -5123,6 +5239,7 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
   const lancamentos = carrinho.map(item => ({
     Nome_Promotor: promotorAtual,
     Revenda: item.Revenda,
+    Revenda_Origem: item.Revenda_Origem || "",
     Propriedade: propriedadeAtual,
     Produto: item.Produto,
     Unidade: item.Unidade,
@@ -5299,7 +5416,7 @@ async function renderizarHistoricoAtual() {
           ${g.itens.map((item, j) => `
             <div class="linha-produto-editavel" id="linhaPedido${i}_${j}">
               <div class="linha-produto" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                <span>${item.Produto} (${item.Revenda})</span>
+                <span>${item.Produto} (${item.Revenda}${item.Revenda_Origem ? " · via " + escHtml(item.Revenda_Origem) : ""})</span>
                 <span>${item.Volume} ${item.Unidade || ""} × ${formatarMoeda(item.Preco_Unitario)}</span>
               </div>
               ${podeEditarRegistro(item.Nome_Promotor) ? `
@@ -6280,7 +6397,7 @@ document.getElementById("selectFiltroQuinzena").addEventListener("change", carre
 function formatarItemPedido(r, opcoes) {
   opcoes = opcoes || {};
   const extras = [];
-  if (opcoes.mostrarRevenda && r.revenda) extras.push(r.revenda);
+  if (opcoes.mostrarRevenda && r.revenda) extras.push(r.revenda + (r.revendaOrigem ? " (via " + r.revendaOrigem + ")" : ""));
   if (opcoes.mostrarPropriedade && r.propriedade) extras.push(r.propriedade);
   const tituloExtra = extras.length ? " · " + extras.join(" · ") : "";
   const volumeExtra = r.volume ? ` — ${r.volume}${r.unidade ? " " + r.unidade : ""}` : "";
@@ -6419,7 +6536,7 @@ async function abrirDetalhePromotor(nomePromotor) {
     }
 
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor || nomePromotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
+      ...(dadosPedidos.lancamentos || []).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor || nomePromotor, propriedade: r.Propriedade, revenda: r.Revenda, revendaOrigem: r.Revenda_Origem || "", produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
       ...(dadosVisitas.visitas || []).map(r => ({ tipo: "visita", id: r.Id, promotor: r.Nome_Promotor || nomePromotor, propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPromotorAtual = nomePromotor;
@@ -6460,7 +6577,7 @@ async function abrirDetalheFazenda(nomeFazenda) {
     // A API faz busca parcial pelo nome — filtra exatamente para não misturar fazendas de
     // nome parecido (ex.: "Fazenda Ferri" e "Propriedade Ferri").
     drillItens = [
-      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
+      ...(dadosPedidos.lancamentos || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, revendaOrigem: r.Revenda_Origem || "", produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita })),
       ...(dadosVisitas.visitas || []).filter(r => r.Propriedade === nomeFazenda).map(r => ({ tipo: "visita", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, tipoVisita: r.Tipo_Visita, observacao: r.Observacao, data: r.Dia_Visita }))
     ];
     drillPropriedadeAtual = nomeFazenda;
@@ -6488,7 +6605,7 @@ async function abrirDetalheRevenda(nomeRevenda) {
 
     drillItens = (dados.lancamentos || [])
       .filter(r => r.Revenda === nomeRevenda)
-      .map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita }));
+      .map(r => ({ tipo: "pedido", id: r.Id, promotor: r.Nome_Promotor, propriedade: r.Propriedade, revenda: r.Revenda, revendaOrigem: r.Revenda_Origem || "", produto: r.Produto, volume: r.Volume, unidade: r.Unidade, precoUnitario: r.Preco_Unitario, valor: r.Valor_Total, data: r.Dia_Lancamento, observacao: r.Observacao_Visita, proximaVisita: r.Proxima_Visita }));
     drillRevendaAtual = nomeRevenda;
     drillNivel = 4;
     renderPainelDrill();
@@ -6539,7 +6656,7 @@ document.getElementById("listaDetalheDrill").addEventListener("click", (e) => {
     const r = drillItens.find(x => String(x.id) === id);
     if (r) {
       abrirFolhaEdicaoPedido(
-        { Id: r.id, Nome_Promotor: r.promotor, Revenda: r.revenda, Propriedade: r.propriedade, Produto: r.produto, Unidade: r.unidade, Volume: r.volume, Preco_Unitario: r.precoUnitario, Observacao_Visita: r.observacao, Proxima_Visita: r.proximaVisita },
+        { Id: r.id, Nome_Promotor: r.promotor, Revenda: r.revenda, Revenda_Origem: r.revendaOrigem, Propriedade: r.propriedade, Produto: r.produto, Unidade: r.unidade, Volume: r.volume, Preco_Unitario: r.precoUnitario, Observacao_Visita: r.observacao, Proxima_Visita: r.proximaVisita },
         (corpo) => {
           r.revenda = corpo.Revenda;
           r.propriedade = corpo.Propriedade;
@@ -6616,7 +6733,7 @@ function listaSugestoesHistorico() {
   // Promotor comum só vê as revendas dos clientes dele; gestor vê todas.
   const clientesRelevantes = ehGestor()
     ? PROMOTOR_CLIENTE
-    : PROMOTOR_CLIENTE.filter(p => p.Promotor.toUpperCase() === String(promotorAtual || "").toUpperCase());
+    : [...PROMOTOR_CLIENTE.filter(p => p.Promotor.toUpperCase() === String(promotorAtual || "").toUpperCase()), { Promotor: promotorAtual, Cliente: PROJETO_AGD }];
   const revendas = [...new Set(clientesRelevantes.map(p => p.Cliente))].map(nome => ({ nome, tipo: "Revenda" }));
   return [...fazendas, ...revendas];
 }
@@ -6774,7 +6891,7 @@ document.getElementById("listaBuscaHistoricoRel").addEventListener("click", (e) 
   if (!r) return;
   if (tipo === "pedido") {
     abrirFolhaEdicaoPedido(
-      { Id: r.Id, Nome_Promotor: r.Nome_Promotor, Revenda: r.Revenda, Propriedade: r.Propriedade, Produto: r.Produto, Unidade: r.Unidade, Volume: r.Volume, Preco_Unitario: r.Preco_Unitario, Observacao_Visita: r.Observacao_Visita, Proxima_Visita: r.Proxima_Visita },
+      { Id: r.Id, Nome_Promotor: r.Nome_Promotor, Revenda: r.Revenda, Revenda_Origem: r.Revenda_Origem, Propriedade: r.Propriedade, Produto: r.Produto, Unidade: r.Unidade, Volume: r.Volume, Preco_Unitario: r.Preco_Unitario, Observacao_Visita: r.Observacao_Visita, Proxima_Visita: r.Proxima_Visita },
       (corpo) => {
         r.Volume = corpo.Volume;
         r.Preco_Unitario = corpo.Preco_Unitario;
