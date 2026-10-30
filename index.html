@@ -3503,7 +3503,8 @@ function listaRevendasVisita() {
   const todas = PROMOTOR_CLIENTE.filter(p => !/^Projeto Lançamentos/i.test(p.Cliente));
   const nome = String((sessao && sessao.nome) || "").toLowerCase();
   const minhas = ehGestor() ? todas : todas.filter(p => p.Promotor.toLowerCase() === nome);
-  return [...new Set((minhas.length ? minhas : todas).map(p => p.Cliente))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  // O Projeto AGD's vale para todos os consultores (também como local de visita).
+  return [...new Set([...(minhas.length ? minhas : todas).map(p => p.Cliente), PROJETO_AGD])].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 function aplicarLocalVisita() {
   const rev = localVisita === "revenda";
