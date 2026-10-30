@@ -254,6 +254,7 @@ async function anexarDemanda(supabase, l, det) {
 /* ---------- título "RDV - CONSULTOR (NOME) | período" ---------- */
 // Usado no Kanban (descrição), no título e no nome do Excel. O período vai da segunda-feira
 // até o último dia da semana que teve movimento (km ou despesa); sem movimento, até o fim da semana.
+const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 function periodoTextoRdv(sol) {
   const d = sol.dados || {};
   const ini = d.semana || sol.periodo_ini;
@@ -262,12 +263,33 @@ function periodoTextoRdv(sol) {
   if (movidos.length) fim = movidos[movidos.length - 1].data;
   const [ai, mi, di] = [ini.slice(0, 4), ini.slice(5, 7), ini.slice(8, 10)];
   const [af, mf, df] = [fim.slice(0, 4), fim.slice(5, 7), fim.slice(8, 10)];
-  if (ini === fim) return `${di}/${mi}/${ai}`;
-  if (ai !== af) return `${di}/${mi}/${ai} a ${df}/${mf}/${af}`;
-  if (mi !== mf) return `${di}/${mi} a ${df}/${mf}/${af}`;
-  return `${di} a ${df}/${mf}/${af}`;
+  const mes = m => MESES_NOME[Number(m) - 1];
+  if (ini === fim) return `${di} - ${mes(mi)} - ${ai}`;
+  if (ai !== af) return `${di} - ${mes(mi)} - ${ai} a ${df} - ${mes(mf)} - ${af}`;
+  if (mi !== mf) return `${di} - ${mes(mi)} a ${df} - ${mes(mf)} - ${af}`;
+  return `${di} a ${df} - ${mes(mi)} - ${ai}`;
 }
-function tituloRdv(sol) { return `RDV - CONSULTOR ${String(sol.promotor_nome || "").toUpperCase()} | ${periodoTextoRdv(sol)}`; }
+// Nome do consultor como deve aparecer no título/Excel do RDV. Chave = nome gravado no app (maiúsculas);
+// se não estiver aqui, usa o nome como está.
+const NOMES_CONSULTOR = {
+  "AROLDO": "AROLDO MUNHOZ",
+  "GABRIEL S": "GABRIEL SCHONHALZ",
+  "GABRIEL": "GABRIEL HOSSADCZUK",
+  "GIANCARLO": "GIANCARLO",
+  "GUSTAVO": "GUSTAVO MULINETH",
+  "JOAO TALES": "JOÃO TALES",
+  "KAUANA": "KAUANA GARCIA MOLINARI",
+  "LEONARDO": "LEONARDO",
+  "LUCAS": "LUCAS DRUMMOND",
+  "MARIANA": "MARIANA FAVARO",
+  "PEDRO": "PEDRO HENRIQUE NUNES DA SILVA"
+};
+const semAcento = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+function nomeConsultor(n) {
+  const k = semAcento(n);
+  return NOMES_CONSULTOR[k] || String(n || "").trim().toUpperCase();
+}
+function tituloRdv(sol) { return `RDV - CONSULTOR ${nomeConsultor(sol.promotor_nome)} | ${periodoTextoRdv(sol)}`; }
 const nomeArquivoSeguro = (t, ext) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\|/g, "-").replace(/\//g, "-").replace(/[^A-Za-z0-9 _-]/g, "").replace(/\s+/g, "_") + "." + ext;
 
 /* ---------- Excel ---------- */
@@ -276,12 +298,14 @@ function planilhaRdv(sol, extra) {
   const d = sol.dados, t = totaisRdv(d);
   const p = new Planilha("RDV");
   p.paisagem = true;
-  const larg = { A: 15, B: 11, C: 10, D: 10, E: 9, F: 12, G: 34, H: 12, I: 28, J: 12, K: 12, L: 20, M: 20, N: 40, O: 14, P: 46, Q: 14 };
+  const larg = { A: 15, B: 11, C: 10, D: 10, E: 9, F: 12, G: 34, H: 12, I: 28, J: 12, K: 12, L: 24, M: 42, N: 14, O: 46, P: 14 };
   Object.keys(larg).forEach(c => p.largura(c, larg[c]));
   const cab = { b: true, borda: true, fill: "E8F0E8", h: "center", wrap: true };
   const caixa = { borda: true, wrap: true };
   const money = { borda: true, fmt: "moeda" };
-  const ULT = "Q";
+  const ULT = "P";
+  const COR = { km: "DCE9F7", hotel: "FCE5CD", ref: "FFF2CC", pre: "E4DAF2", out: "F8D7DA", tot: "E8F0E8" };
+  const fc = (k, base) => ({ ...(base || {}), fill: COR[k] });
 
   p.cel("A1", tituloRdv(sol), { b: true, sz: 14, h: "center", fill: AZUL, cor: "FFFFFF" });
   p.mescla(`A1:${ULT}1`); p.estiloIntervalo(`A1:${ULT}1`, { fill: AZUL }); p.altura(1, 28);
@@ -292,7 +316,7 @@ function planilhaRdv(sol, extra) {
   p.cel("H3", "PERÍODO", cab); p.mescla("H3:I3");
   p.cel("J3", "VEÍCULO", cab); p.mescla("J3:M3");
   p.cel("N3", "PLACA", cab);
-  p.cel("A4", sol.promotor_nome.toUpperCase(), caixa); p.mescla("A4:C4");
+  p.cel("A4", nomeConsultor(sol.promotor_nome), caixa); p.mescla("A4:C4");
   p.cel("D4", COORDENADOR, caixa); p.mescla("D4:G4");
   p.cel("H4", `${br(d.semana)} A ${br(paraIso(ms(d.semana) + 5 * 86400000))}`, caixa); p.mescla("H4:I4");
   p.cel("J4", d.veiculo, caixa); p.mescla("J4:M4");
@@ -304,7 +328,7 @@ function planilhaRdv(sol, extra) {
 
   p.cel("A6", "PRESTAÇÃO DE CONTAS", { b: true, fill: "E8F0E8", borda: true, h: "center" }); p.mescla("A6:C6");
   p.cel("D6", "DESPESA DESTE RDV:", cab); p.mescla("D6:F6");
-  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: `Q${LS}` });
+  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: `P${LS}` });
   p.estiloIntervalo("A6:G6", { borda: true });
   const dem = Number(extra.demanda) || 0;
   p.cel("D7", "DEMANDA DA SEMANA:", cab); p.mescla("D7:F7");
@@ -315,34 +339,40 @@ function planilhaRdv(sol, extra) {
 
   // custo por categoria (linhas 8-9)
   const cats = [
-    ["A", "B", "RODAGEM (KM)", t.valorKm], ["C", "E", "HOTEL", t.hotel], ["F", "G", "REFEIÇÕES INDIVIDUAIS", t.refeicoesInd],
-    ["H", "I", "PRÉ APROVADAS (REFEIÇÃO EM CONJUNTO)", t.refeicoesConj], ["J", "K", "AVISO PRÉVIO / OUTROS", t.aviso]
+    ["A", "B", "RODAGEM (KM)", t.valorKm, "km"], ["C", "E", "HOTEL", t.hotel, "hotel"], ["F", "G", "REFEIÇÕES INDIVIDUAIS", t.refeicoesInd, "ref"],
+    ["H", "I", "PRÉ APROVADAS (REFEIÇÃO EM CONJUNTO)", t.refeicoesConj, "pre"], ["J", "K", "AVISO PRÉVIO / OUTROS", t.aviso, "out"]
   ];
-  cats.forEach(([c1, c2, nome, v]) => {
-    p.cel(c1 + "8", nome, cab); p.cel(c1 + "9", v, { b: true, fmt: "moeda", borda: true, h: "center" });
+  cats.forEach(([c1, c2, nome, v, k]) => {
+    p.cel(c1 + "8", nome, { ...cab, fill: COR[k] }); p.cel(c1 + "9", v, { b: true, fmt: "moeda", borda: true, h: "center", fill: COR[k] });
     if (c1 !== c2) { p.mescla(`${c1}8:${c2}8`); p.mescla(`${c1}9:${c2}9`); }
-    p.estiloIntervalo(`${c1}8:${c2}8`, { borda: true, fill: "E8F0E8" }); p.estiloIntervalo(`${c1}9:${c2}9`, { borda: true });
+    p.estiloIntervalo(`${c1}8:${c2}8`, { borda: true, fill: COR[k] }); p.estiloIntervalo(`${c1}9:${c2}9`, { borda: true, fill: COR[k] });
   });
   p.altura(8, 30);
 
   // cabeçalho da tabela (linhas 10-11)
   p.cel("A10", "DIA DA SEMANA", cab); p.mescla("A10:A11");
   p.cel("B10", "DATA", cab); p.mescla("B10:B11");
-  p.cel("C10", "QUILOMETRAGEM", cab); p.mescla("C10:G10");
-  p.cel("H10", "HOTEL", cab); p.mescla("H10:I10");
-  p.cel("J10", "REFEIÇÕES INDIVIDUAIS", cab); p.mescla("J10:K10");
-  p.cel("L10", "DESPESA PRÉ APROVADA (REFEIÇÃO COM MAIS DE UMA PESSOA)", cab); p.mescla("L10:N10");
-  p.cel("O10", "OUTROS", cab);
-  p.cel("P10", "DESCRIÇÃO DA DESPESA", cab);
-  p.cel("Q10", "TOTAL DO DIA", cab); p.mescla("Q10:Q11");
+  p.cel("C10", "QUILOMETRAGEM", fc("km", cab)); p.mescla("C10:G10");
+  p.cel("H10", "HOTEL", fc("hotel", cab)); p.mescla("H10:I10");
+  p.cel("J10", "REFEIÇÕES INDIVIDUAIS", fc("ref", cab)); p.mescla("J10:K10");
+  p.cel("L10", "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA)", fc("pre", cab)); p.mescla("L10:M10");
+  p.cel("N10", "OUTROS", fc("out", cab));
+  p.cel("O10", "DESCRIÇÃO DA DESPESA", cab);
+  p.cel("P10", "TOTAL DO DIA", cab); p.mescla("P10:P11");
   const sub = {
     C: "KM INICIAL", D: "KM FINAL", E: "KM RODADO", F: `VALOR KM (R$ ${t.vkm.toFixed(2).replace(".", ",")})`, G: "DESCRIÇÃO DO KM RODADO (CIDADES / FAZENDAS / REVENDAS)",
     H: "HOTEL (R$)", I: "DESCRIÇÃO DO HOTEL (NOME E CIDADE)", J: "ALMOÇO (R$)", K: "JANTAR (R$)",
-    L: "DESPESA PRÉ APROVADA (ALMOÇO COM MAIS DE UMA PESSOA)", M: "DESPESA PRÉ APROVADA (JANTAR COM MAIS DE UMA PESSOA)", N: "QUANTIDADE DE PESSOAS E QUEM PARTICIPOU",
-    O: "AVISO PRÉVIO (R$)", P: "(AÇÃO, ATIVIDADE OU JUSTIFICATIVA QUE ORIGINOU A DESPESA)"
+    L: "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA) (R$)", M: "QUANTIDADE DE PESSOAS E QUEM PARTICIPOU",
+    N: "AVISO PRÉVIO (R$)", O: "(AÇÃO, ATIVIDADE OU JUSTIFICATIVA QUE ORIGINOU A DESPESA)"
   };
-  Object.keys(sub).forEach(c => p.cel(c + "11", sub[c], cab));
-  p.estiloIntervalo(`A10:${ULT}11`, { borda: true, fill: "E8F0E8" });
+  const grupo = { C: "km", D: "km", E: "km", F: "km", G: "km", H: "hotel", I: "hotel", J: "ref", K: "ref", L: "pre", M: "pre", N: "out" };
+  p.estiloIntervalo(`A10:${ULT}11`, { borda: true, fill: COR.tot });
+  ["C", "D", "E", "F", "G"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.km }));
+  ["H", "I"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.hotel }));
+  ["J", "K"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.ref }));
+  ["L", "M"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.pre }));
+  p.estiloIntervalo("N10:N11", { borda: true, fill: COR.out });
+  Object.keys(sub).forEach(c => p.cel(c + "11", sub[c], { ...cab, fill: COR[grupo[c]] || COR.tot }));
   p.altura(10, 22); p.altura(11, 66);
 
   const quem = (rotulo, n, lista) => n > 1
@@ -352,31 +382,32 @@ function planilhaRdv(sol, extra) {
     const almConj = (x.almocoPessoas || 1) > 1, janConj = (x.jantarPessoas || 1) > 1;
     p.cel("A" + l, DIAS_SEMANA[i], { ...caixa, b: true });
     p.cel("B" + l, null, { borda: true, h: "center" }, { data: x.data });
-    p.cel("C" + l, x.kmIni, { borda: true, fmt: "km" });
-    p.cel("D" + l, x.kmFim, { borda: true, fmt: "km" });
-    p.cel("E" + l, x.kmRodado, { borda: true, fmt: "km" }, { f: `D${l}-C${l}` });
-    p.cel("F" + l, cent(x.kmRodado * t.vkm), money, { f: `E${l}*${t.vkm}` });
-    p.cel("G" + l, x.kmDescricao || "", caixa);
-    p.cel("H" + l, x.hotel, money);
-    p.cel("I" + l, x.hotelDescricao || "", caixa);
-    p.cel("J" + l, almConj ? 0 : x.almoco, money);
-    p.cel("K" + l, janConj ? 0 : x.jantar, money);
-    p.cel("L" + l, almConj ? x.almoco : 0, money);
-    p.cel("M" + l, janConj ? x.jantar : 0, money);
+    const K = { borda: true, fmt: "km", fill: COR.km };
+    p.cel("C" + l, x.kmIni, K);
+    p.cel("D" + l, x.kmFim, K);
+    p.cel("E" + l, x.kmRodado, K, { f: `D${l}-C${l}` });
+    p.cel("F" + l, cent(x.kmRodado * t.vkm), { ...money, fill: COR.km }, { f: `E${l}*${t.vkm}` });
+    p.cel("G" + l, x.kmDescricao || "", { ...caixa, fill: COR.km });
+    p.cel("H" + l, x.hotel, { ...money, fill: COR.hotel });
+    p.cel("I" + l, x.hotelDescricao || "", { ...caixa, fill: COR.hotel });
+    p.cel("J" + l, almConj ? 0 : x.almoco, { ...money, fill: COR.ref });
+    p.cel("K" + l, janConj ? 0 : x.jantar, { ...money, fill: COR.ref });
+    const conj = (almConj ? x.almoco : 0) + (janConj ? x.jantar : 0);
+    p.cel("L" + l, cent(conj), { ...money, fill: COR.pre });
     const pessoas = [quem("Almoço", x.almocoPessoas || 1, x.participantes), quem("Jantar", x.jantarPessoas || 1, x.jantarParticipantes)].filter(Boolean).join("\n");
-    p.cel("N" + l, pessoas, caixa);
-    p.cel("O" + l, x.aviso, money);
-    p.cel("P" + l, x.descricao || "", caixa);
-    p.cel("Q" + l, t.porDia[i], { ...money, b: true }, { f: `F${l}+H${l}+J${l}+K${l}+L${l}+M${l}+O${l}` });
-    const maior = Math.max((x.kmDescricao || "").length / 34, (x.hotelDescricao || "").length / 28, pessoas.length / 40, (x.descricao || "").length / 46);
+    p.cel("M" + l, pessoas, { ...caixa, fill: COR.pre });
+    p.cel("N" + l, x.aviso, { ...money, fill: COR.out });
+    p.cel("O" + l, x.descricao || "", caixa);
+    p.cel("P" + l, t.porDia[i], { ...money, b: true, fill: COR.tot }, { f: `F${l}+H${l}+J${l}+K${l}+L${l}+N${l}` });
+    const maior = Math.max((x.kmDescricao || "").length / 34, (x.hotelDescricao || "").length / 28, pessoas.length / 42, (x.descricao || "").length / 46);
     p.altura(l, Math.min(120, Math.max(30, Math.ceil(maior) * 15 + 6)));
   });
-  p.estiloIntervalo(`A${LS}:${ULT}${LS}`, { borda: true, fill: "E8F0E8" });
+  p.estiloIntervalo(`A${LS}:${ULT}${LS}`, { borda: true, fill: COR.tot });
   p.cel("A" + LS, "SUBTOTAIS", { b: true, borda: true, fill: "E8F0E8" }); p.mescla(`A${LS}:B${LS}`);
   const sf = { b: true, borda: true, fill: "E8F0E8" };
   const soma = (c, v, fmt) => p.cel(c + LS, v, { ...sf, fmt }, { f: `SUM(${c}${L0}:${c}${LF})` });
   soma("E", t.km, "km"); soma("F", t.valorKm, "moeda"); soma("H", t.hotel, "moeda"); soma("J", t.almocoInd, "moeda"); soma("K", t.jantarInd, "moeda");
-  soma("L", t.almocoConj, "moeda"); soma("M", t.jantarConj, "moeda"); soma("O", t.aviso, "moeda"); soma("Q", t.total, "moeda");
+  soma("L", t.refeicoesConj, "moeda"); soma("N", t.aviso, "moeda"); soma("P", t.total, "moeda");
 
   const LI = LS + 2;
   p.cel("A" + LI, "INFORMAÇÕES DE RELEVÂNCIA SOBRE AS DESPESAS", cab); p.mescla(`A${LI}:${ULT}${LI}`);
