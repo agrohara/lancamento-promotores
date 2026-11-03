@@ -952,6 +952,10 @@
         <button class="chip-filtro ativo" data-filtro-historico="visitas" type="button">Visitas</button>
         <button class="chip-filtro" data-filtro-historico="pedidos" type="button">Pedidos</button>
       </div>
+      <div class="busca-historico" style="margin:10px 0;">
+        <input type="search" id="buscaHistorico" placeholder="Buscar por fazenda ou proprietário" autocomplete="off" aria-label="Buscar no histórico por fazenda ou proprietário" style="width:100%;">
+        <div id="buscaHistoricoInfo" style="font-size:12px;color:#5b6771;margin-top:4px;"></div>
+      </div>
       <div id="historicoLista"><div class="carregando-lista">Carregando...</div></div>
     </section>
 
@@ -5300,6 +5304,15 @@ document.getElementById("btnEnviar").addEventListener("click", async () => {
 let modoHistorico = "visitas";
 let cacheHistoricoVisitas = null;
 let cacheHistoricoPedidos = null;
+let termoHistorico = "";
+// Nome "limpo" da fazenda do registro (visita em revenda vem como "Revenda: NOME").
+function historicoCombina(nomeRegistro, extra) {
+  const t = semAcento(termoHistorico).trim();
+  if (!t) return true;
+  const nome = String(nomeRegistro || "");
+  return fazendaCombina(nome, t) || semAcento(extra).includes(t);
+}
+document.getElementById("buscaHistorico").addEventListener("input", (e) => { termoHistorico = e.target.value; renderizarHistoricoAtual(); });
 
 document.querySelectorAll("[data-filtro-historico]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -5311,6 +5324,7 @@ document.querySelectorAll("[data-filtro-historico]").forEach(btn => {
 
 async function carregarHistorico() {
   document.getElementById("historicoLista").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  if (!Object.keys(proprietariosPorFazenda).length) { try { await carregarTodasPropriedades(); } catch (e) {} }
   cacheHistoricoVisitas = null;
   cacheHistoricoPedidos = null;
   renderizarHistoricoAtual();
@@ -5386,11 +5400,18 @@ async function renderizarHistoricoAtual() {
       container.innerHTML = '<div class="carregando-lista">Nenhuma visita registrada ainda.</div>';
       return;
     }
-    container.innerHTML = lista.map((v, i) => `
+    const visiveis = lista.map((v, i) => ({ v, i })).filter(({ v }) => historicoCombina(v.Propriedade, gestor ? v.Nome_Promotor : ""));
+    document.getElementById("buscaHistoricoInfo").textContent = termoHistorico.trim() ? `${visiveis.length} de ${lista.length} visitas` : "";
+    if (visiveis.length === 0) {
+      container.innerHTML = '<div class="carregando-lista">Nenhuma visita encontrada para essa busca.</div>';
+      return;
+    }
+    container.innerHTML = visiveis.map(({ v, i }) => `
       <div class="item-historico hist-visita">
         <div class="item-historico-topo" data-toggle-historico="v${i}">
           <div>
             <div class="item-historico-titulo">${v.Propriedade}</div>
+            ${subProprietario(v.Propriedade)}
             <div class="item-historico-sub">${v.Tipo_Visita} · ${formatarDataBR(v.Dia_Visita)}${gestor ? " · " + v.Nome_Promotor : ""}</div>
           </div>
           ${podeEditarRegistro(v.Nome_Promotor) ? `<button class="btn-editar-linha" type="button" data-editar-visita="${i}">✏️ Editar</button>` : ""}
@@ -5409,11 +5430,18 @@ async function renderizarHistoricoAtual() {
       container.innerHTML = '<div class="carregando-lista">Nenhum pedido registrado ainda.</div>';
       return;
     }
-    container.innerHTML = grupos.map((g, i) => `
+    const visiveis = grupos.map((g, i) => ({ g, i })).filter(({ g }) => historicoCombina(g.Propriedade, (gestor ? g.Nome_Promotor + " " : "") + g.itens.map(x => x.Revenda).join(" ")));
+    document.getElementById("buscaHistoricoInfo").textContent = termoHistorico.trim() ? `${visiveis.length} de ${grupos.length} pedidos` : "";
+    if (visiveis.length === 0) {
+      container.innerHTML = '<div class="carregando-lista">Nenhum pedido encontrado para essa busca.</div>';
+      return;
+    }
+    container.innerHTML = visiveis.map(({ g, i }) => `
       <div class="item-historico hist-pedido">
         <div class="item-historico-topo" data-toggle-historico="p${i}">
           <div>
             <div class="item-historico-titulo">${g.Propriedade}</div>
+            ${subProprietario(g.Propriedade)}
             <div class="item-historico-sub">${formatarDataBR(g.Dia_Lancamento)}${gestor ? " · " + g.Nome_Promotor : ""}</div>
           </div>
           <div class="item-historico-valor">${formatarMoeda(g.valorTotal)}</div>
