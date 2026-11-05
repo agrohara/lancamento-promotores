@@ -4,7 +4,7 @@
  * offline também do gestor.html e reserva que ignora ?parametros (ex.: /?app=1).
  * Só GET passa por aqui; login, relatórios e metas vão sempre direto para a rede.
  * Ao publicar versão nova do app, troque VERSAO_CACHE. */
-const VERSAO_CACHE = "agrohara-v5";
+const VERSAO_CACHE = "agrohara-v6";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 const ARQUIVOS_APP = ["/", "/index.html", "/manifest.json", "/icone-192.png", "/icone-512.png"];
