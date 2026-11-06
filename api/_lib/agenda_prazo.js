@@ -1,10 +1,11 @@
 // Helper compartilhado: cálculo de semana (segunda a sexta, dias úteis de visita) e do
 // prazo de planejamento da Agenda — usado por api/agenda.js.
 //
-// Regra combinada com o Marcelo (22/09/2026): o consultor precisa preencher a agenda da
-// PRÓXIMA semana até sexta-feira às 17:00 (horário de Brasília). Se perder o prazo, só
-// AQUELA semana específica fica travada (🔒) — a semana atual nunca é travada, e isso
-// precisa aparecer para o gestor (ver api/agenda.js, GET com ?visaoGestor=1).
+// Regra combinada com o Marcelo (22/09/2026; prazo alterado em 06/11/2026): o consultor
+// precisa preencher a agenda da PRÓXIMA semana até SÁBADO às 14:00 (horário de Brasília) —
+// antes era sexta às 17:00. Se perder o prazo, só AQUELA semana específica fica travada (🔒)
+// — a semana atual nunca é travada, e isso precisa aparecer para o gestor (ver
+// api/agenda.js, GET com ?visaoGestor=1).
 //
 // Brasil não tem mais horário de verão desde 2019 (Lei/Decreto de 2019), então
 // America/Sao_Paulo é sempre UTC-3 o ano inteiro — não precisamos de Intl.DateTimeFormat
@@ -12,6 +13,10 @@
 // resto do projeto (ver quinzenas.js).
 
 const NOMES_DIA_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+// Prazo para planejar a semana seguinte: sábado (2 dias antes da segunda) às 14:00.
+const PRAZO_DIAS_ANTES_DA_SEGUNDA = 2;
+const PRAZO_HORA = "14:00";
 
 function segundaFeira(dataISO) {
   const partes = String(dataISO || "").split("-");
@@ -58,7 +63,7 @@ function diaDaSemanaLabel(dataISO) {
 // Retorna o status de planejamento de uma semana (identificada pela segunda-feira dela).
 //   - Semana passada: sempre travada.
 //   - Semana atual: NUNCA travada (o consultor sempre pode ajustar a semana em andamento).
-//   - Semana futura: aberta até sexta-feira 17:00 (horário de Brasília) da semana anterior
+//   - Semana futura: aberta até sábado 14:00 (horário de Brasília) da semana anterior
 //     a ela; depois disso, travada — só aquela semana específica.
 function statusSemana(segundaISO, agoraMs) {
   const agora = agoraMs === undefined ? Date.now() : agoraMs;
@@ -76,16 +81,16 @@ function statusSemana(segundaISO, agoraMs) {
     return { bloqueada: false, motivo: "semana_atual", prazoISO: null };
   }
 
-  // Semana futura: prazo é sexta-feira (3 dias antes da segunda-feira dessa semana) às
-  // 17:00 horário de Brasília.
-  const sextaAnteriorISO = somarDias(segundaISO, -3);
-  const prazoMs = instanteUTC(sextaAnteriorISO, "17:00");
+  // Semana futura: prazo é o sábado (2 dias antes da segunda-feira dessa semana) às 14:00
+  // horário de Brasília.
+  const prazoDiaISO = somarDias(segundaISO, -PRAZO_DIAS_ANTES_DA_SEGUNDA);
+  const prazoMs = instanteUTC(prazoDiaISO, PRAZO_HORA);
   const bloqueada = agora > prazoMs;
 
   return {
     bloqueada,
     motivo: bloqueada ? "prazo_perdido" : "aberta",
-    prazoISO: `${sextaAnteriorISO}T17:00:00-03:00`
+    prazoISO: `${prazoDiaISO}T${PRAZO_HORA}:00-03:00`
   };
 }
 
