@@ -29,6 +29,7 @@
 // DELETE /api/agenda?id=N                      -> exclui um compromisso
 // GET  /api/agenda?recurso=gestor&de=&ate=...  -> Visão gerencial (ver api/_lib/gestor.js)
 // ANY  /api/agenda?recurso=rdv...               -> Despesas RDV/CI + Kanban (ver api/_lib/rdv.js)
+// ANY  /api/agenda?recurso=push...              -> Avisos no celular do gestor (ver api/_lib/push.js)
 // ANY  /api/agenda?recurso=metas...             -> Metas por representante/período/ano + cestas (ver api/_lib/metas_rep.js)
 // ANY  /api/agenda?recurso=calendario...       -> Calendário Sanitário (ver api/_lib/calendario.js)
 //
@@ -53,6 +54,7 @@ const { segundaFeira, somarDias, statusSemana } = require("./_lib/agenda_prazo")
 const { tratarCalendario } = require("./_lib/calendario");
 const { tratarGestor } = require("./_lib/gestor");
 const { tratarRdv } = require("./_lib/rdv");
+const { tratarPush } = require("./_lib/push");
 const { tratarMetasRep } = require("./_lib/metas_rep");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
@@ -125,6 +127,12 @@ module.exports = async function handler(req, res) {
   // Despesas dos promotores (RDV semanal e CI) + envio ao Kanban. Lógica em api/_lib/rdv.js.
   if (req.query && req.query.recurso === "rdv") {
     await tratarRdv(req, res, { usuario, ehGestor, supabase });
+    return;
+  }
+
+  // Avisos no celular do gestor (Web Push) — só gestor. Ver api/_lib/push.js e sql_push.sql.
+  if (req.query && req.query.recurso === "push") {
+    await tratarPush(req, res, { usuario, ehGestor, supabase });
     return;
   }
 
