@@ -20,6 +20,7 @@
 
 const crypto = require("crypto");
 const { Planilha } = require("./xlsx_min");
+let push = null; try { push = require("./push"); } catch (e) { push = null; } // avisos no celular do gestor (opcional)
 
 const BUCKET = "fotos";
 const KANBAN_URL = () => process.env.KANBAN_URL || "http://177.220.156.108:5050/external_expense";
@@ -508,6 +509,17 @@ function detalheLinha(l) {
   return o;
 }
 
+/* ---------- aviso no celular do gestor (só quando passa a ficar "pendente") ---------- */
+async function avisarNovaSolicitacao(supabase, sol, loginQuemEnviou) {
+  if (!push || !sol || sol.status !== "pendente") return;
+  let corpo = nomeConsultor(sol.promotor_nome);
+  try { if (sol.tipo === "RDV") corpo += " · " + periodoTextoRdv(sol); } catch (e) { /* mantém só o nome */ }
+  await push.avisarGestores(supabase, {
+    titulo: sol.tipo === "RDV" ? "RDV semanal para aprovar" : "CI para aprovar",
+    corpo, tag: "despesa-" + sol.id, url: "/gestor.html?aba=despesas"
+  }, { exceto: loginQuemEnviou });
+}
+
 /* ---------- handler ---------- */
 async function tratarRdv(req, res, ctx) {
   const { usuario, ehGestor, supabase } = ctx;
@@ -597,6 +609,7 @@ async function tratarRdv(req, res, ctx) {
         if (bloqueio && atual.status === "pendente") { bloqueio = null; base.status = "pendente"; } // já estava enviado: só edição
         const { data, error } = await supabase.from("solicitacoes_despesa").update(base).eq("id", atual.id).select().single();
         if (error) throw error;
+        if (atual.status !== "pendente") await avisarNovaSolicitacao(supabase, data, loginUsuario); // rascunho/recusada -> pendente
         res.status(200).json({ ...detalheLinha(data), ...(bloqueio ? { bloqueio } : {}) });
         return;
       }
@@ -608,6 +621,7 @@ async function tratarRdv(req, res, ctx) {
       const { data, error } = await supabase.from("solicitacoes_despesa")
         .insert({ ...base, promotor_login: loginUsuario, promotor_nome: nomeUsuario, criado_em: new Date().toISOString() }).select().single();
       if (error) throw error;
+      await avisarNovaSolicitacao(supabase, data, loginUsuario);
       res.status(201).json({ ...detalheLinha(data), ...(bloqueio ? { bloqueio } : {}) });
       return;
     }
