@@ -1,10 +1,11 @@
-/* Service Worker — PromotoresVet / Agro Hara Gestão de Campo (v5, 23/10/2026)
+/* Service Worker — PromotoresVet / Agro Hara Gestão de Campo (v7, 06/11/2026)
  * Faz o app ABRIR e CONSULTAR sem internet (a fila de envio offline mora no index.html — ver OFFLINE.md).
  * Mudanças da v5: abertura com limite de 4 s (Wi-Fi sem internet não trava mais a tela), cópia
  * offline também do gestor.html e reserva que ignora ?parametros (ex.: /?app=1).
  * Só GET passa por aqui; login, relatórios e metas vão sempre direto para a rede.
+ * v7: avisos no celular do gestor (evento "push" e toque na notificação) — ver api/_lib/push.js.
  * Ao publicar versão nova do app, troque VERSAO_CACHE. */
-const VERSAO_CACHE = "agrohara-v6";
+const VERSAO_CACHE = "agrohara-v7";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 const ARQUIVOS_APP = ["/", "/index.html", "/manifest.json", "/icone-192.png", "/icone-512.png"];
@@ -99,5 +100,30 @@ self.addEventListener("fetch", (evento) => {
       if (resp && (resp.ok || resp.type === "opaque")) { const cache = await caches.open(CACHE_APP); cache.put(req, resp.clone()); }
       return resp;
     } catch (err) { return Response.error(); }
+  })());
+});
+
+/* ---------- Avisos no celular (só chegam para gestor inscrito) ---------- */
+self.addEventListener("push", (evento) => {
+  let d = {};
+  try { d = evento.data ? evento.data.json() : {}; } catch (e) { d = { corpo: evento.data ? evento.data.text() : "" }; }
+  evento.waitUntil(self.registration.showNotification(d.titulo || "Aprovação de despesa", {
+    body: d.corpo || "Há uma solicitação aguardando sua aprovação.",
+    icon: "/icone-192.png", badge: "/icone-192.png",
+    tag: d.tag || "despesa", renotify: true,
+    data: { url: d.url || "/gestor.html?aba=despesas" }
+  }));
+});
+self.addEventListener("notificationclick", (evento) => {
+  evento.notification.close();
+  const url = (evento.notification.data && evento.notification.data.url) || "/gestor.html?aba=despesas";
+  evento.waitUntil((async () => {
+    const janelas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const j of janelas) {
+      if (j.url.includes("/gestor.html")) {
+        try { await j.focus(); if (j.navigate) await j.navigate(url); return; } catch (e) { /* abre uma nova */ }
+      }
+    }
+    await self.clients.openWindow(url);
   })());
 });

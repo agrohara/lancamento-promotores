@@ -488,6 +488,39 @@
     --verde:var(--acao); --verde-escuro:var(--marca); --verde-claro:var(--acao-fundo); --vermelho:var(--c-erro); --ambar:var(--c-atencao);
   }
   #despesasPainel{background:#f4f7fa;}
+
+  /* ===== Mapa: percurso da semana (só gestor) ===== */
+  body.modo-vendedor #abaMapa,body.modo-vendedor #mapaPainel{display:none !important;}
+  #mapaPainel{padding:20px 28px 40px;}
+  .mp-barra{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;}
+  .mp-barra select{min-height:48px;font-size:16px;min-width:260px;}
+  .mp-semana{display:flex;align-items:center;gap:8px;}
+  .mp-semana-txt{font-size:18px;font-weight:700;min-width:170px;text-align:center;}
+  .mp-btn{min-width:48px;min-height:48px;border:1px solid var(--borda-forte);border-radius:8px;background:#fff;color:var(--marca);font-size:24px;font-weight:700;cursor:pointer;}
+  .mp-btn:hover{background:var(--acao-fundo);}
+  .mp-resumo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px;}
+  .mp-kpi{background:#fff;border:1px solid var(--borda);border-radius:8px;padding:12px 16px;}
+  .mp-kpi small{display:block;font-size:13px;color:var(--suave);}
+  .mp-kpi b{display:block;font-size:26px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;}
+  .mp-kpi span{display:block;font-size:13px;color:var(--suave);margin-top:2px;}
+  .mp-layout{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start;}
+  .mp-mapa-wrap{position:relative;}
+  #mpMapa{height:540px;border:1px solid var(--borda);border-radius:8px;background:#EEF1EA;z-index:0;}
+  .mp-mapa-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;font-size:17px;background:rgba(245,246,243,.94);border-radius:8px;z-index:500;}
+  .mp-lista-card{max-height:540px;overflow:auto;}
+  .mp-lista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+  .mp-lista li{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--borda);font-size:15px;line-height:1.3;}
+  .mp-lista .n{width:32px;height:32px;border-radius:50%;background:var(--marca);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;}
+  .mp-lista small{display:block;color:var(--suave);font-size:13px;}
+  .mp-semloc{background:#FBF1DC;color:#8A5A00;border-radius:8px;padding:10px 12px;font-size:14px;font-weight:600;margin-top:12px;line-height:1.4;}
+  .mp-pino{background:var(--marca);color:#fff;border:3px solid #fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font:700 16px/1 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);}
+  .mp-leg{background:#1B2A22;color:#fff;border-radius:6px;padding:3px 8px;font:600 13px/1.2 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;white-space:nowrap;width:auto !important;height:auto !important;}
+  @media (max-width:980px){#mapaPainel{padding:14px 12px 30px;}.mp-layout{grid-template-columns:1fr;}.mp-resumo{grid-template-columns:1fr;}#mpMapa{height:420px;}}
+  @media print{#mapaPainel{display:none !important;}}
+  .mp-barra .grupo{display:flex;flex-direction:column;gap:6px;}
+  .mp-barra .grupo label{margin:0;}
+  .mp-leg{transform:translate(-50%,-50%);}
+  .mp-barra select{border:1px solid var(--borda-forte);border-radius:8px;background:#fff;padding:0 12px;}
 </style>
 </head>
 <body>
@@ -509,6 +542,7 @@
     <span class="usuario"><i id="inicialUsuario">F</i><span id="nomeUsuario"></span></span>
     <button class="btn-topo" id="btnImprimir" type="button">⎙ Imprimir / PDF</button>
     <a class="btn-topo" href="/?app=1">Abrir app de campo</a>
+    <button class="btn-topo oculto" id="btnAvisos" type="button" title="Avisos no celular">Ativar avisos de aprovação</button>
     <button class="btn-topo" id="btnSair" type="button">Sair</button>
   </header>
 
@@ -516,6 +550,7 @@
   <nav class="abas" id="abas" aria-label="Seções">
     <button data-aba="visao" class="ativo" type="button">Visão gerencial</button>
     <button data-aba="metas" type="button">Metas</button>
+    <button data-aba="mapa" id="abaMapa" type="button">Mapa</button>
     <button data-aba="despesas" id="abaDespesas" type="button">Aprovação de despesas <span id="badgeDesp" class="badge oculto">0</span></button>
   </nav>
 
@@ -615,6 +650,27 @@
     <p class="legenda-secao">As metas são cadastradas no app, em Início › Metas (Gerente/Desenvolvedor). Realizado = valor dos pedidos lançados no período; "esperado" = ritmo linear até hoje.</p>
   </main>
 
+  <main id="mapaPainel" class="oculto">
+    <div class="secao"><span class="n">★</span><h2>Percurso da semana</h2></div>
+    <div id="mpErro" class="aviso oculto" role="alert"></div>
+    <div class="mp-barra">
+      <div class="grupo"><label for="mpConsultor">Consultor de Pecuária</label><select id="mpConsultor"></select></div>
+      <div class="grupo"><label>Semana</label>
+        <div class="mp-semana">
+          <button type="button" id="mpAnt" class="mp-btn" aria-label="Semana anterior">‹</button>
+          <span id="mpSemanaTxt" class="mp-semana-txt"></span>
+          <button type="button" id="mpProx" class="mp-btn" aria-label="Próxima semana">›</button>
+        </div>
+      </div>
+    </div>
+    <div class="mp-resumo" id="mpResumo"></div>
+    <div class="mp-layout">
+      <div class="mp-mapa-wrap"><div id="mpMapa" role="img" aria-label="Mapa com o percurso das visitas da semana"></div><div id="mpMapaMsg" class="mp-mapa-msg oculto"></div></div>
+      <div class="card mp-lista-card"><h3>Visitas na ordem</h3><ol id="mpLista" class="mp-lista"></ol><div id="mpSemLoc"></div></div>
+    </div>
+    <p class="legenda-secao">A rota é uma estimativa em linha reta entre as visitas, na ordem em que foram registradas (dia e ordem de registro). Serve para conferir com o KM lançado no RDV, e não substitui o hodômetro. Usa o GPS da visita; se não houver, a localização cadastrada da fazenda.</p>
+  </main>
+
   <aside id="dspLado" class="dsp-lado oculto" aria-label="Visualizador de anexos"><div class="dsp-lado-cab"><b id="dspLadoTit"></b><button type="button" id="dspLadoFechar" aria-label="Fechar">Fechar ✕</button></div><div id="dspLadoCorpo"></div></aside>
   <main id="despesasPainel" class="oculto">
     <div class="secao"><span class="n">$</span><h2>Despesas dos consultores de pecuária (RDV e CI)</h2></div>
@@ -673,6 +729,7 @@ function iniciar() {
   carregar();
   if (!modoVend) setTimeout(carregarBadgeDesp, 0);
   carregarMetasMini();
+  iniciarAvisosGestor();
 }
 $("btnEntrar").addEventListener("click", async () => {
   const login = $("inLogin").value.trim(), senha = $("inSenha").value;
@@ -1069,13 +1126,15 @@ function stDesp(l) {
   return ["ok", "Enviada ao Kanban"];
 }
 function trocarAba(aba) {
-  const d = aba === "despesas", m = aba === "metas";
+  const d = aba === "despesas", m = aba === "metas", mp = aba === "mapa" && !modoVend;
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("ativo", b.dataset.aba === aba));
   $("despesasPainel").classList.toggle("oculto", !d);
   $("metasPainel").classList.toggle("oculto", !m);
-  document.querySelector(".filtros").classList.toggle("oculto", d || m);
-  $("conteudo").classList.toggle("oculto", d || m);
-  $("btnImprimir").classList.toggle("oculto", d || m);
+  $("mapaPainel").classList.toggle("oculto", !mp);
+  document.querySelector(".filtros").classList.toggle("oculto", d || m || mp);
+  $("conteudo").classList.toggle("oculto", d || m || mp);
+  $("btnImprimir").classList.toggle("oculto", d || m || mp);
+  if (mp) abrirMapa();
   if (d) carregarDespesas();
   if (m) { if (!modoVend && !$("mtRep").dataset.tocado && filtro.promotor && !mt.rep) mt.rep = filtro.promotor; carregarMetas(); }
 }
@@ -1479,7 +1538,208 @@ $("metasMini").addEventListener("click", e => {
   trocarAba("metas");
 });
 
+/* =========================================================================
+   MAPA · PERCURSO DA SEMANA (só gestor)
+   Usa endpoints que já existem: /api/visitas (GPS da visita), /api/propriedades
+   (localização cadastrada) e o RDV (KM lançado). Nenhuma gravação.
+   ========================================================================= */
+const mp = { map: null, grupo: null, segunda: "", prontoLib: null, props: null, req: 0 };
+const semAcento = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+function segundaDe(isoStr) { const d = new Date(isoStr + "T12:00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return iso(d); }
+function somaDias(isoStr, n) { const d = new Date(isoStr + "T12:00:00"); d.setDate(d.getDate() + n); return iso(d); }
+function kmEntre(a, b) {
+  const R = 6371, r = x => x * Math.PI / 180, dLa = r(b[0] - a[0]), dLo = r(b[1] - a[1]);
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+const coordOk = (la, lo) => la != null && lo != null && isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
+function carregarLeaflet() {
+  if (window.L) return Promise.resolve();
+  if (mp.prontoLib) return mp.prontoLib;
+  mp.prontoLib = new Promise((ok, falha) => {
+    const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(css);
+    const js = document.createElement("script"); js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    js.onload = () => ok(); js.onerror = () => { mp.prontoLib = null; falha(new Error("Sem internet para carregar o mapa.")); };
+    document.head.appendChild(js);
+  });
+  return mp.prontoLib;
+}
+async function apiGet(url) {
+  const r = await fetch(url, { headers: cabecalhosApi() });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || "Não foi possível carregar os dados.");
+  return d;
+}
+function abrirMapa() {
+  const sel = $("mpConsultor");
+  if (sel.options.length === 0) {
+    const nomes = [...$("selPromotor").options].map(o => o.value).filter(Boolean);
+    sel.innerHTML = nomes.length ? nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("") : '<option value="">Sem consultores</option>';
+    if (filtro.promotor && nomes.includes(filtro.promotor)) sel.value = filtro.promotor;
+  }
+  if (!mp.segunda) mp.segunda = segundaDe(iso(new Date()));
+  desenharMapa();
+}
+$("mpConsultor").addEventListener("change", () => desenharMapa());
+$("mpAnt").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, -7); desenharMapa(); });
+$("mpProx").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, 7); desenharMapa(); });
+
+async function kmDoRdv(promotor, segunda) {
+  try {
+    const fila = await apiRdv("GET", "&fila=1");
+    const sab = somaDias(segunda, 5);
+    const l = (fila.itens || []).find(x => x.tipo === "RDV" && semAcento(x.promotor) === semAcento(promotor) && x.periodo_ini <= sab && x.periodo_fim >= segunda);
+    if (!l) return { achou: false };
+    const det = await apiRdv("GET", "&id=" + l.id);
+    const km = ((det.dados || {}).dias || []).reduce((t, x) => t + (Number(x.kmRodado) || 0), 0);
+    return { achou: true, km, status: l.status };
+  } catch (e) { return { achou: false, erro: true }; }
+}
+function msgMapa(txt) { const e = $("mpMapaMsg"); e.textContent = txt || ""; e.classList.toggle("oculto", !txt); }
+async function desenharMapa() {
+  const meu = ++mp.req, promotor = $("mpConsultor").value, segunda = mp.segunda;
+  $("mpSemanaTxt").textContent = dm(segunda) + " a " + dm(somaDias(segunda, 5));
+  $("mpErro").classList.add("oculto");
+  $("mpLista").innerHTML = ""; $("mpSemLoc").innerHTML = "";
+  $("mpResumo").innerHTML = '<div class="mp-kpi"><small>Carregando...</small><b>—</b></div>';
+  msgMapa("Carregando o mapa...");
+  if (!promotor) { msgMapa("Escolha um consultor."); $("mpResumo").innerHTML = ""; return; }
+  try {
+    const [, rv, rp, rdv] = await Promise.all([
+      carregarLeaflet(),
+      apiGet("/api/visitas?promotor=" + encodeURIComponent(promotor) + "&quinzena=" + segunda),
+      mp.props ? Promise.resolve(mp.props) : apiGet("/api/propriedades").then(d => (mp.props = d.propriedades || [])),
+      kmDoRdv(promotor, segunda)
+    ]);
+    if (meu !== mp.req) return;
+    const prop = {}; (Array.isArray(rp) ? rp : mp.props).forEach(p => { prop[semAcento(p.Propriedade)] = p; });
+    const visitas = (rv.visitas || []).slice().sort((a, b) => String(a.Dia_Visita).localeCompare(String(b.Dia_Visita)) || (a.Id - b.Id));
+    const paradas = visitas.map(v => {
+      let la = v.Latitude, lo = v.Longitude, origem = "GPS da visita";
+      if (!coordOk(la, lo)) { const p = prop[semAcento(v.Propriedade)]; la = p ? p.Latitude : null; lo = p ? p.Longitude : null; origem = "localização da fazenda"; }
+      return { v, ok: coordOk(la, lo), la, lo, origem };
+    });
+    const comLoc = paradas.filter(p => p.ok), semLoc = paradas.filter(p => !p.ok);
+    let total = 0; const trechos = [];
+    for (let i = 1; i < comLoc.length; i++) { const k = kmEntre([comLoc[i - 1].la, comLoc[i - 1].lo], [comLoc[i].la, comLoc[i].lo]); trechos.push(k); total += k; }
+    const fz = new Set(visitas.map(v => semAcento(v.Propriedade))).size;
+    const fmt = n => Math.round(n).toLocaleString("pt-BR");
+    let rdvTxt = "sem RDV nesta semana", rdvSub = "";
+    if (rdv.achou) {
+      rdvTxt = fmt(rdv.km) + " km";
+      if (total > 0 && rdv.km > 0) { const dif = Math.round((rdv.km - total) / total * 100); rdvSub = "RDV " + (dif >= 0 ? dif + "% acima" : Math.abs(dif) + "% abaixo") + " da rota em linha reta"; }
+    } else if (rdv.erro) rdvTxt = "indisponível";
+    $("mpResumo").innerHTML =
+      `<div class="mp-kpi"><small>Fazendas visitadas</small><b>${fz}</b><span>${visitas.length} visita${visitas.length === 1 ? "" : "s"} na semana</span></div>` +
+      `<div class="mp-kpi"><small>Rota estimada (linha reta)</small><b>${fmt(total)} km</b><span>${comLoc.length} visita${comLoc.length === 1 ? "" : "s"} com localização</span></div>` +
+      `<div class="mp-kpi"><small>KM lançado no RDV</small><b>${rdvTxt}</b><span>${esc(rdvSub)}</span></div>`;
+    let n = 0;
+    $("mpLista").innerHTML = paradas.length ? paradas.map(p => {
+      const nome = esc(p.v.Propriedade), info = esc(DIAS_CURTO[(new Date(p.v.Dia_Visita + "T12:00:00").getDay() + 6) % 7] || "") + " " + dm(p.v.Dia_Visita) + " · " + esc(p.v.Tipo_Visita || "");
+      return p.ok ? `<li><span class="n">${++n}</span><div><b>${nome}</b><small>${info}</small></div></li>`
+        : `<li><span class="n" style="background:#8A5A00">!</span><div><b>${nome}</b><small>${info} · sem localização</small></div></li>`;
+    }).join("") : '<li style="display:block">Nenhuma visita registrada nesta semana.</li>';
+    if (semLoc.length) $("mpSemLoc").innerHTML = `<div class="mp-semloc">${semLoc.length} visita${semLoc.length === 1 ? "" : "s"} sem localização: o consultor precisa cadastrar a latitude e a longitude da fazenda.</div>`;
+    if (!comLoc.length) { msgMapa(paradas.length ? "As visitas desta semana não têm localização." : "Nenhuma visita registrada nesta semana."); if (mp.grupo) mp.grupo.clearLayers(); return; }
+    msgMapa("");
+    if (!mp.map) {
+      mp.map = L.map("mpMapa", { zoomControl: true, scrollWheelZoom: false }).setView([comLoc[0].la, comLoc[0].lo], 10);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(mp.map);
+      mp.grupo = L.layerGroup().addTo(mp.map);
+    }
+    mp.map.invalidateSize();
+    mp.grupo.clearLayers();
+    const pts = comLoc.map(p => [p.la, p.lo]);
+    if (pts.length > 1) L.polyline(pts, { color: "#1A6436", weight: 4, opacity: .85 }).addTo(mp.grupo);
+    comLoc.forEach((p, i) => {
+      L.marker([p.la, p.lo], { icon: L.divIcon({ className: "", html: `<div class="mp-pino">${i + 1}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }) })
+        .bindPopup(`<b>${esc(p.v.Propriedade)}</b><br>${dm(p.v.Dia_Visita)} · ${esc(p.v.Tipo_Visita || "")}<br><small>Posição: ${esc(p.origem)}</small>`).addTo(mp.grupo);
+      if (i > 0) {
+        const meio = [(pts[i - 1][0] + pts[i][0]) / 2, (pts[i - 1][1] + pts[i][1]) / 2];
+        L.marker(meio, { interactive: false, icon: L.divIcon({ className: "", html: `<div class="mp-leg">${fmt(trechos[i - 1])} km</div>`, iconSize: [0, 0] }) }).addTo(mp.grupo);
+      }
+    });
+    mp.map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 14 });
+  } catch (e) {
+    if (meu !== mp.req) return;
+    $("mpResumo").innerHTML = "";
+    $("mpErro").textContent = e.message || "Não foi possível carregar o mapa."; $("mpErro").classList.remove("oculto");
+    msgMapa(e.message || "");
+  }
+}
+
+
+/* ---------- Avisos no celular do gestor (Web Push) ---------- */
+const AVISOS = { URL: "/api/agenda?recurso=push" };
+function avisosSuportado() { return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window; }
+function avisosChaveBytes(b64) {
+  const p = "=".repeat((4 - b64.length % 4) % 4), r = (b64 + p).replace(/-/g, "+").replace(/_/g, "/"), raw = atob(r);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+async function avisosInscricaoAtual() {
+  if (!avisosSuportado()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+async function avisosEstado() {
+  if (!avisosSuportado()) return /iPhone|iPad|iPod/i.test(navigator.userAgent) ? "ios-instalar" : "nao-suportado";
+  if (Notification.permission === "denied") return "negado";
+  return (await avisosInscricaoAtual()) && Notification.permission === "granted" ? "ativo" : "inativo";
+}
+async function avisosAtivar(cab) {
+  const perm = await Notification.requestPermission();
+  if (perm !== "granted") throw new Error("A permissão de notificação não foi concedida neste aparelho.");
+  const rc = await fetch(AVISOS.URL + "&chave=1", { headers: cab });
+  const dc = await rc.json().catch(() => ({}));
+  if (!rc.ok) throw new Error(dc.erro || "Não foi possível ativar os avisos.");
+  if (!dc.chave) throw new Error("Avisos ainda não configurados no servidor.");
+  const reg = await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: avisosChaveBytes(dc.chave) });
+  const r = await fetch(AVISOS.URL, { method: "POST", headers: { "Content-Type": "application/json", ...cab }, body: JSON.stringify({ acao: "inscrever", inscricao: sub.toJSON() }) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.erro || "Não foi possível salvar os avisos.");
+}
+async function avisosDesativar(cab) {
+  const sub = await avisosInscricaoAtual();
+  if (!sub) return;
+  const endpoint = sub.endpoint;
+  await sub.unsubscribe();
+  await fetch(AVISOS.URL, { method: "POST", headers: { "Content-Type": "application/json", ...cab }, body: JSON.stringify({ acao: "cancelar", endpoint }) }).catch(() => {});
+}
+// Liga um botão (+ texto de ajuda) ao ciclo ativar/desativar.
+async function avisosLigarBotao(btn, msg, cab) {
+  const textos = {
+    "ativo": ["Avisos ativados · toque para desativar", "Você recebe um aviso neste aparelho quando um RDV ou CI chegar para aprovação."],
+    "inativo": ["Ativar avisos de aprovação", "Receba um aviso neste celular quando um RDV ou CI chegar para você aprovar."],
+    "negado": ["Avisos bloqueados", "As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador ou do app e volte aqui."],
+    "ios-instalar": ["Avisos indisponíveis", "No iPhone, os avisos só funcionam com o app instalado: toque em Compartilhar e depois em Adicionar à Tela de Início. Abra o app por esse ícone."],
+    "nao-suportado": ["Avisos indisponíveis", "Este navegador não permite avisos. Use o Chrome (Android) ou instale o app na tela inicial."]
+  };
+  async function pintar() {
+    let e = "nao-suportado"; try { e = await avisosEstado(); } catch (x) { /* mantém */ }
+    btn.textContent = textos[e][0]; btn.disabled = !(e === "ativo" || e === "inativo"); btn.dataset.estado = e;
+    if (msg) msg.textContent = textos[e][1];
+  }
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    try { if (btn.dataset.estado === "ativo") await avisosDesativar(cab()); else await avisosAtivar(cab()); }
+    catch (e) { if (msg) msg.textContent = e.message || "Não foi possível concluir."; btn.disabled = false; return; }
+    pintar();
+  });
+  pintar();
+}
+
+function iniciarAvisosGestor() {
+  if (modoVend || !sessao) return;
+  const btn = $("btnAvisos"); btn.classList.remove("oculto");
+  if (btn.dataset.ligado) return; btn.dataset.ligado = "1";
+  avisosLigarBotao(btn, null, cabecalhosApi);
+}
+
 iniciar();
+if (new URLSearchParams(location.search).get("aba") === "despesas") {
+  let t = 0; const espera = setInterval(() => { t++; if (sessao && !modoVend && !$("painel").classList.contains("oculto")) { clearInterval(espera); trocarAba("despesas"); } else if (t > 20) clearInterval(espera); }, 300);
+}
 </script>
 </body>
 </html>
