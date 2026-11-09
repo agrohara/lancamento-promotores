@@ -20,6 +20,7 @@
 
 const crypto = require("crypto");
 const { Planilha } = require("./xlsx_min");
+const { planilhaCiModelo } = require("./ci_planilha");
 let push = null; try { push = require("./push"); } catch (e) { push = null; } // avisos no celular do gestor (opcional)
 
 const BUCKET = "fotos";
@@ -418,7 +419,14 @@ function planilhaRdv(sol, extra) {
   return p.gerar();
 }
 
+// CI no modelo oficial (1ª e 2ª via, logos) — ver ci_planilha.js. Se algo falhar ali, cai no
+// layout simples antigo abaixo, para a aprovação nunca ficar sem planilha.
 function planilhaCi(sol, extra) {
+  try { return planilhaCiModelo(sol, extra, COORDENADOR); }
+  catch (err) { console.error("[CI] modelo oficial falhou, usando layout simples:", err && err.message); return planilhaCiSimples(sol, extra); }
+}
+
+function planilhaCiSimples(sol, extra) {
   const d = sol.dados;
   const p = new Planilha("CI");
   p.paisagem = false;
