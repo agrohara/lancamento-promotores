@@ -192,7 +192,7 @@ module.exports = async function handler(req, res) {
         return;
       }
 
-      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade, cadastrada_por, proprietario", "propriedade");
+      const data = await buscarTodasLinhas(supabase, "propriedades", "propriedade, cadastrada_por, proprietario, vendedor_responsavel", "propriedade");
       const visiveis = ehGestor
         ? data
         : data.filter(l => String(l.cadastrada_por || "").toLowerCase() === usuario.nome.toLowerCase());
@@ -200,7 +200,14 @@ module.exports = async function handler(req, res) {
       // um mesmo proprietário pode ter mais de uma fazenda).
       const proprietarios = {};
       for (const l of visiveis) if (l.propriedade && l.proprietario) proprietarios[l.propriedade] = String(l.proprietario).trim();
-      res.status(200).json({ propriedades: visiveis.map(l => l.propriedade).filter(Boolean), proprietarios });
+      // "responsaveis": nome da fazenda -> consultor dono da carteira (quem cadastrou; se
+      // vazio, o vendedor responsável). Usado só no filtro por consultor da visão do gestor.
+      const responsaveis = {};
+      for (const l of visiveis) {
+        const dono = String(l.cadastrada_por || l.vendedor_responsavel || "").trim();
+        if (l.propriedade && dono) responsaveis[l.propriedade] = dono;
+      }
+      res.status(200).json({ propriedades: visiveis.map(l => l.propriedade).filter(Boolean), proprietarios, responsaveis });
     } catch (err) {
       res.status(502).json({ erro: "Falha ao ler propriedades no banco.", detalhe: String(err.message || err) });
     }
