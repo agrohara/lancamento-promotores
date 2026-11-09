@@ -1773,8 +1773,16 @@ async function listarFilaOffline() {
   const banco = await abrirBancoOffline();
   return new Promise((resolve, reject) => {
     const transacao = banco.transaction(FILA_OFFLINE_STORE, "readonly");
-    const pedido = transacao.objectStore(FILA_OFFLINE_STORE).getAll();
-    pedido.onsuccess = () => resolve(pedido.result || []);
+    // Cursor (e não getAll): garante a chave real de cada item mesmo quando o registro foi
+    // guardado sem o campo "chave" (aparelhos com banco de uma versão antiga) — sem ela o
+    // item nunca podia ser apagado e travava a fila inteira.
+    const lista = [];
+    const pedido = transacao.objectStore(FILA_OFFLINE_STORE).openCursor();
+    pedido.onsuccess = () => {
+      const cur = pedido.result;
+      if (cur) { const v = cur.value || {}; if (v.chave === undefined || v.chave === null) v.chave = cur.primaryKey; lista.push(v); cur.continue(); }
+      else resolve(lista);
+    };
     pedido.onerror = () => reject(pedido.error);
   });
 }
@@ -1850,16 +1858,16 @@ async function sincronizarFilaOffline() {
       try {
         const resp = await fetch(item.url, { method: item.metodo, headers: cabecalhosEnvio(), body: JSON.stringify(item.corpo) });
         if (resp.ok) {
-          await removerDaFilaOffline(item.chave);
+          try { await removerDaFilaOffline(item.chave); linha.resultado = "Enviado"; }
+          catch (eRem) { linha.resultado = "Enviado, mas não saiu da fila: " + ((eRem && eRem.message) || ""); }
           enviados++;
-          linha.resultado = "Enviado";
         } else if (resp.status >= 500 || resp.status === 401) {
           linha.resultado = (resp.status === 401 ? "Sessão vencida (401)" : "Erro do servidor (" + resp.status + ")") + await detalheRespostaFila(resp);
           break; // servidor com problema, ou sessão vencida (401): MANTÉM a fila — depois de entrar de novo, tudo é enviado
         } else {
           linha.resultado = "Recusado pelo servidor (" + resp.status + ")" + await detalheRespostaFila(resp) + " — descartado";
           guardarRecusadoFila(item, linha.resultado);
-          await removerDaFilaOffline(item.chave); // 4xx: descarta, reenviar não resolve
+          try { await removerDaFilaOffline(item.chave); } catch (eRem) { linha.resultado += " (não saiu da fila: " + ((eRem && eRem.message) || "") + ")"; } // 4xx: descarta, reenviar não resolve
         }
       } catch (err) {
         linha.resultado = "Não conseguiu falar com o servidor (" + ((err && err.message) || "rede") + ")";
