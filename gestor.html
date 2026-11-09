@@ -520,6 +520,15 @@
   .mp-barra .grupo{display:flex;flex-direction:column;gap:6px;}
   .mp-barra .grupo label{margin:0;}
   .mp-leg{transform:translate(-50%,-50%);}
+  .mp-modo{margin-bottom:14px;display:inline-flex;}
+  .mp-modo button{font-size:15px;min-height:44px;padding:8px 18px;}
+  .mp-modo button.ativo{background:var(--marca);color:#fff;}
+  .mp-barra input[type=search]{min-height:48px;font-size:16px;min-width:260px;border:1px solid var(--borda-forte);border-radius:8px;background:#fff;padding:0 12px;}
+  .mf-pin{width:30px;height:42px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));}
+  .mp-lista li.mf-item{cursor:pointer;}
+  .mp-lista li.mf-item:hover{background:var(--acao-fundo);}
+  .mp-lista .pinmini{width:22px;height:30px;}
+  .mp-semloc ul{margin:6px 0 0;padding-left:18px;font-weight:400;}
   .mp-barra select{border:1px solid var(--borda-forte);border-radius:8px;background:#fff;padding:0 12px;}
 </style>
 </head>
@@ -651,9 +660,17 @@
   </main>
 
   <main id="mapaPainel" class="oculto">
-    <div class="secao"><span class="n">★</span><h2>Percurso da semana</h2></div>
+    <div class="secao"><span class="n">★</span><h2 id="mpTitulo">Percurso da semana</h2></div>
+    <div class="seg mp-modo" id="mpModo">
+      <button type="button" data-m="percurso" class="ativo">Percurso da semana</button>
+      <button type="button" data-m="fazendas">Fazendas no mapa</button>
+    </div>
     <div id="mpErro" class="aviso oculto" role="alert"></div>
-    <div class="mp-barra">
+    <div class="mp-barra oculto" id="mpBarraFaz">
+      <div class="grupo"><label for="mfConsultor">Consultor de Pecuária</label><select id="mfConsultor"></select></div>
+      <div class="grupo"><label for="mfBusca">Buscar</label><input type="search" id="mfBusca" placeholder="Fazenda ou proprietário" autocomplete="off"></div>
+    </div>
+    <div class="mp-barra" id="mpBarraPerc">
       <div class="grupo"><label for="mpConsultor">Consultor de Pecuária</label><select id="mpConsultor"></select></div>
       <div class="grupo"><label>Semana</label>
         <div class="mp-semana">
@@ -666,9 +683,10 @@
     <div class="mp-resumo" id="mpResumo"></div>
     <div class="mp-layout">
       <div class="mp-mapa-wrap"><div id="mpMapa" role="img" aria-label="Mapa com o percurso das visitas da semana"></div><div id="mpMapaMsg" class="mp-mapa-msg oculto"></div></div>
-      <div class="card mp-lista-card"><h3>Visitas na ordem</h3><ol id="mpLista" class="mp-lista"></ol><div id="mpSemLoc"></div></div>
+      <div class="card mp-lista-card"><h3 id="mpListaTit">Visitas na ordem</h3><ol id="mpLista" class="mp-lista"></ol><div id="mpSemLoc"></div></div>
     </div>
-    <p class="legenda-secao">A rota é uma estimativa em linha reta entre as visitas, na ordem em que foram registradas (dia e ordem de registro). Serve para conferir com o KM lançado no RDV, e não substitui o hodômetro. Usa o GPS da visita; se não houver, a localização cadastrada da fazenda.</p>
+    <p class="legenda-secao" id="mpLegendaFaz" hidden>Cada pin é uma fazenda com latitude e longitude cadastradas. Clique no pin para ver o proprietário, o consultor e o rebanho. As fazendas sem localização aparecem na lista ao lado: o consultor precisa marcar a posição no cadastro.</p>
+    <p class="legenda-secao" id="mpLegendaPerc">A rota é uma estimativa em linha reta entre as visitas, na ordem em que foram registradas (dia e ordem de registro). Serve para conferir com o KM lançado no RDV, e não substitui o hodômetro. Usa o GPS da visita; se não houver, a localização cadastrada da fazenda.</p>
   </main>
 
   <aside id="dspLado" class="dsp-lado oculto" aria-label="Visualizador de anexos"><div class="dsp-lado-cab"><b id="dspLadoTit"></b><button type="button" id="dspLadoFechar" aria-label="Fechar">Fechar ✕</button></div><div id="dspLadoCorpo"></div></aside>
@@ -1571,6 +1589,7 @@ async function apiGet(url) {
   return d;
 }
 function abrirMapa() {
+  if (mp.modo === "fazendas") { desenharFazendas(); return; }
   const sel = $("mpConsultor");
   if (sel.options.length === 0) {
     const nomes = [...$("selPromotor").options].map(o => o.value).filter(Boolean);
@@ -1583,6 +1602,86 @@ function abrirMapa() {
 $("mpConsultor").addEventListener("change", () => desenharMapa());
 $("mpAnt").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, -7); desenharMapa(); });
 $("mpProx").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, 7); desenharMapa(); });
+
+/* ---------- Modo "Fazendas no mapa": um pin vermelho (estilo Google) por fazenda ---------- */
+mp.modo = "percurso"; mp.fazendas = null; mp.marcadores = {};
+const PIN_SVG = '<svg class="mf-pin" viewBox="0 0 30 42" aria-hidden="true"><path d="M15 1C7.3 1 1 7.2 1 14.8 1 25 15 41 15 41s14-16 14-26.2C29 7.2 22.7 1 15 1z" fill="#EA4335" stroke="#B3261E" stroke-width="1.5"/><circle cx="15" cy="14.5" r="5.2" fill="#fff"/></svg>';
+function donoFazenda(p) { return String(p.Cadastrada_Por || p.Vendedor_Responsavel || "").trim() || "Sem consultor"; }
+function definirModoMapa(m) {
+  mp.modo = m;
+  document.querySelectorAll("#mpModo button").forEach(b => b.classList.toggle("ativo", b.dataset.m === m));
+  const faz = m === "fazendas";
+  $("mpBarraFaz").classList.toggle("oculto", !faz); $("mpBarraPerc").classList.toggle("oculto", faz);
+  $("mpLegendaFaz").hidden = !faz; $("mpLegendaPerc").hidden = faz;
+  $("mpTitulo").textContent = faz ? "Fazendas no mapa" : "Percurso da semana";
+  $("mpListaTit").textContent = faz ? "Fazendas" : "Visitas na ordem";
+  if (mp.grupo) mp.grupo.clearLayers();
+  abrirMapa();
+}
+document.querySelectorAll("#mpModo button").forEach(b => b.addEventListener("click", () => definirModoMapa(b.dataset.m)));
+$("mfConsultor").addEventListener("change", () => desenharFazendas());
+$("mfBusca").addEventListener("input", () => desenharFazendas());
+async function desenharFazendas() {
+  const meu = ++mp.req;
+  $("mpErro").classList.add("oculto"); $("mpLista").innerHTML = ""; $("mpSemLoc").innerHTML = "";
+  $("mpResumo").innerHTML = '<div class="mp-kpi"><small>Carregando...</small><b>—</b></div>';
+  msgMapa("Carregando o mapa...");
+  try {
+    const [, todas] = await Promise.all([
+      carregarLeaflet(),
+      mp.fazendas ? Promise.resolve(mp.fazendas) : apiGet("/api/propriedades?completo=1").then(d => (mp.fazendas = d.propriedades || []))
+    ]);
+    if (meu !== mp.req) return;
+    const sel = $("mfConsultor"), atual = sel.value;
+    const nomes = [...new Set(todas.map(donoFazenda))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (sel.options.length !== nomes.length + 1) {
+      sel.innerHTML = '<option value="">Todos os consultores</option>' + nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+      sel.value = nomes.includes(atual) ? atual : "";
+    }
+    const cons = sel.value, termo = semAcento($("mfBusca").value);
+    const lista = todas.filter(p => (!cons || donoFazenda(p) === cons) &&
+      (!termo || semAcento(p.Propriedade).includes(termo) || semAcento(p.Proprietario).includes(termo)))
+      .sort((a, b) => String(a.Propriedade).localeCompare(String(b.Propriedade), "pt-BR"));
+    const comLoc = lista.filter(p => coordOk(p.Latitude, p.Longitude)), semLoc = lista.filter(p => !coordOk(p.Latitude, p.Longitude));
+    $("mpResumo").innerHTML =
+      `<div class="mp-kpi"><small>Fazendas</small><b>${lista.length}</b><span>${cons ? esc(cons) : "todos os consultores"}</span></div>` +
+      `<div class="mp-kpi"><small>Com pin no mapa</small><b>${comLoc.length}</b><span>latitude e longitude cadastradas</span></div>` +
+      `<div class="mp-kpi"><small>Sem localização</small><b>${semLoc.length}</b><span>${semLoc.length ? "faltam no mapa" : "tudo localizado"}</span></div>`;
+    if (!mp.map) {
+      const c0 = comLoc[0] || { Latitude: -23.31, Longitude: -51.16 };
+      mp.map = L.map("mpMapa", { zoomControl: true, scrollWheelZoom: false }).setView([c0.Latitude, c0.Longitude], 9);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(mp.map);
+      mp.grupo = L.layerGroup().addTo(mp.map);
+    }
+    mp.map.invalidateSize();
+    mp.grupo.clearLayers(); mp.marcadores = {};
+    comLoc.forEach((p, i) => {
+      const reb = (Number(p.Matrizes) || 0) + (Number(p.Primiparas) || 0) + (Number(p.Novilhas) || 0);
+      const m = L.marker([Number(p.Latitude), Number(p.Longitude)], { icon: L.divIcon({ className: "", html: PIN_SVG, iconSize: [30, 42], iconAnchor: [15, 41], popupAnchor: [0, -38] }), title: p.Propriedade })
+        .bindPopup(`<b>${esc(p.Propriedade)}</b><br>${esc(p.Proprietario || "")}${p.Municipio ? " · " + esc(p.Municipio) : ""}<br><small>Consultor: ${esc(donoFazenda(p))}${p.Tipo_Propriedade ? "<br>" + esc(p.Tipo_Propriedade) : ""}${reb ? "<br>Matrizes, primíparas e novilhas: " + reb.toLocaleString("pt-BR") : ""}</small>`)
+        .addTo(mp.grupo);
+      mp.marcadores[i] = m; p._i = i;
+    });
+    $("mpLista").innerHTML = comLoc.length ? comLoc.map(p =>
+      `<li class="mf-item" data-i="${p._i}"><span class="n" style="background:#EA4335">●</span><div><b>${esc(p.Propriedade)}</b><small>${esc(p.Proprietario || "")} · ${esc(donoFazenda(p))}</small></div></li>`).join("")
+      : '<li style="display:block">Nenhuma fazenda com localização neste filtro.</li>';
+    if (semLoc.length) $("mpSemLoc").innerHTML = `<div class="mp-semloc">${semLoc.length} fazenda${semLoc.length === 1 ? "" : "s"} sem localização (o consultor precisa marcar a posição no cadastro):<ul>${semLoc.slice(0, 60).map(p => `<li>${esc(p.Propriedade)} · ${esc(donoFazenda(p))}</li>`).join("")}${semLoc.length > 60 ? `<li>e mais ${semLoc.length - 60}...</li>` : ""}</ul></div>`;
+    if (!comLoc.length) { msgMapa(lista.length ? "As fazendas deste filtro ainda não têm localização." : "Nenhuma fazenda encontrada."); return; }
+    msgMapa("");
+    mp.map.fitBounds(L.latLngBounds(comLoc.map(p => [Number(p.Latitude), Number(p.Longitude)])).pad(0.15), { maxZoom: 13 });
+  } catch (e) {
+    if (meu !== mp.req) return;
+    $("mpResumo").innerHTML = "";
+    $("mpErro").textContent = e.message || "Não foi possível carregar o mapa."; $("mpErro").classList.remove("oculto");
+    msgMapa(e.message || "");
+  }
+}
+$("mpLista").addEventListener("click", e => {
+  if (mp.modo !== "fazendas") return;
+  const li = e.target.closest("li[data-i]"); if (!li) return;
+  const m = mp.marcadores[li.dataset.i]; if (!m) return;
+  mp.map.setView(m.getLatLng(), Math.max(mp.map.getZoom(), 13)); m.openPopup();
+});
 
 async function kmDoRdv(promotor, segunda) {
   try {
