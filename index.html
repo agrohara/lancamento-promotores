@@ -556,6 +556,7 @@
   .tag-inativo{background:var(--c-erro-fundo);color:var(--c-erro);}
   .chip-filtro{min-height:40px;border:1.5px solid var(--borda-forte);color:var(--texto-suave);}
   .chip-filtro.ativo{background:var(--marca);border-color:var(--marca);color:#fff;}
+  .filtro-consultor{width:100%;box-sizing:border-box;min-height:48px;margin:10px 0 4px;font-size:16px;font-weight:600;}
   .carregando-lista{color:var(--texto-suave);background:#fff;border:1px dashed var(--borda-forte);border-radius:var(--raio-m);padding:24px 16px;}
   .produto-chip{background:var(--acao-fundo);border:1px solid #CFE0D3;color:var(--marca);border-radius:10px;}
   .total-linha{background:var(--c-pedido-fundo);border:1px solid #b9e3de;}
@@ -851,6 +852,7 @@
     <section id="pagFazendas" class="pagina oculto">
       <h2 class="titulo-pagina">Fazendas</h2>
       <input type="text" id="buscaFazendaLista" placeholder="Buscar por fazenda ou proprietário...">
+      <select id="filtroConsultorFazendas" class="oculto filtro-consultor" aria-label="Filtrar fazendas por consultor"></select>
       <div id="listaFazendas"></div>
       <button class="btn" id="btnNovaFazendaTab" style="margin-top:14px;">+ Cadastrar fazenda</button>
     </section>
@@ -986,6 +988,7 @@
       </div>
       <div class="busca-historico" style="margin:14px 0 16px;">
         <input type="search" id="buscaHistorico" placeholder="Buscar por fazenda ou proprietário" autocomplete="off" aria-label="Buscar no histórico por fazenda ou proprietário" style="width:100%;box-sizing:border-box;min-height:56px;padding:14px 18px;font-size:18px;border:2px solid #1A6436;border-radius:14px;background:#fff;box-shadow:0 2px 8px rgba(31,77,46,.12);">
+        <select id="filtroConsultorHistorico" class="oculto filtro-consultor" aria-label="Filtrar histórico por consultor"></select>
         <div id="buscaHistoricoInfo" style="font-size:14px;font-weight:700;color:#1A6436;margin-top:6px;"></div>
       </div>
       <div id="historicoLista"><div class="carregando-lista">Carregando...</div></div>
@@ -1916,6 +1919,8 @@ function revendasDeOrigemAgd() {
   return [...new Set(PROMOTOR_CLIENTE.map(p => p.Cliente).filter(c => !ehProjetoAgd(c)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 let proprietariosPorFazenda = {};
+let responsaveisPorFazenda = {};   // fazenda -> consultor (só o gestor usa, no filtro por consultor)
+let filtroConsultorFazenda = "";
 // O cargo gravado no banco continua "Promotor" (a lógica depende disso); só o rótulo exibido muda.
 function rotuloCargo(c) { return /^promotor$/i.test(String(c || "").trim()) ? "Consultor de Pecuária" : c; }
 // Busca de fazenda: casa pelo nome da fazenda OU pelo nome do proprietário (sem diferenciar
@@ -2440,7 +2445,8 @@ function iniciarApp() {
   document.getElementById("perfilLogin").textContent = sessao.login;
   document.getElementById("perfilCargoTexto").textContent = rotuloCargo(sessao.cargo);
   document.getElementById("perfilCargoBadge").textContent = rotuloCargo(sessao.cargo);
-  iniciarAvisosApp();
+  // adiado: AVISOS (const) só existe depois que o script inteiro carrega; chamar direto quebrava a abertura já logado
+  setTimeout(() => { try { iniciarAvisosApp(); } catch (e) {} }, 0);
   document.getElementById("perfilAvisoAcesso").textContent = ehGestor()
     ? "Como Gerente/Desenvolvedor, você edita o catálogo de produtos e vê relatórios de todos os consultores de pecuária."
     : "Como Consultor de Pecuária, você vê e lança dados só da sua própria carteira. O catálogo de produtos é somente leitura.";
@@ -2608,9 +2614,11 @@ async function carregarTodasPropriedades() {
     const dados = await resp.json();
     todasPropriedades = (dados && dados.propriedades) || [];
     proprietariosPorFazenda = (dados && dados.proprietarios) || {};
+    responsaveisPorFazenda = (dados && dados.responsaveis) || {};
   } catch (err) {
     todasPropriedades = [];
     proprietariosPorFazenda = {};
+    responsaveisPorFazenda = {};
   }
 }
 
@@ -2618,8 +2626,31 @@ async function carregarListaFazendas() {
   const container = document.getElementById("listaFazendas");
   container.innerHTML = '<div class="carregando-lista">Carregando...</div>';
   await carregarTodasPropriedades();
-  renderizarListaFazendas(todasPropriedades);
+  montarFiltroConsultorFazendas();
+  atualizarListaFazendas();
 }
+
+// Filtro por consultor (só gestor): o nome de cada consultor vem das próprias fazendas.
+function montarFiltroConsultorFazendas() {
+  const sel = document.getElementById("filtroConsultorFazendas");
+  if (!sel) return;
+  if (!ehGestor()) { sel.classList.add("oculto"); return; }
+  const nomes = [...new Set(Object.values(responsaveisPorFazenda))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (filtroConsultorFazenda && !nomes.includes(filtroConsultorFazenda)) filtroConsultorFazenda = "";
+  sel.innerHTML = '<option value="">Todos os consultores</option>' + nomes.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+  sel.value = filtroConsultorFazenda;
+  sel.classList.toggle("oculto", nomes.length === 0);
+}
+function atualizarListaFazendas() {
+  const bf = document.getElementById("buscaFazendaLista");
+  const t = bf ? bf.value : "";
+  renderizarListaFazendas(todasPropriedades.filter(p =>
+    fazendaCombina(p, t) && (!filtroConsultorFazenda || responsaveisPorFazenda[p] === filtroConsultorFazenda)));
+}
+document.getElementById("filtroConsultorFazendas").addEventListener("change", (e) => {
+  filtroConsultorFazenda = e.target.value;
+  atualizarListaFazendas();
+});
 
 function renderizarListaFazendas(lista) {
   const container = document.getElementById("listaFazendas");
@@ -2634,7 +2665,7 @@ function renderizarListaFazendas(lista) {
   container.innerHTML = lista.map((nome, i) => `
     <div class="item-fazenda">
       <div class="item-fazenda-topo" data-abrir-fazenda="${nome.replace(/"/g,'&quot;')}">
-        <span style="display:flex;flex-direction:column;gap:1px;min-width:0;">${nome}${subProprietario(nome)}</span>
+        <span style="display:flex;flex-direction:column;gap:1px;min-width:0;">${nome}${subProprietario(nome)}${ehGestor() && responsaveisPorFazenda[nome] ? `<small style="color:#1A6436;font-weight:600;">Consultor: ${escHtml(responsaveisPorFazenda[nome])}</small>` : ""}</span>
         <div class="item-fazenda-acoes">
           <button type="button" data-editar-fazenda-linha="${nome.replace(/"/g,'&quot;')}"><svg class='ic' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M4 20l1-4L16 5l3 3L8 19z'/></svg>Editar</button>
         </div>
@@ -2920,8 +2951,8 @@ document.getElementById("btnExcluirFazenda").addEventListener("click", async () 
     if (!r.ok) throw new Error((dr && dr.erro) || "Não foi possível excluir.");
     fecharFolhaEdicaoFazenda();
     await carregarTodasPropriedades();
-    const bf = document.getElementById("buscaFazendaLista");
-    renderizarListaFazendas(todasPropriedades.filter(x => fazendaCombina(x, bf.value || "")));
+    montarFiltroConsultorFazendas();
+    atualizarListaFazendas();
   } catch (err) {
     erroBox.textContent = err.message;
     erroBox.classList.remove("oculto");
@@ -2988,7 +3019,7 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
       const pNovo = { ...fzPropriedadeAtual, ...corpo, Propriedade: nomeNovo, Latitude: fzLat, Longitude: fzLon };
       delete pNovo.Novo_Nome;
       try { await carregarTodasPropriedades(); } catch (e) {}
-      try { const bf = document.getElementById("buscaFazendaLista"); renderizarListaFazendas(todasPropriedades.filter(x => fazendaCombina(x, bf.value || ""))); } catch (e) {}
+      try { montarFiltroConsultorFazendas(); atualizarListaFazendas(); } catch (e) {}
       if (fzAreaDetalheParaAtualizar) renderizarDetalheFazenda(fzAreaDetalheParaAtualizar, pNovo);
       fecharFolhaEdicaoFazenda();
       return;
@@ -3018,9 +3049,7 @@ document.getElementById("btnSalvarFazenda").addEventListener("click", async () =
 ligarColagemCoordenadas("ffLat", "ffLon");
 ligarColagemCoordenadas("cpLatInput", "cpLonInput");
 
-document.getElementById("buscaFazendaLista").addEventListener("input", (e) => {
-  renderizarListaFazendas(todasPropriedades.filter(p => fazendaCombina(p, e.target.value)));
-});
+document.getElementById("buscaFazendaLista").addEventListener("input", () => { atualizarListaFazendas(); });
 
 /* =========================================================================
    EDIÇÃO DE PEDIDO E VISITA — folhas globais (mesmo padrão da edição de fazenda
@@ -5362,6 +5391,7 @@ let modoHistorico = "visitas";
 let cacheHistoricoVisitas = null;
 let cacheHistoricoPedidos = null;
 let termoHistorico = "";
+let filtroConsultorHistorico = "";
 // Nome "limpo" da fazenda do registro (visita em revenda vem como "Revenda: NOME").
 function historicoCombina(nomeRegistro, extra) {
   const t = semAcento(termoHistorico).trim();
@@ -5370,6 +5400,7 @@ function historicoCombina(nomeRegistro, extra) {
   return fazendaCombina(nome, t) || semAcento(extra).includes(t);
 }
 document.getElementById("buscaHistorico").addEventListener("input", (e) => { termoHistorico = e.target.value; renderizarHistoricoAtual(); });
+document.getElementById("filtroConsultorHistorico").addEventListener("change", (e) => { filtroConsultorHistorico = e.target.value; renderizarHistoricoAtual(); });
 
 document.querySelectorAll("[data-filtro-historico]").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -5448,6 +5479,18 @@ async function renderizarHistoricoAtual() {
   const container = document.getElementById("historicoLista");
   const gestor = ehGestor();
 
+  // Filtro por consultor (só gestor): nomes tirados do que está na tela (visitas ou pedidos).
+  const selC = document.getElementById("filtroConsultorHistorico");
+  if (gestor && selC) {
+    const fonte = modoHistorico === "visitas" ? (cacheHistoricoVisitas || []) : (cacheHistoricoPedidos || []);
+    const nomesC = [...new Set(fonte.map(x => x.Nome_Promotor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    if (filtroConsultorHistorico && !nomesC.includes(filtroConsultorHistorico)) filtroConsultorHistorico = "";
+    selC.innerHTML = '<option value="">Todos os consultores</option>' + nomesC.map(n => `<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+    selC.value = filtroConsultorHistorico;
+    selC.classList.toggle("oculto", nomesC.length === 0);
+  } else if (selC) { selC.classList.add("oculto"); }
+  const passaConsultor = (nome) => !gestor || !filtroConsultorHistorico || nome === filtroConsultorHistorico;
+
   // Botão " Editar" sempre visível no cabeçalho do item (não escondido dentro do
   // detalhe expansível) — mesmo motivo da mudança na aba Fazendas: era exatamente
   // onde o usuário relatou não conseguir encontrar a opção de editar.
@@ -5457,8 +5500,8 @@ async function renderizarHistoricoAtual() {
       container.innerHTML = '<div class="carregando-lista">Nenhuma visita registrada ainda.</div>';
       return;
     }
-    const visiveis = lista.map((v, i) => ({ v, i })).filter(({ v }) => historicoCombina(v.Propriedade, gestor ? v.Nome_Promotor : ""));
-    document.getElementById("buscaHistoricoInfo").textContent = termoHistorico.trim() ? `${visiveis.length} de ${lista.length} visitas` : "";
+    const visiveis = lista.map((v, i) => ({ v, i })).filter(({ v }) => passaConsultor(v.Nome_Promotor) && historicoCombina(v.Propriedade, gestor ? v.Nome_Promotor : ""));
+    document.getElementById("buscaHistoricoInfo").textContent = (termoHistorico.trim() || filtroConsultorHistorico) ? `${visiveis.length} de ${lista.length} visitas` : "";
     if (visiveis.length === 0) {
       container.innerHTML = '<div class="carregando-lista">Nenhuma visita encontrada para essa busca.</div>';
       return;
@@ -5487,8 +5530,8 @@ async function renderizarHistoricoAtual() {
       container.innerHTML = '<div class="carregando-lista">Nenhum pedido registrado ainda.</div>';
       return;
     }
-    const visiveis = grupos.map((g, i) => ({ g, i })).filter(({ g }) => historicoCombina(g.Propriedade, (gestor ? g.Nome_Promotor + " " : "") + g.itens.map(x => x.Revenda).join(" ")));
-    document.getElementById("buscaHistoricoInfo").textContent = termoHistorico.trim() ? `${visiveis.length} de ${grupos.length} pedidos` : "";
+    const visiveis = grupos.map((g, i) => ({ g, i })).filter(({ g }) => passaConsultor(g.Nome_Promotor) && historicoCombina(g.Propriedade, (gestor ? g.Nome_Promotor + " " : "") + g.itens.map(x => x.Revenda).join(" ")));
+    document.getElementById("buscaHistoricoInfo").textContent = (termoHistorico.trim() || filtroConsultorHistorico) ? `${visiveis.length} de ${grupos.length} pedidos` : "";
     if (visiveis.length === 0) {
       container.innerHTML = '<div class="carregando-lista">Nenhum pedido encontrado para essa busca.</div>';
       return;
@@ -7303,7 +7346,7 @@ function agendaStatusToBadge(status) {
   if (status.motivo === "semana_atual") return { classe: "agenda-status-aberta", texto: "Semana atual" };
   if (status.prazoISO) {
     const horasRestantes = (new Date(status.prazoISO).getTime() - Date.now()) / 3600000;
-    if (horasRestantes <= 24) return { classe: "agenda-status-perto", texto: "Prazo perto (sex 17h)" };
+    if (horasRestantes <= 24) return { classe: "agenda-status-perto", texto: "Prazo perto (sáb 14h)" };
   }
   return { classe: "agenda-status-aberta", texto: "Aberta" };
 }
