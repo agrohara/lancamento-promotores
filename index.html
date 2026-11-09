@@ -1819,6 +1819,18 @@ async function enviarOuEnfileirar(rotulo, url, metodo, corpo) {
 }
 
 let sincronizandoFilaOffline = false;
+let relatorioFilaOffline = [];   // resultado da última tentativa, por registro (mostrado ao tocar na faixa laranja)
+async function detalheRespostaFila(resp) {
+  try { const t = (await resp.clone().text()).slice(0, 200); return t ? ": " + t.replace(/\s+/g, " ") : ""; } catch (e) { return ""; }
+}
+// Cópia de segurança dos registros que o servidor recusou (4xx), para não sumirem sem rastro.
+function guardarRecusadoFila(item, motivo) {
+  try {
+    const lista = JSON.parse(localStorage.getItem("filaRecusadosAgroHara") || "[]");
+    lista.push({ quando: new Date().toISOString(), motivo, rotulo: item.rotulo, url: item.url, metodo: item.metodo, corpo: item.corpo });
+    localStorage.setItem("filaRecusadosAgroHara", JSON.stringify(lista.slice(-20)));
+  } catch (e) {}
+}
 
 // Processa a fila em ordem de chegada. Para no primeiro erro de rede (sem sinal —
 // tenta tudo de novo mais tarde) e em respostas 5xx (problema do servidor, tenta de
@@ -1828,20 +1840,29 @@ async function sincronizarFilaOffline() {
   if (!sessao || !sessao.token) return;
   sincronizandoFilaOffline = true;
   let enviados = 0;
+  relatorioFilaOffline = [];
   try {
     const itens = await listarFilaOffline();
     for (const item of itens) {
+      const linha = { rotulo: item.rotulo || "registro", criadoEm: item.criadoEm || "", kb: 0, resultado: "" };
+      try { linha.kb = Math.round(JSON.stringify(item.corpo || {}).length / 1024); } catch (e) {}
+      relatorioFilaOffline.push(linha);
       try {
         const resp = await fetch(item.url, { method: item.metodo, headers: cabecalhosEnvio(), body: JSON.stringify(item.corpo) });
         if (resp.ok) {
           await removerDaFilaOffline(item.chave);
           enviados++;
+          linha.resultado = "Enviado";
         } else if (resp.status >= 500 || resp.status === 401) {
+          linha.resultado = (resp.status === 401 ? "Sessão vencida (401)" : "Erro do servidor (" + resp.status + ")") + await detalheRespostaFila(resp);
           break; // servidor com problema, ou sessão vencida (401): MANTÉM a fila — depois de entrar de novo, tudo é enviado
         } else {
+          linha.resultado = "Recusado pelo servidor (" + resp.status + ")" + await detalheRespostaFila(resp) + " — descartado";
+          guardarRecusadoFila(item, linha.resultado);
           await removerDaFilaOffline(item.chave); // 4xx: descarta, reenviar não resolve
         }
       } catch (err) {
+        linha.resultado = "Não conseguiu falar com o servidor (" + ((err && err.message) || "rede") + ")";
         break; // sem rede — para aqui, tenta o resto depois
       }
     }
@@ -1882,7 +1903,36 @@ async function atualizarPilhaFilaOffline() {
   }
 }
 
-document.getElementById("pilhaFilaOffline").addEventListener("click", () => sincronizarFilaOffline());
+document.getElementById("pilhaFilaOffline").addEventListener("click", async () => {
+  await sincronizarFilaOffline();
+  mostrarPainelFilaOffline();
+});
+function mostrarPainelFilaOffline() {
+  let box = document.getElementById("painelFilaOffline");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "painelFilaOffline";
+    box.style.cssText = "position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;";
+    document.body.appendChild(box);
+  }
+  const online = navigator.onLine ? "com internet" : "SEM internet";
+  const linhas = relatorioFilaOffline.length
+    ? relatorioFilaOffline.map(l => `<div style="padding:8px 0;border-top:1px solid #D9DFDA;font-size:14px;"><b>${escHtml(l.rotulo)}</b> · ${l.kb} KB<br><span style="color:#4F5B54;">${escHtml(l.resultado || "—")}</span></div>`).join("")
+    : '<div style="font-size:14px;color:#4F5B54;">Nada na fila agora.</div>';
+  box.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:460px;width:100%;max-height:80vh;overflow:auto;padding:18px;">
+    <div style="font-size:18px;font-weight:700;color:#1A6436;margin-bottom:4px;">Envio dos registros</div>
+    <div style="font-size:13px;color:#4F5B54;margin-bottom:8px;">Aparelho ${online}. Resultado da última tentativa:</div>
+    ${linhas}
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button type="button" class="btn" id="filaCopiar" style="flex:1;">Copiar detalhes</button>
+      <button type="button" class="btn" id="filaFechar" style="flex:1;">Fechar</button>
+    </div></div>`;
+  document.getElementById("filaFechar").onclick = () => box.remove();
+  document.getElementById("filaCopiar").onclick = async () => {
+    const txt = "Fila de envio (" + online + ", " + new Date().toLocaleString("pt-BR") + ")\n" + relatorioFilaOffline.map(l => `- ${l.rotulo} · ${l.kb} KB · ${l.criadoEm} · ${l.resultado}`).join("\n");
+    try { await navigator.clipboard.writeText(txt); document.getElementById("filaCopiar").textContent = "Copiado"; } catch (e) { alert(txt); }
+  };
+}
 window.addEventListener("online", () => sincronizarFilaOffline());
 
 // "Aquecimento": com internet, carrega catálogo e fazendas em segundo plano assim que
