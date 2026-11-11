@@ -4,10 +4,13 @@
  * offline também do gestor.html e reserva que ignora ?parametros (ex.: /?app=1).
  * Só GET passa por aqui; login, relatórios e metas vão sempre direto para a rede.
  * v7: avisos no celular do gestor (evento "push" e toque na notificação) — ver api/_lib/push.js.
+ * v8: materiais em PDF do Catálogo (pasta /materiais/) guardados no aparelho para abrir sem internet,
+ *     em cache próprio que NÃO é apagado quando a versão do app muda.
  * Ao publicar versão nova do app, troque VERSAO_CACHE. */
-const VERSAO_CACHE = "agrohara-v7";
+const VERSAO_CACHE = "agrohara-v8";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
+const CACHE_MATERIAIS = "agrohara-materiais"; // PDFs do Catálogo — sobrevive às trocas de versão
 const ARQUIVOS_APP = ["/", "/index.html", "/manifest.json", "/icone-192.png", "/icone-512.png"];
 const ARQUIVOS_CDN = [
   "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
@@ -31,15 +34,50 @@ self.addEventListener("install", (evento) => {
 self.addEventListener("activate", (evento) => {
   evento.waitUntil((async () => {
     const nomes = await caches.keys();
-    await Promise.all(nomes.filter(n => !n.startsWith(VERSAO_CACHE)).map(n => caches.delete(n)));
+    await Promise.all(nomes.filter(n => !n.startsWith(VERSAO_CACHE) && n !== CACHE_MATERIAIS).map(n => caches.delete(n)));
     await self.clients.claim();
   })());
 });
+// PDF do Catálogo: usa a cópia guardada; se ainda não existe, baixa inteiro (sem Range), guarda e
+// responde. O Safari/iPhone pede PDF por faixas (Range), então a cópia é fatiada em resposta 206.
+async function responderMaterial(req) {
+  const url = new URL(req.url);
+  const chave = url.origin + url.pathname;
+  const cache = await caches.open(CACHE_MATERIAIS);
+  let resp = await cache.match(chave);
+  if (!resp) {
+    try {
+      const rede = await fetch(chave);
+      if (!rede.ok) return rede;
+      try { await cache.put(chave, rede.clone()); } catch (e) { /* sem espaço: segue sem guardar */ }
+      resp = rede;
+    } catch (err) {
+      return new Response("Este material ainda não foi baixado neste aparelho. Com internet, abra o Catálogo e toque em \"Baixar para usar sem internet\".",
+        { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+    }
+  }
+  const faixa = req.headers.get("range");
+  if (!faixa) return resp;
+  const m = /bytes=(\d*)-(\d*)/.exec(faixa);
+  if (!m) return resp;
+  const buf = await resp.clone().arrayBuffer();
+  const total = buf.byteLength;
+  let ini = m[1] === "" ? Math.max(0, total - Number(m[2])) : Number(m[1]);
+  let fim = m[1] === "" || m[2] === "" ? total - 1 : Math.min(Number(m[2]), total - 1);
+  if (ini > fim || ini >= total) return new Response(null, { status: 416, headers: { "Content-Range": "bytes */" + total } });
+  return new Response(buf.slice(ini, fim + 1), { status: 206, headers: {
+    "Content-Type": "application/pdf", "Content-Length": String(fim - ini + 1),
+    "Content-Range": `bytes ${ini}-${fim}/${total}`, "Accept-Ranges": "bytes" } });
+}
 function ehApiDeConsulta(url) { return APIS_CONSULTA.some(rota => url.pathname === rota); }
 self.addEventListener("fetch", (evento) => {
   const req = evento.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
+  if (url.origin === self.location.origin && url.pathname.startsWith("/materiais/")) {
+    evento.respondWith(responderMaterial(req));
+    return;
+  }
   if (url.origin === self.location.origin && url.pathname.startsWith("/api/")) {
     if (!ehApiDeConsulta(url)) return;
     evento.respondWith((async () => {

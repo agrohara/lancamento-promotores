@@ -1137,6 +1137,10 @@
     <section id="pagCatalogo" class="pagina oculto">
       <h2 class="titulo-pagina">Catálogo</h2>
       <div id="msgCatalogo"></div>
+      <div class="card" id="cardMateriais">
+        <p class="subtitulo">Materiais técnicos</p>
+        <div id="listaMateriais"></div>
+      </div>
       <input type="text" id="buscaCatalogo" placeholder="Buscar produto...">
       <div id="areaNovoProduto" class="card oculto">
         <p class="subtitulo">Novo produto</p>
@@ -5668,7 +5672,56 @@ function podeEditarCatalogo() {
   return cargo === "gerente" || cargo === "desenvolvedor";
 }
 
+/* ---------- Materiais em PDF do Catálogo (abrem sem internet) ----------
+   Para incluir um material novo: coloque o PDF na pasta /materiais do repositório e acrescente uma linha aqui. */
+const MATERIAIS = [
+  { id: "memento-2026-11", titulo: "Memento MSD 2026 · Novembro", detalhe: "Guia de produtos MSD Saúde Animal · PDF, 60 páginas, 11 MB", arquivo: "/materiais/memento-2026-novembro.pdf" }
+];
+const CACHE_MATERIAIS = "agrohara-materiais";
+async function materialGuardado(m) {
+  try { if (!window.caches) return false; const c = await caches.open(CACHE_MATERIAIS); return !!(await c.match(location.origin + m.arquivo)); }
+  catch (e) { return false; }
+}
+async function renderizarMateriais() {
+  const box = document.getElementById("listaMateriais");
+  if (!box) return;
+  const estado = await Promise.all(MATERIAIS.map(materialGuardado));
+  box.innerHTML = MATERIAIS.map((m, i) => `
+    <div class="item-catalogo" style="margin-bottom:8px;">
+      <div class="item-catalogo-topo" style="align-items:flex-start;gap:10px;">
+        <div>
+          <div class="item-catalogo-nome">${escHtml(m.titulo)}</div>
+          <div class="item-catalogo-detalhe">${escHtml(m.detalhe)}</div>
+          <div class="item-catalogo-detalhe" id="statusMat${i}" style="font-weight:600;color:${estado[i] ? "#1A6436" : "#8A5A00"};">${estado[i] ? "Disponível sem internet neste aparelho" : "Ainda não baixado neste aparelho"}</div>
+        </div>
+        <div class="item-catalogo-acoes" style="display:flex;flex-direction:column;gap:6px;">
+          <a class="btn-editar-linha" href="${escHtml(m.arquivo)}" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;">Abrir PDF</a>
+          ${estado[i] ? "" : `<button type="button" class="btn-editar-linha" data-baixar-material="${i}">Baixar para usar sem internet</button>`}
+        </div>
+      </div>
+    </div>`).join("");
+}
+document.getElementById("listaMateriais").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-baixar-material]"); if (!btn) return;
+  const m = MATERIAIS[Number(btn.getAttribute("data-baixar-material"))];
+  const st = document.getElementById("statusMat" + btn.getAttribute("data-baixar-material"));
+  btn.disabled = true; btn.textContent = "Baixando...";
+  if (st) { st.textContent = "Baixando, aguarde (use Wi-Fi se puder)..."; st.style.color = "#4F5B54"; }
+  try {
+    if (!window.caches) throw new Error("Este navegador não permite guardar arquivos para uso sem internet.");
+    const resp = await fetch(m.arquivo, { cache: "no-store" });
+    if (!resp.ok) throw new Error("Não foi possível baixar agora (erro " + resp.status + ").");
+    const c = await caches.open(CACHE_MATERIAIS);
+    await c.put(location.origin + m.arquivo, resp);
+    await renderizarMateriais();
+  } catch (err) {
+    if (st) { st.textContent = (err && err.message) || "Falha ao baixar. Tente de novo com internet."; st.style.color = "#B3261E"; }
+    btn.disabled = false; btn.textContent = "Baixar para usar sem internet";
+  }
+});
+
 async function carregarCatalogo() {
+  renderizarMateriais();
   const editavel = podeEditarCatalogo();
   document.getElementById("btnAbrirNovoProduto").classList.toggle("oculto", !editavel);
   document.getElementById("listaCatalogo").innerHTML = '<div class="carregando-lista">Carregando...</div>';
