@@ -530,6 +530,36 @@
   .mp-lista .pinmini{width:22px;height:30px;}
   .mp-semloc ul{margin:6px 0 0;padding-left:18px;font-weight:400;}
   .mp-barra select{border:1px solid var(--borda-forte);border-radius:8px;background:#fff;padding:0 12px;}
+
+  /* ===== EVOLUÇÃO VISUAL (nov/2026): resposta ao clique, movimento e sombras — só apresentação =====
+     A tela de Aprovação de despesas (#despesasPainel e #dspLado) NÃO é tocada: toda regra abaixo
+     exclui esses dois blocos. */
+  @property --glow{syntax:"<number>";inherits:false;initial-value:0;}
+  :root{
+    --ease-suave:cubic-bezier(.22,1,.36,1);
+    --sombra-cartao:0 1px 2px rgba(10,42,23,.05),0 14px 36px -18px rgba(10,42,23,.20);
+    --sombra-elevado:0 2px 6px rgba(10,42,23,.08),0 28px 56px -24px rgba(10,42,23,.35);
+  }
+  @keyframes surgir{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .kpi:not(#despesasPainel *):not(#dspLado *),.pc:not(#despesasPainel *):not(#dspLado *),.mp-kpi:not(#despesasPainel *):not(#dspLado *){animation:surgir 350ms var(--ease-suave) backwards;}
+  .kpi:not(#despesasPainel *):not(#dspLado *),.pc:not(#despesasPainel *):not(#dspLado *),.card:not(#despesasPainel *):not(#dspLado *),.mp-kpi:not(#despesasPainel *):not(#dspLado *){box-shadow:var(--sombra-cartao);border-color:rgba(10,42,23,.08);}
+  .kpi:not(#despesasPainel *):not(#dspLado *),.pc:not(#despesasPainel *):not(#dspLado *){
+    transition:transform 200ms var(--ease-suave),box-shadow 350ms var(--ease-suave),border-color 200ms,--glow 350ms var(--ease-suave);
+    background-image:radial-gradient(22rem circle at var(--px,50%) var(--py,50%),rgba(26,100,54,var(--glow)),transparent 70%);}
+  .pc:not(#despesasPainel *):not(#dspLado *):active,.kpi:not(#despesasPainel *):not(#dspLado *):active{transform:scale(.99);}
+  .btn-topo:not(#despesasPainel *):not(#dspLado *),.abas button:not(#despesasPainel *):not(#dspLado *),.seg button:not(#despesasPainel *):not(#dspLado *),.mp-btn:not(#despesasPainel *):not(#dspLado *),.chip:not(#despesasPainel *):not(#dspLado *){transition:background-color 150ms,color 150ms,border-color 150ms,transform 120ms var(--ease-suave);}
+  .btn-topo:not(#despesasPainel *):not(#dspLado *):active,.mp-btn:not(#despesasPainel *):not(#dspLado *):active{transform:scale(.97);}
+  .filtros input:not(#despesasPainel *):not(#dspLado *):focus,.filtros select:not(#despesasPainel *):not(#dspLado *):focus,.mp-barra input:not(#despesasPainel *):not(#dspLado *):focus,.mp-barra select:not(#despesasPainel *):not(#dspLado *):focus{outline:2px solid var(--acao);outline-offset:2px;box-shadow:none;border-color:var(--acao);}
+  .abas button:not(#despesasPainel *):not(#dspLado *):active{background:var(--acao-fundo);}
+  @media (hover:hover) and (pointer:fine){
+    .kpi:not(#despesasPainel *):not(#dspLado *):hover,.pc:not(#despesasPainel *):not(#dspLado *):hover{transform:translateY(-3px);box-shadow:var(--sombra-elevado);border-color:rgba(26,100,54,.28);--glow:.12;}
+  }
+  button,a,select,summary,[role=button],tr.clicavel,.pc,.tile{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  @media (prefers-reduced-motion:reduce){
+    .kpi:not(#despesasPainel *):not(#dspLado *),.pc:not(#despesasPainel *):not(#dspLado *),.mp-kpi:not(#despesasPainel *):not(#dspLado *){animation:none !important;}
+    .kpi:not(#despesasPainel *):not(#dspLado *):hover,.pc:not(#despesasPainel *):not(#dspLado *):hover,.pc:not(#despesasPainel *):not(#dspLado *):active,.kpi:not(#despesasPainel *):not(#dspLado *):active{transform:none !important;}
+  }
+  @media print{*{animation:none !important;transition:none !important;transform:none !important;}}
 </style>
 </head>
 <body>
@@ -1839,6 +1869,20 @@ iniciar();
 if (new URLSearchParams(location.search).get("aba") === "despesas") {
   let t = 0; const espera = setInterval(() => { t++; if (sessao && !modoVend && !$("painel").classList.contains("oculto")) { clearInterval(espera); trocarAba("despesas"); } else if (t > 20) clearInterval(espera); }, 300);
 }
+
+// Brilho que acompanha o ponteiro nos cartões (só computador com mouse). Não age na Aprovação de despesas.
+(function () {
+  try {
+    if (!window.matchMedia || !window.matchMedia("(hover:hover) and (pointer:fine)").matches) return;
+    document.addEventListener("pointermove", (e) => {
+      const el = e.target && e.target.closest ? e.target.closest(".kpi,.pc") : null;
+      if (!el || el.closest("#despesasPainel,#dspLado")) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--px", (e.clientX - r.left) + "px");
+      el.style.setProperty("--py", (e.clientY - r.top) + "px");
+    }, { passive: true });
+  } catch (e) { /* só enfeite */ }
+})();
 </script>
 </body>
 </html>

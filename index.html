@@ -782,6 +782,72 @@
   .cartao{box-shadow:none;border:1px solid var(--borda);border-radius:8px;}
   .cartao-numero{color:var(--texto-forte);font-weight:600;font-variant-numeric:tabular-nums;}
   #buscaHistorico{font-size:16px !important;border:1.5px solid var(--marca) !important;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234F5B54' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='6'/%3E%3Cpath d='M16 16l4 4'/%3E%3C/svg%3E") 16px center/22px no-repeat !important;}
+  /* ===== EVOLUÇÃO VISUAL (nov/2026): resposta ao toque, movimento e paleta — só apresentação ===== */
+  @property --glow{syntax:"<number>";inherits:false;initial-value:0;}
+  :root{
+    --hara-900:#0A2A17; --hara-700:#11442A; --hara-600:#155230; --hara-500:#1A6436; --hara-300:#8FBF9C; --hara-200:#CFE3D5; --hara-100:#E6F1E9; --hara-50:#F5F9F6;
+    --ease-suave:cubic-bezier(.22,1,.36,1);
+    --sombra-cartao:0 1px 2px rgba(10,42,23,.05),0 14px 36px -18px rgba(10,42,23,.20);
+    --sombra-elevado:0 2px 6px rgba(10,42,23,.08),0 28px 56px -24px rgba(10,42,23,.35);
+    --sombra-botao:0 10px 24px -12px rgba(26,100,54,.75);
+    --fundo:#F5F9F6; --texto-forte:#10231A; --texto-suave:#55615F; --texto-mudo:#67706D;
+    --linha:rgba(10,42,23,.08);
+  }
+  @keyframes surgir{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  @keyframes pulsar{0%,100%{opacity:.55;}50%{opacity:1;}}
+  .pagina:not(.oculto){animation:surgir 450ms var(--ease-suave) backwards;}
+  .grid-cartoes .cartao{animation:surgir 450ms var(--ease-suave) backwards;}
+  .grid-cartoes .cartao:nth-child(2){animation-delay:40ms;} .grid-cartoes .cartao:nth-child(3){animation-delay:80ms;} .grid-cartoes .cartao:nth-child(4){animation-delay:120ms;}
+  /* cartões e itens: sombra de tom verde, borda fina e resposta ao toque */
+  .cartao,.card,.item-fazenda,.item-historico,.item-catalogo,.acao-rapida{box-shadow:var(--sombra-cartao);border-color:var(--linha);}
+  .cartao,.card,.item-fazenda,.item-historico,.item-catalogo{border-radius:16px;}
+  .acao-rapida,.item-fazenda,.item-historico,.item-catalogo{
+    transition:transform 120ms var(--ease-suave),box-shadow 350ms var(--ease-suave),border-color 200ms,background-color 150ms,--glow 350ms var(--ease-suave);
+    background-image:radial-gradient(22rem circle at var(--px,50%) var(--py,50%),rgba(26,100,54,var(--glow)),transparent 70%);}
+  .acao-rapida:active{transform:scale(.98);}
+  .acao-rapida[data-acao=novaVisita]{box-shadow:var(--sombra-botao);}
+  .acao-rapida[data-acao=novaVisita]:active{background-color:var(--hara-700);}
+  .item-fazenda-topo:active,.item-historico-topo:active{background:var(--hara-50);}
+  .acao-rapida::after{transition:transform 200ms var(--ease-suave);}
+  /* botões */
+  .btn{transition:background-color 200ms var(--ease-suave),box-shadow 200ms var(--ease-suave),transform 200ms var(--ease-suave),border-color 200ms;}
+  .btn:not(.btn-secundario){box-shadow:var(--sombra-botao);}
+  .btn:active:not(:disabled){transform:scale(.98);}
+  .btn:not(.btn-secundario):active:not(:disabled){background:var(--hara-700);border-color:var(--hara-700);}
+  .btn-secundario:active:not(:disabled){background:var(--hara-100);}
+  .btn:disabled,.btn[aria-busy="true"]{opacity:.45;cursor:not-allowed;box-shadow:none;}
+  .btn-editar-linha,.btn-pdf,.chip-filtro{transition:background-color 150ms,border-color 150ms,color 150ms,transform 120ms var(--ease-suave);}
+  .btn-editar-linha:active,.btn-pdf:active,.chip-filtro:active{transform:scale(.97);}
+  /* campos: foco claro, cantos mais macios */
+  input[type=text],input[type=search],input[type=number],input[type=password],input[type=date],input[type=email],input[type=tel],select,textarea{border-radius:14px;transition:border-color 150ms,box-shadow 150ms;}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--hara-500);outline-offset:2px;box-shadow:none;border-color:var(--hara-500);}
+  :focus-visible{outline:2px solid var(--hara-500);outline-offset:2px;}
+  /* navegação inferior */
+  .nav-item{transition:color 150ms,transform 120ms var(--ease-suave);}
+  .nav-item span{transition:background-color 200ms var(--ease-suave);}
+  .nav-item:active{transform:scale(.95);}
+  /* progresso das etapas (cadastro de fazenda) */
+  .progresso-etapas .ponto{transition:background-color 350ms var(--ease-suave),width 350ms var(--ease-suave);}
+  /* carregando: esqueleto em vez de texto solto */
+  .carregando-lista.esqueleto{display:flex;flex-direction:column;gap:10px;background:transparent;border:0;padding:4px 0;}
+  .carregando-lista.esqueleto i{display:block;height:48px;border-radius:14px;background:var(--hara-100);animation:pulsar 1.6s ease-in-out infinite;}
+  .carregando-lista.esqueleto i:nth-child(2){animation-delay:.15s;} .carregando-lista.esqueleto i:nth-child(3){animation-delay:.3s;}
+  .so-leitor{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+  /* só com mouse (computador): elevação e brilho que acompanha o ponteiro */
+  @media (hover:hover) and (pointer:fine){
+    .acao-rapida:hover,.item-fazenda:hover,.item-historico:hover,.item-catalogo:hover{transform:translateY(-3px);box-shadow:var(--sombra-elevado);border-color:rgba(26,100,54,.28);--glow:.13;}
+    .acao-rapida:hover::after{transform:translateX(3px);}
+    .btn:not(.btn-secundario):hover:not(:disabled){background:var(--hara-600);border-color:var(--hara-600);}
+    .btn-secundario:hover:not(:disabled){background:var(--hara-50);}
+  }
+  /* toque sem atraso: remove a espera do duplo-toque e o clarão cinza do navegador */
+  button,a,select,summary,label,[role=button],.acao-rapida,.item-fazenda-topo,.item-historico-topo,.nav-item{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  @media (prefers-reduced-motion:reduce){
+    .pagina,.cartao,.carregando-lista.esqueleto i{animation:none !important;}
+    .acao-rapida,.item-fazenda,.item-historico,.item-catalogo,.btn,.nav-item{transition:background-color 150ms,color 150ms,border-color 150ms !important;}
+    .acao-rapida:hover,.acao-rapida:active,.item-fazenda:hover,.item-historico:hover,.item-catalogo:hover,.btn:active,.nav-item:active{transform:none !important;}
+  }
+  @media print{*{animation:none !important;transition:none !important;}}
 </style>
 </head>
 <body>
@@ -2686,7 +2752,7 @@ async function carregarTodasPropriedades() {
 
 async function carregarListaFazendas() {
   const container = document.getElementById("listaFazendas");
-  container.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  container.innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   await carregarTodasPropriedades();
   montarFiltroConsultorFazendas();
   atualizarListaFazendas();
@@ -2760,7 +2826,7 @@ document.getElementById("listaFazendas").addEventListener("click", async (e) => 
   if (jaAberto) return;
 
   areaDetalhe.classList.remove("oculto");
-  areaDetalhe.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  areaDetalhe.innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const resp = await fetch(`${CONFIG.URL_PROPRIEDADES}?nome=${encodeURIComponent(nome)}`, {
       headers: {
@@ -4500,7 +4566,7 @@ async function calCarregarListaDaFazenda() {
   const card = document.getElementById("calListaCard");
   const lista = document.getElementById("calLista");
   card.classList.remove("oculto");
-  lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  lista.innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const resp = await fetch(`${CAL_URL()}&propriedade=${encodeURIComponent(calFazendaSelecionada)}`, { headers: calCabecalhosAuth() });
     const dados = await resp.json();
@@ -5473,7 +5539,7 @@ document.querySelectorAll("[data-filtro-historico]").forEach(btn => {
 });
 
 async function carregarHistorico() {
-  document.getElementById("historicoLista").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("historicoLista").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   if (!Object.keys(proprietariosPorFazenda).length) { try { await carregarTodasPropriedades(); } catch (e) {} }
   cacheHistoricoVisitas = null;
   cacheHistoricoPedidos = null;
@@ -5724,7 +5790,7 @@ async function carregarCatalogo() {
   renderizarMateriais();
   const editavel = podeEditarCatalogo();
   document.getElementById("btnAbrirNovoProduto").classList.toggle("oculto", !editavel);
-  document.getElementById("listaCatalogo").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaCatalogo").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const resp = await fetch(CONFIG.URL_PRODUTOS, { headers: { "x-api-key": CONFIG.API_KEY } });
     const dados = await resp.json();
@@ -6188,7 +6254,7 @@ async function carregarPaginaMetas() {
 async function recarregarPeriodoMetas() {
   limparMsg("msgMetas");
   limparMsg("msgCestas");
-  document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaPaginaMetas").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const q = `recurso=metas&acao=periodo&tipo=${metasSel.tipo}&ano=${metasSel.ano}&periodo=${metasSel.periodo}`;
     const resp = await fetch(`${CONFIG.URL_AGENDA}?${q}`, { headers: cabecalhosAutenticados() });
@@ -6322,7 +6388,7 @@ async function carregarAbaCestas() {
 
 async function recarregarCestasEMetas() {
   limparMsg("msgCestas");
-  document.getElementById("listaCestas").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaCestas").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const respCestas = await fetch(CONFIG.URL_CESTAS, { headers: cabecalhosAutenticados() });
     const dadosCestas = await respCestas.json().catch(() => ({}));
@@ -6828,7 +6894,7 @@ function cabecalhosAutenticados() {
 
 async function abrirDetalhePromotor(nomePromotor) {
   document.getElementById("areaDetalheDrill").classList.remove("oculto");
-  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const cabecalhos = cabecalhosAutenticados();
     const urlPedidos = new URL(CONFIG.URL_API, window.location.origin);
@@ -6864,7 +6930,7 @@ async function abrirDetalhePromotor(nomePromotor) {
 
 async function abrirDetalheFazenda(nomeFazenda) {
   document.getElementById("areaDetalheDrill").classList.remove("oculto");
-  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const cabecalhos = cabecalhosAutenticados();
     const promotorFiltro = ehGestor() ? document.getElementById("selectFiltroPromotor").value : "";
@@ -6905,7 +6971,7 @@ async function abrirDetalheFazenda(nomeFazenda) {
 
 async function abrirDetalheRevenda(nomeRevenda) {
   document.getElementById("areaDetalheDrill").classList.remove("oculto");
-  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  document.getElementById("listaDetalheDrill").innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const cabecalhos = cabecalhosAutenticados();
     const promotorFiltro = ehGestor() ? document.getElementById("selectFiltroPromotor").value : "";
@@ -7940,7 +8006,7 @@ function atualizarNavAgendaGestor() {
 async function carregarAgendaGestor() {
   const container = document.getElementById("agendaGestorConteudo");
   atualizarNavAgendaGestor();
-  container.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  container.innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const url = new URL(CONFIG.URL_AGENDA, window.location.origin);
     if (agendaGestorModo === "hoje") {
@@ -8063,7 +8129,7 @@ async function abrirDespesas() {
   mostrarPagina("despesas");
   document.getElementById("msgDespesas").innerHTML = "";
   const lista = document.getElementById("listaDespesas");
-  lista.innerHTML = '<div class="carregando-lista">Carregando...</div>';
+  lista.innerHTML = '<div class="carregando-lista esqueleto" aria-busy="true"><i></i><i></i><i></i><span class="so-leitor">Carregando...</span></div>';
   try {
     const r = await dspApi("GET", "");
     const itens = r.itens || [];
@@ -8600,6 +8666,21 @@ async function dspSucesso(texto) {
   mostrarMsg("msgDespesas", texto, "sucesso");
 }
 
+
+// Brilho que acompanha o ponteiro (só computador com mouse; no celular não faz nada).
+(function () {
+  try {
+    if (!window.matchMedia || !window.matchMedia("(hover:hover) and (pointer:fine)").matches) return;
+    const ALVOS = ".acao-rapida,.item-fazenda,.item-historico,.item-catalogo";
+    document.addEventListener("pointermove", (e) => {
+      const el = e.target && e.target.closest ? e.target.closest(ALVOS) : null;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      el.style.setProperty("--px", (e.clientX - r.left) + "px");
+      el.style.setProperty("--py", (e.clientY - r.top) + "px");
+    }, { passive: true });
+  } catch (e) { /* só enfeite */ }
+})();
 </script>
 </body>
 </html>
