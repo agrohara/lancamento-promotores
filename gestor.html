@@ -520,6 +520,11 @@
   .mp-barra .grupo{display:flex;flex-direction:column;gap:6px;}
   .mp-barra .grupo label{margin:0;}
   .mp-leg{transform:translate(-50%,-50%);}
+  .mp-chk{display:flex !important;align-items:center;gap:10px;min-height:48px;font-size:15px !important;font-weight:600 !important;text-transform:none !important;letter-spacing:0 !important;color:var(--texto) !important;cursor:pointer;}
+  .mp-chk input{width:22px;height:22px;accent-color:var(--marca);}
+  .mp-base{width:34px;height:34px;border-radius:9px;background:#1B2A22;border:3px solid #fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .mp-resumo.quatro{grid-template-columns:repeat(4,minmax(0,1fr));}
+  @media (max-width:980px){.mp-resumo.quatro{grid-template-columns:1fr;}}
   .mp-modo{margin-bottom:14px;display:inline-flex;}
   .mp-modo button{font-size:15px;min-height:44px;padding:8px 18px;}
   .mp-modo button.ativo{background:var(--marca);color:#fff;}
@@ -699,9 +704,11 @@
     <div class="mp-barra oculto" id="mpBarraFaz">
       <div class="grupo"><label for="mfConsultor">Consultor de Pecuária</label><select id="mfConsultor"></select></div>
       <div class="grupo"><label for="mfBusca">Buscar</label><input type="search" id="mfBusca" placeholder="Fazenda ou proprietário" autocomplete="off"></div>
+      <div class="grupo"><label>Moradia do consultor</label><label class="mp-chk"><input type="checkbox" id="mfBases" checked> Mostrar a cidade-base e a distância</label></div>
     </div>
     <div class="mp-barra" id="mpBarraPerc">
       <div class="grupo"><label for="mpConsultor">Consultor de Pecuária</label><select id="mpConsultor"></select></div>
+      <div class="grupo"><label>Rota</label><label class="mp-chk"><input type="checkbox" id="mpBase"> Incluir ida e volta da cidade-base</label></div>
       <div class="grupo"><label>Semana</label>
         <div class="mp-semana">
           <button type="button" id="mpAnt" class="mp-btn" aria-label="Semana anterior">‹</button>
@@ -1633,6 +1640,38 @@ $("mpConsultor").addEventListener("change", () => desenharMapa());
 $("mpAnt").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, -7); desenharMapa(); });
 $("mpProx").addEventListener("click", () => { mp.segunda = somaDias(mp.segunda, 7); desenharMapa(); });
 
+/* ---------- Cidade-base de cada consultor (planilha DADOS CONSULTORES, 29/09/2026) ----------
+   Só cidade/UF e o centro aproximado do município — nada de endereço, CPF ou contato.
+   "chave" = nome do consultor como está gravado no app (sem acento, maiúsculas). */
+const BASES_CONSULTORES = [
+  { chave: "AROLDO",     nome: "Aroldo Munhoz",       cidade: "Loanda",                   lat: -22.9239, lon: -53.1356 },
+  { chave: "GABRIEL",    nome: "Gabriel Hossadczuk",  cidade: "Pinhão",                   lat: -25.6953, lon: -51.6567 },
+  { chave: "GABRIEL S",  nome: "Gabriel Schonhalz",   cidade: "Planalto",                 lat: -25.7203, lon: -53.7606 },
+  { chave: "GUSTAVO",    nome: "Gustavo Mulineth",    cidade: "Rio Bonito do Iguaçu",     lat: -25.4906, lon: -52.5272 },
+  { chave: "JOAO TALES", nome: "João Tales",          cidade: "Pitanga",                  lat: -24.7583, lon: -51.7603 },
+  { chave: "KAUANA",     nome: "Kauana Garcia Molinari", cidade: "Toledo",                lat: -24.7246, lon: -53.7412 },
+  { chave: "LUCAS",      nome: "Lucas Drummond Reis", cidade: "Santo Antônio da Platina", lat: -23.2956, lon: -50.0775 },
+  { chave: "MARIANA",    nome: "Mariana Favaro",      cidade: "Maringá",                  lat: -23.4205, lon: -51.9331 },
+  { chave: "PEDRO",      nome: "Pedro Henrique Nunes da Silva", cidade: "Ibema",          lat: -25.1178, lon: -53.0092 }
+];
+// Acha a base pelo nome gravado no app: igual à chave, ou começando por ela (a chave mais longa vence,
+// para "GABRIEL S..." não cair em "GABRIEL").
+function baseDe(nome) {
+  const n = semAcento(nome).toUpperCase();
+  if (!n) return null;
+  let melhor = null;
+  for (const b of BASES_CONSULTORES) {
+    if (n === b.chave || n.startsWith(b.chave + " ")) { if (!melhor || b.chave.length > melhor.chave.length) melhor = b; }
+  }
+  return melhor;
+}
+const BASE_SVG = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
+function iconeBase() { return L.divIcon({ className: "", html: `<div class="mp-base">${BASE_SVG}</div>`, iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -16] }); }
+function marcadorBase(b) {
+  return L.marker([b.lat, b.lon], { icon: iconeBase(), title: "Base: " + b.cidade, zIndexOffset: 500 })
+    .bindPopup(`<b>Base de ${esc(b.nome)}</b><br>${esc(b.cidade)}/PR<br><small>Posição aproximada: centro da cidade</small>`);
+}
+
 /* ---------- Modo "Fazendas no mapa": um pin vermelho (estilo Google) por fazenda ---------- */
 mp.modo = "percurso"; mp.fazendas = null; mp.marcadores = {};
 const PIN_SVG = '<svg class="mf-pin" viewBox="0 0 30 42" aria-hidden="true"><path d="M15 1C7.3 1 1 7.2 1 14.8 1 25 15 41 15 41s14-16 14-26.2C29 7.2 22.7 1 15 1z" fill="#EA4335" stroke="#B3261E" stroke-width="1.5"/><circle cx="15" cy="14.5" r="5.2" fill="#fff"/></svg>';
@@ -1644,6 +1683,7 @@ function definirModoMapa(m) {
   $("mpBarraFaz").classList.toggle("oculto", !faz); $("mpBarraPerc").classList.toggle("oculto", faz);
   $("mpLegendaFaz").hidden = !faz; $("mpLegendaPerc").hidden = faz;
   $("mpTitulo").textContent = faz ? "Fazendas no mapa" : "Percurso da semana";
+  $("mpResumo").className = "mp-resumo";
   $("mpListaTit").textContent = faz ? "Fazendas" : "Visitas na ordem";
   if (mp.grupo) mp.grupo.clearLayers();
   abrirMapa();
@@ -1651,6 +1691,8 @@ function definirModoMapa(m) {
 document.querySelectorAll("#mpModo button").forEach(b => b.addEventListener("click", () => definirModoMapa(b.dataset.m)));
 $("mfConsultor").addEventListener("change", () => desenharFazendas());
 $("mfBusca").addEventListener("input", () => desenharFazendas());
+$("mfBases").addEventListener("change", () => desenharFazendas());
+$("mpBase").addEventListener("change", () => desenharMapa());
 async function desenharFazendas() {
   const meu = ++mp.req;
   $("mpErro").classList.add("oculto"); $("mpLista").innerHTML = ""; $("mpSemLoc").innerHTML = "";
@@ -1673,10 +1715,18 @@ async function desenharFazendas() {
       (!termo || semAcento(p.Propriedade).includes(termo) || semAcento(p.Proprietario).includes(termo)))
       .sort((a, b) => String(a.Propriedade).localeCompare(String(b.Propriedade), "pt-BR"));
     const comLoc = lista.filter(p => coordOk(p.Latitude, p.Longitude)), semLoc = lista.filter(p => !coordOk(p.Latitude, p.Longitude));
+    const mostrarBases = $("mfBases").checked;
+    const kmBase = p => { const b = mostrarBases ? baseDe(donoFazenda(p)) : null; return b ? kmEntre([b.lat, b.lon], [Number(p.Latitude), Number(p.Longitude)]) : null; };
+    const dists = comLoc.map(kmBase).filter(k => k !== null);
+    const fmtKm = n => Math.round(n).toLocaleString("pt-BR");
+    const medKm = dists.length ? dists.reduce((a, b) => a + b, 0) / dists.length : null;
+    const maxKm = dists.length ? Math.max(...dists) : null;
+    $("mpResumo").className = "mp-resumo" + (mostrarBases ? " quatro" : "");
     $("mpResumo").innerHTML =
       `<div class="mp-kpi"><small>Fazendas</small><b>${lista.length}</b><span>${cons ? esc(cons) : "todos os consultores"}</span></div>` +
       `<div class="mp-kpi"><small>Com pin no mapa</small><b>${comLoc.length}</b><span>latitude e longitude cadastradas</span></div>` +
-      `<div class="mp-kpi"><small>Sem localização</small><b>${semLoc.length}</b><span>${semLoc.length ? "faltam no mapa" : "tudo localizado"}</span></div>`;
+      `<div class="mp-kpi"><small>Sem localização</small><b>${semLoc.length}</b><span>${semLoc.length ? "faltam no mapa" : "tudo localizado"}</span></div>` +
+      (mostrarBases ? `<div class="mp-kpi"><small>Distância até a cidade-base</small><b>${medKm === null ? "—" : fmtKm(medKm) + " km"}</b><span>${medKm === null ? "sem base cadastrada" : "média em linha reta · a mais longe: " + fmtKm(maxKm) + " km"}</span></div>` : "");
     if (!mp.map) {
       const c0 = comLoc[0] || { Latitude: -23.31, Longitude: -51.16 };
       mp.map = L.map("mpMapa", { zoomControl: true, scrollWheelZoom: false }).setView([c0.Latitude, c0.Longitude], 9);
@@ -1688,17 +1738,23 @@ async function desenharFazendas() {
     comLoc.forEach((p, i) => {
       const reb = (Number(p.Matrizes) || 0) + (Number(p.Primiparas) || 0) + (Number(p.Novilhas) || 0);
       const m = L.marker([Number(p.Latitude), Number(p.Longitude)], { icon: L.divIcon({ className: "", html: PIN_SVG, iconSize: [30, 42], iconAnchor: [15, 41], popupAnchor: [0, -38] }), title: p.Propriedade })
-        .bindPopup(`<b>${esc(p.Propriedade)}</b><br>${esc(p.Proprietario || "")}${p.Municipio ? " · " + esc(p.Municipio) : ""}<br><small>Consultor: ${esc(donoFazenda(p))}${p.Tipo_Propriedade ? "<br>" + esc(p.Tipo_Propriedade) : ""}${reb ? "<br>Matrizes, primíparas e novilhas: " + reb.toLocaleString("pt-BR") : ""}</small>`)
+        .bindPopup(`<b>${esc(p.Propriedade)}</b><br>${esc(p.Proprietario || "")}${p.Municipio ? " · " + esc(p.Municipio) : ""}<br><small>Consultor: ${esc(donoFazenda(p))}${p.Tipo_Propriedade ? "<br>" + esc(p.Tipo_Propriedade) : ""}${reb ? "<br>Matrizes, primíparas e novilhas: " + reb.toLocaleString("pt-BR") : ""}${kmBase(p) !== null ? "<br><b>" + fmtKm(kmBase(p)) + " km</b> da cidade-base (" + esc(baseDe(donoFazenda(p)).cidade) + "), em linha reta" : ""}</small>`)
         .addTo(mp.grupo);
       mp.marcadores[i] = m; p._i = i;
     });
     $("mpLista").innerHTML = comLoc.length ? comLoc.map(p =>
-      `<li class="mf-item" data-i="${p._i}"><span class="n" style="background:#EA4335">●</span><div><b>${esc(p.Propriedade)}</b><small>${esc(p.Proprietario || "")} · ${esc(donoFazenda(p))}</small></div></li>`).join("")
+      `<li class="mf-item" data-i="${p._i}"><span class="n" style="background:#EA4335">●</span><div><b>${esc(p.Propriedade)}</b><small>${esc(p.Proprietario || "")} · ${esc(donoFazenda(p))}${kmBase(p) !== null ? " · " + fmtKm(kmBase(p)) + " km da base" : ""}</small></div></li>`).join("")
       : '<li style="display:block">Nenhuma fazenda com localização neste filtro.</li>';
     if (semLoc.length) $("mpSemLoc").innerHTML = `<div class="mp-semloc">${semLoc.length} fazenda${semLoc.length === 1 ? "" : "s"} sem localização (o consultor precisa marcar a posição no cadastro):<ul>${semLoc.slice(0, 60).map(p => `<li>${esc(p.Propriedade)} · ${esc(donoFazenda(p))}</li>`).join("")}${semLoc.length > 60 ? `<li>e mais ${semLoc.length - 60}...</li>` : ""}</ul></div>`;
-    if (!comLoc.length) { msgMapa(lista.length ? "As fazendas deste filtro ainda não têm localização." : "Nenhuma fazenda encontrada."); return; }
-    msgMapa("");
-    mp.map.fitBounds(L.latLngBounds(comLoc.map(p => [Number(p.Latitude), Number(p.Longitude)])).pad(0.15), { maxZoom: 13 });
+    // cidades-base: só a do consultor escolhido, ou todas quando "Todos"
+    const basesVisiveis = !mostrarBases ? [] : (cons ? [baseDe(cons)].filter(Boolean) : [...new Set(todas.map(donoFazenda))].map(baseDe).filter(Boolean));
+    [...new Set(basesVisiveis)].forEach(b => marcadorBase(b).addTo(mp.grupo));
+    if (!comLoc.length && !basesVisiveis.length) { msgMapa(lista.length ? "As fazendas deste filtro ainda não têm localização." : "Nenhuma fazenda encontrada."); return; }
+    msgMapa(comLoc.length ? "" : "As fazendas deste filtro ainda não têm localização. A cidade-base do consultor aparece no mapa.");
+    const alvo = comLoc.map(p => [Number(p.Latitude), Number(p.Longitude)]);
+    if (cons) basesVisiveis.forEach(b => alvo.push([b.lat, b.lon]));
+    else if (!alvo.length) basesVisiveis.forEach(b => alvo.push([b.lat, b.lon]));
+    mp.map.fitBounds(L.latLngBounds(alvo).pad(0.15), { maxZoom: 13 });
   } catch (e) {
     if (meu !== mp.req) return;
     $("mpResumo").innerHTML = "";
@@ -1728,6 +1784,7 @@ function msgMapa(txt) { const e = $("mpMapaMsg"); e.textContent = txt || ""; e.c
 async function desenharMapa() {
   const meu = ++mp.req, promotor = $("mpConsultor").value, segunda = mp.segunda;
   $("mpSemanaTxt").textContent = dm(segunda) + " a " + dm(somaDias(segunda, 5));
+  $("mpResumo").className = "mp-resumo";
   $("mpErro").classList.add("oculto");
   $("mpLista").innerHTML = ""; $("mpSemLoc").innerHTML = "";
   $("mpResumo").innerHTML = '<div class="mp-kpi"><small>Carregando...</small><b>—</b></div>';
@@ -1749,8 +1806,11 @@ async function desenharMapa() {
       return { v, ok: coordOk(la, lo), la, lo, origem };
     });
     const comLoc = paradas.filter(p => p.ok), semLoc = paradas.filter(p => !p.ok);
+    const baseP = $("mpBase").checked ? baseDe(promotor) : null;
+    const rota = comLoc.map(p => [p.la, p.lo]);
+    if (baseP && rota.length) { rota.unshift([baseP.lat, baseP.lon]); rota.push([baseP.lat, baseP.lon]); }
     let total = 0; const trechos = [];
-    for (let i = 1; i < comLoc.length; i++) { const k = kmEntre([comLoc[i - 1].la, comLoc[i - 1].lo], [comLoc[i].la, comLoc[i].lo]); trechos.push(k); total += k; }
+    for (let i = 1; i < rota.length; i++) { const k = kmEntre(rota[i - 1], rota[i]); trechos.push(k); total += k; }
     const fz = new Set(visitas.map(v => semAcento(v.Propriedade))).size;
     const fmt = n => Math.round(n).toLocaleString("pt-BR");
     let rdvTxt = "sem RDV nesta semana", rdvSub = "";
@@ -1760,7 +1820,7 @@ async function desenharMapa() {
     } else if (rdv.erro) rdvTxt = "indisponível";
     $("mpResumo").innerHTML =
       `<div class="mp-kpi"><small>Fazendas visitadas</small><b>${fz}</b><span>${visitas.length} visita${visitas.length === 1 ? "" : "s"} na semana</span></div>` +
-      `<div class="mp-kpi"><small>Rota estimada (linha reta)</small><b>${fmt(total)} km</b><span>${comLoc.length} visita${comLoc.length === 1 ? "" : "s"} com localização</span></div>` +
+      `<div class="mp-kpi"><small>Rota estimada (linha reta)</small><b>${fmt(total)} km</b><span>${comLoc.length} visita${comLoc.length === 1 ? "" : "s"} com localização${baseP ? " · com ida e volta de " + esc(baseP.cidade) : ""}</span></div>` +
       `<div class="mp-kpi"><small>KM lançado no RDV</small><b>${rdvTxt}</b><span>${esc(rdvSub)}</span></div>`;
     let n = 0;
     $("mpLista").innerHTML = paradas.length ? paradas.map(p => {
@@ -1778,15 +1838,17 @@ async function desenharMapa() {
     }
     mp.map.invalidateSize();
     mp.grupo.clearLayers();
-    const pts = comLoc.map(p => [p.la, p.lo]);
+    const pts = rota;
+    $("mpResumo").className = "mp-resumo";
     if (pts.length > 1) L.polyline(pts, { color: "#1A6436", weight: 4, opacity: .85 }).addTo(mp.grupo);
+    if (baseP) marcadorBase(baseP).addTo(mp.grupo);
+    for (let j = 1; j < pts.length; j++) {
+      const meio = [(pts[j - 1][0] + pts[j][0]) / 2, (pts[j - 1][1] + pts[j][1]) / 2];
+      L.marker(meio, { interactive: false, icon: L.divIcon({ className: "", html: `<div class="mp-leg">${fmt(trechos[j - 1])} km</div>`, iconSize: [0, 0] }) }).addTo(mp.grupo);
+    }
     comLoc.forEach((p, i) => {
       L.marker([p.la, p.lo], { icon: L.divIcon({ className: "", html: `<div class="mp-pino">${i + 1}</div>`, iconSize: [34, 34], iconAnchor: [17, 17] }) })
         .bindPopup(`<b>${esc(p.v.Propriedade)}</b><br>${dm(p.v.Dia_Visita)} · ${esc(p.v.Tipo_Visita || "")}<br><small>Posição: ${esc(p.origem)}</small>`).addTo(mp.grupo);
-      if (i > 0) {
-        const meio = [(pts[i - 1][0] + pts[i][0]) / 2, (pts[i - 1][1] + pts[i][1]) / 2];
-        L.marker(meio, { interactive: false, icon: L.divIcon({ className: "", html: `<div class="mp-leg">${fmt(trechos[i - 1])} km</div>`, iconSize: [0, 0] }) }).addTo(mp.grupo);
-      }
     });
     mp.map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 14 });
   } catch (e) {
