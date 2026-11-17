@@ -222,6 +222,13 @@
   .dsp-item{display:flex;justify-content:space-between;gap:10px;padding:12px;border:1px solid var(--borda);border-radius:12px;margin-bottom:8px;cursor:pointer;background:#fff;}
   .dsp-item:hover{border-color:var(--acao);background:var(--acao-fundo);}
   .dsp-item.sel{border-color:var(--marca);box-shadow:0 0 0 2px rgba(31,77,46,.18);background:var(--acao-fundo);}
+  .dsp-fl{display:grid;grid-template-columns:1fr;gap:4px;margin:6px 0 8px;}
+  .dsp-fl label{font-size:11px;font-weight:800;color:var(--suave);text-transform:uppercase;letter-spacing:.06em;margin-top:6px;}
+  .dsp-fl select{min-height:44px;font-size:15px;padding:0 10px;border:1.5px solid var(--borda-forte);border-radius:10px;background:#fff;color:var(--texto);width:100%;}
+  .dsp-fl select:focus{outline:2px solid var(--acao);outline-offset:2px;}
+  .dsp-fl-limpar{margin-top:8px;min-height:40px;border:1.5px solid var(--borda-forte);border-radius:999px;background:#fff;color:var(--marca);font-weight:700;font-size:13px;}
+  .dsp-fl-limpar:hover{background:var(--acao-fundo);}
+  .dsp-fl-resumo{font-size:13px;font-weight:700;color:var(--suave);margin:2px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--borda);}
   .dsp-item b{display:block;}
   .dsp-item small{color:var(--suave);}
   .dsp-item .v{font-weight:800;white-space:nowrap;text-align:right;}
@@ -737,7 +744,15 @@
       <button data-f="todas" type="button">Todas</button>
     </div>
     <div class="dsp-layout">
-      <div class="card dsp-lista-card"><h3>Solicitações</h3><div id="dspLista"><div class="vazio">Carregando...</div></div></div>
+      <div class="card dsp-lista-card"><h3>Solicitações</h3>
+        <div class="dsp-fl" id="dspFiltrosLista">
+          <label for="dspFCons">Consultor</label><select id="dspFCons"><option value="">Todos os consultores</option></select>
+          <label for="dspFSemana">Semana</label><select id="dspFSemana"><option value="">Todas as semanas</option></select>
+          <label for="dspFTipo">Tipo</label><select id="dspFTipo"><option value="">RDV e CI</option><option value="RDV">Só RDV</option><option value="CI">Só CI</option></select>
+          <button type="button" id="dspFLimpar" class="dsp-fl-limpar oculto">Limpar filtros</button>
+        </div>
+        <div id="dspResumoLista" class="dsp-fl-resumo"></div>
+        <div id="dspLista"><div class="vazio">Carregando...</div></div></div>
       <div class="card dsp-detalhe-card"><div id="dspDetalhe"><div class="vazio">Selecione uma solicitação na lista.</div></div></div>
     </div>
   </main>
@@ -1165,6 +1180,7 @@ document.addEventListener("keydown", e => {
    ========================================================================= */
 const URL_RDV = "/api/agenda?recurso=rdv";
 let dspItens = [], dspFiltro = "abertas", dspSel = null, dspOcupado = false;
+let dspFCons = "", dspFSemana = "", dspFTipo = "";
 const moeda2 = v => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 function numBR(v) { let s = String(v == null ? "" : v).trim(); s = s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s; const n = Number(s); return isFinite(n) ? n : 0; }
 function cabecalhosApi() { return { "Content-Type": "application/json", "x-api-key": API_KEY, "Authorization": "Bearer " + (sessao && sessao.token || "") }; }
@@ -1207,6 +1223,7 @@ async function carregarDespesas(manterSel) {
     const r = await apiRdv("GET", "&fila=1");
     dspItens = r.itens || [];
     atualizarBadgeDesp();
+    montarFiltrosDesp();
     desenharListaDesp();
     if (!manterSel) $("dspDetalhe").innerHTML = '<div class="vazio">Selecione uma solicitação na lista.</div>';
   } catch (e) { $("dspLista").innerHTML = `<div class="dsp-aviso">${esc(e.message)}</div>`; }
@@ -1218,14 +1235,40 @@ function atualizarBadgeDesp() {
   const n = dspItens.filter(l => l.status === "pendente" || l.status === "erro_kanban").length;
   const b = $("badgeDesp"); b.textContent = n; b.classList.toggle("oculto", n === 0);
 }
+// Semana de uma solicitação (segunda-feira, AAAA-MM-DD): RDV pelo início do período; CI pela data de criação.
+function semanaDesp(l) {
+  const d = l.tipo === "RDV" ? l.periodo_ini : String(l.criado_em || "").slice(0, 10);
+  return d ? segundaDe(String(d).slice(0, 10)) : "";
+}
+// Monta as listas de consultor e semana com o que existe na fila (mantém a escolha atual se ainda existir).
+function montarFiltrosDesp() {
+  const selC = $("dspFCons"), selS = $("dspFSemana");
+  if (!selC || !selS) return;
+  const cons = [...new Set(dspItens.map(l => l.promotor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const sem = [...new Set(dspItens.map(semanaDesp).filter(Boolean))].sort().reverse();
+  if (dspFCons && !cons.includes(dspFCons)) dspFCons = "";
+  if (dspFSemana && !sem.includes(dspFSemana)) dspFSemana = "";
+  selC.innerHTML = '<option value="">Todos os consultores</option>' + cons.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  selS.innerHTML = '<option value="">Todas as semanas</option>' + sem.map(s => `<option value="${s}">Semana de ${dataBR(s)}</option>`).join("");
+  selC.value = dspFCons; selS.value = dspFSemana; $("dspFTipo").value = dspFTipo;
+}
+["dspFCons", "dspFSemana", "dspFTipo"].forEach(id => $(id).addEventListener("change", e => {
+  if (id === "dspFCons") dspFCons = e.target.value; else if (id === "dspFSemana") dspFSemana = e.target.value; else dspFTipo = e.target.value;
+  desenharListaDesp();
+}));
+$("dspFLimpar").addEventListener("click", () => { dspFCons = dspFSemana = dspFTipo = ""; montarFiltrosDesp(); desenharListaDesp(); });
 function desenharListaDesp() {
   const f = { abertas: l => l.status === "pendente" || l.status === "erro_kanban", enviadas: l => l.status === "enviada_kanban", recusadas: l => l.status === "recusada", todas: () => true }[dspFiltro];
-  const lista = dspItens.filter(f);
+  const filtrando = !!(dspFCons || dspFSemana || dspFTipo);
+  const lista = dspItens.filter(l => f(l) && (!dspFCons || l.promotor === dspFCons) && (!dspFSemana || semanaDesp(l) === dspFSemana) && (!dspFTipo || l.tipo === dspFTipo));
+  $("dspFLimpar").classList.toggle("oculto", !filtrando);
+  const somaLista = lista.reduce((t, l) => t + (Number(l.valor_promotor) || 0), 0);
+  $("dspResumoLista").textContent = lista.length ? `${lista.length} solicitaç${lista.length === 1 ? "ão" : "ões"} · ${moeda2(somaLista)}` : "";
   $("dspLista").innerHTML = lista.length ? lista.map(l => {
     const [c, t] = stDesp(l);
     const titulo = l.tipo === "RDV" ? `RDV · ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}` : "CI";
     return `<div class="dsp-item ${dspSel === l.id ? "sel" : ""}" data-id="${l.id}"><div><b>${esc(l.promotor)}</b><small>${esc(titulo)}</small><br><span class="st ${c}">${t}</span></div><div class="v">${moeda2(l.valor_promotor)}</div></div>`;
-  }).join("") : '<div class="vazio">Nada por aqui.</div>';
+  }).join("") : `<div class="vazio">${filtrando ? "Nenhuma solicitação com esses filtros." : "Nada por aqui."}</div>`;
 }
 document.getElementById("dspLista").addEventListener("click", e => { const it = e.target.closest(".dsp-item"); if (it) abrirDetalheDesp(Number(it.dataset.id)); });
 
