@@ -99,6 +99,7 @@ function normalizarRdv(d, rascunho) {
       data, kmIni, kmFim, kmRodado: rod, kmFimInformado: kmFimBruto,
       hotel: cent(numero(dia.hotel, "hotel", { max: 100000 })),
       almoco: cent(numero(dia.almoco, "almoço", { max: 100000 })),
+      cafe: cent(numero(dia.cafe, "café da manhã / café da tarde", { max: 100000 })),
       jantar: cent(numero(dia.jantar, "jantar", { max: 100000 })),
       aviso: cent(numero(dia.aviso, "despesa com aviso prévio", { max: 100000 })),
       descricao: txt(dia.descricao, 400),
@@ -128,10 +129,10 @@ function normalizarRdv(d, rascunho) {
         if (!pp.nome || !pp.cargo || !pp.local) falha(`Almoço de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}): informe nome, função e loja/propriedade de quem almoçou com você (pessoa ${k + 1}).`);
       }
     }
-    const gastou = reg.hotel + reg.almoco + reg.jantar + reg.aviso;
+    const gastou = reg.hotel + reg.almoco + reg.cafe + reg.jantar + reg.aviso;
     if (!rascunho && rod > 0 && !reg.kmDescricao) falha(`Informe para onde foi o deslocamento de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}): cidades, fazendas ou revendas.`);
     if (!rascunho && reg.hotel > 0 && !reg.hotelDescricao) falha(`Informe o nome e a cidade do hotel de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
-    if (!rascunho && (reg.almoco + reg.jantar + reg.aviso) > 0 && !reg.descricao) falha(`Informe a descrição (justificativa) da despesa de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
+    if (!rascunho && (reg.almoco + reg.cafe + reg.jantar + reg.aviso) > 0 && !reg.descricao) falha(`Informe a descrição (justificativa) da despesa de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (!rascunho && gastou > 0 && reg.fotos.length === 0) falha(`Anexe a foto da nota de ${DIAS_SEMANA[i].toLowerCase()} (${br(data)}).`);
     if (rod > 0 || gastou > 0) temMovimento = true;
     kmAnterior = kmFim;
@@ -184,30 +185,48 @@ function totaisRdv(d) {
   const hotel = cent(d.dias.reduce((s, x) => s + x.hotel, 0));
   const almoco = cent(d.dias.reduce((s, x) => s + x.almoco, 0));
   const jantar = cent(d.dias.reduce((s, x) => s + x.jantar, 0));
+  const cafe = cent(d.dias.reduce((s, x) => s + (x.cafe || 0), 0)); // café da manhã/tarde: sempre individual
   const aviso = cent(d.dias.reduce((s, x) => s + x.aviso, 0));
   // Refeições segmentadas: individual x "em conjunto" (almoço/jantar com mais de uma pessoa,
   // que é a Despesa Pré Aprovada).
   const conjA = cent(d.dias.reduce((s, x) => s + ((x.almocoPessoas || 1) > 1 ? x.almoco : 0), 0));
   const conjJ = cent(d.dias.reduce((s, x) => s + ((x.jantarPessoas || 1) > 1 ? x.jantar : 0), 0));
   const almocoInd = cent(almoco - conjA), jantarInd = cent(jantar - conjJ);
-  const total = cent(valorKm + hotel + almoco + jantar + aviso);
-  const porDia = d.dias.map(x => cent(x.kmRodado * vkm + x.hotel + x.almoco + x.jantar + x.aviso));
-  return { km, valorKm, hotel, almoco, jantar, aviso, almocoInd, almocoConj: conjA, jantarInd, jantarConj: conjJ,
-    refeicoesInd: cent(almocoInd + jantarInd), refeicoesConj: cent(conjA + conjJ), porDia, total, vkm };
+  const total = cent(valorKm + hotel + almoco + cafe + jantar + aviso);
+  const porDia = d.dias.map(x => cent(x.kmRodado * vkm + x.hotel + x.almoco + (x.cafe || 0) + x.jantar + x.aviso));
+  return { km, valorKm, hotel, almoco, cafe, jantar, aviso, almocoInd, almocoConj: conjA, jantarInd, jantarConj: conjJ,
+    refeicoesInd: cent(almocoInd + cafe + jantarInd), refeicoesConj: cent(conjA + conjJ), porDia, total, vkm };
 }
 
-function normalizarCi(d, rascunho) {
+// Fotos da CI por categoria (cada uma vai no seu campo e aparece separada para o gestor).
+const ANEXOS_CI = [
+  { chave: "comprovante", rotulo: "Comprovante", arquivo: "comprovante" },
+  { chave: "nota", rotulo: "Nota fiscal", arquivo: "nota" },
+  { chave: "listaPresenca", rotulo: "Lista de presença", arquivo: "lista_presenca" },
+  { chave: "evento", rotulo: "Foto do evento", arquivo: "foto_evento" }
+];
+const PARA_CI_PADRAO = "ADELITA ARAUJO";
+
+// Campos obrigatórios da CI = os campos vermelhos do modelo oficial: Ação, Data da execução,
+// Consultor, Tipo de acordo e Valor (+ ao menos uma foto). Os demais são opcionais.
+function normalizarCi(d, rascunho, nomePromotor) {
   d = d || {};
   const cartao = d.cartaoPresente === true || d.cartaoPresente === "SIM";
   const valor = cent(numero(d.valor, "o valor", { min: rascunho ? 0 : 0.01, obrigatorio: !rascunho, max: 1e7 }));
+  let consultor = txt(d.consultor, 120);
+  if (!consultor || (nomePromotor && semAcento(consultor) === semAcento(nomePromotor))) consultor = nomePromotor ? nomeConsultor(nomePromotor) : consultor;
+  const anexos = {};
+  ANEXOS_CI.forEach(a => { anexos[a.chave] = urlsDoStorage(d.anexos && d.anexos[a.chave], 4); });
   const reg = {
     acao: txtLongo(d.acao, 600),
     execucao: dataIso(d.execucao, "a data de execução", false),
+    consultor,
+    para: txt(d.para, 120),
     brinde: txt(d.brinde, 120),
     cliente: txt(d.cliente, 160),
     periodoIni: dataIso(d.periodoIni, "o início do período", false),
     periodoFim: dataIso(d.periodoFim, "o fim do período", false),
-    tipoAcordo: txtLongo(d.tipoAcordo, 1500),
+    tipoAcordo: txtLongo(d.tipoAcordo, 1000),
     cartaoPresente: cartao,
     titular: txt(d.titular, 120),
     cpfCnpj: txt(d.cpfCnpj, 30),
@@ -218,17 +237,22 @@ function normalizarCi(d, rascunho) {
       bairro: txt(d.entrega && d.entrega.bairro, 80), cidade: txt(d.entrega && d.entrega.cidade, 80),
       recebedor: txt(d.entrega && d.entrega.recebedor, 120), telefone: txt(d.entrega && d.entrega.telefone, 30)
     },
-    centroCusto: txt(d.centroCusto, 80),
-    fotos: urlsDoStorage(d.fotos, 8)
+    centroCusto: txt(d.centroCusto, 80) || "PECUÁRIA",
+    anexos,
+    fotos: urlsDoStorage(d.fotos, 8) // CI antiga (sem categoria)
   };
   if (!rascunho) {
     if (!reg.acao) falha("Descreva a ação.");
-    if (!reg.cliente) falha("Informe o cliente.");
-    if (!reg.fotos.length) falha("Anexe ao menos uma foto ou comprovante da CI.");
-    if (!reg.centroCusto) falha("Informe o centro de custo (ex.: Pecuária, PET).");
+    if (!reg.execucao) falha("Informe a data da execução da despesa.");
+    if (!reg.consultor) falha("Informe o consultor.");
+    if (!reg.tipoAcordo) falha("Descreva o tipo de acordo.");
+    if (!totalFotosCi(reg)) falha("Anexe ao menos uma foto (comprovante, nota, lista de presença ou foto do evento).");
     if (cartao && !reg.titular) falha("Informe o nome do titular do cartão presente.");
   }
   return reg;
+}
+function totalFotosCi(d) {
+  return ANEXOS_CI.reduce((n, a) => n + ((d.anexos && d.anexos[a.chave]) || []).length, 0) + ((d && d.fotos) || []).length;
 }
 
 /* ---------- demanda da semana (cruzamento custo x venda) ---------- */
@@ -261,7 +285,7 @@ function periodoTextoRdv(sol) {
   const d = sol.dados || {};
   const ini = d.semana || sol.periodo_ini;
   let fim = sol.periodo_fim || paraIso(ms(ini) + 5 * 86400000);
-  const movidos = (d.dias || []).filter(x => x.kmRodado > 0 || x.hotel > 0 || x.almoco > 0 || x.jantar > 0 || x.aviso > 0);
+  const movidos = (d.dias || []).filter(x => x.kmRodado > 0 || x.hotel > 0 || x.almoco > 0 || (x.cafe || 0) > 0 || x.jantar > 0 || x.aviso > 0);
   if (movidos.length) fim = movidos[movidos.length - 1].data;
   const [ai, mi, di] = [ini.slice(0, 4), ini.slice(5, 7), ini.slice(8, 10)];
   const [af, mf, df] = [fim.slice(0, 4), fim.slice(5, 7), fim.slice(8, 10)];
@@ -292,6 +316,14 @@ function nomeConsultor(n) {
   return NOMES_CONSULTOR[k] || String(n || "").trim().toUpperCase();
 }
 function tituloRdv(sol) { return `RDV - CONSULTOR ${nomeConsultor(sol.promotor_nome)} | ${periodoTextoRdv(sol)}`; }
+// Nome do arquivo da CI no padrão combinado: SEQUÊNCIA CI - NOME DE QUEM GEROU - NOME DA DESPESA - DATA DA DESPESA - DATA DE ENVIO
+const dataArq = (iso) => (iso ? `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}` : "");
+function rotuloArquivoCi(sol, extra) {
+  const d = sol.dados || {};
+  const partes = [String(extra.numero || "").trim(), String(d.consultor || nomeConsultor(sol.promotor_nome)).trim(),
+    String(d.acao || "CI").trim().slice(0, 40), dataArq(d.execucao), dataArq(extra.emissao || extra.hoje)];
+  return partes.filter(Boolean).join(" - ");
+}
 const nomeArquivoSeguro = (t, ext) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\|/g, "-").replace(/\//g, "-").replace(/[^A-Za-z0-9 _-]/g, "").replace(/\s+/g, "_") + "." + ext;
 
 /* ---------- Excel ---------- */
@@ -300,12 +332,12 @@ function planilhaRdv(sol, extra) {
   const d = sol.dados, t = totaisRdv(d);
   const p = new Planilha("RDV");
   p.paisagem = true;
-  const larg = { A: 15, B: 11, C: 10, D: 10, E: 9, F: 12, G: 34, H: 12, I: 28, J: 12, K: 12, L: 24, M: 42, N: 14, O: 46, P: 14 };
+  const larg = { A: 15, B: 11, C: 10, D: 10, E: 9, F: 12, G: 34, H: 12, I: 28, J: 12, K: 16, L: 12, M: 24, N: 42, O: 14, P: 46, Q: 14 };
   Object.keys(larg).forEach(c => p.largura(c, larg[c]));
   const cab = { b: true, borda: true, fill: "E8F0E8", h: "center", wrap: true };
   const caixa = { borda: true, wrap: true };
   const money = { borda: true, fmt: "moeda" };
-  const ULT = "P";
+  const ULT = "Q";
   const COR = { km: "DCE9F7", hotel: "FCE5CD", ref: "FFF2CC", pre: "E4DAF2", out: "F8D7DA", tot: "E8F0E8" };
   const fc = (k, base) => ({ ...(base || {}), fill: COR[k] });
 
@@ -328,9 +360,10 @@ function planilhaRdv(sol, extra) {
   // linhas da tabela: cabeçalho 10-11, dias 12-17, subtotais 18
   const L0 = 12, LF = L0 + d.dias.length - 1, LS = LF + 1;
 
+  p.cel("A5", "ATENÇÃO: a coluna CAFÉ DA MANHÃ E CAFÉ DA TARDE é exclusivamente consumo individual; o que foi pago no local da CI não deve ser lançado aqui.", { sz: 9, b: true, cor: "9C2B2B" }); p.mescla(`A5:${ULT}5`);
   p.cel("A6", "PRESTAÇÃO DE CONTAS", { b: true, fill: "E8F0E8", borda: true, h: "center" }); p.mescla("A6:C6");
   p.cel("D6", "DESPESA DESTE RDV:", cab); p.mescla("D6:F6");
-  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: `P${LS}` });
+  p.cel("G6", t.total, { b: true, fmt: "moeda", borda: true, h: "center" }, { f: `Q${LS}` });
   p.estiloIntervalo("A6:G6", { borda: true });
   const dem = Number(extra.demanda) || 0;
   p.cel("D7", "DEMANDA DA SEMANA:", cab); p.mescla("D7:F7");
@@ -356,24 +389,24 @@ function planilhaRdv(sol, extra) {
   p.cel("B10", "DATA", cab); p.mescla("B10:B11");
   p.cel("C10", "QUILOMETRAGEM", fc("km", cab)); p.mescla("C10:G10");
   p.cel("H10", "HOTEL", fc("hotel", cab)); p.mescla("H10:I10");
-  p.cel("J10", "REFEIÇÕES INDIVIDUAIS", fc("ref", cab)); p.mescla("J10:K10");
-  p.cel("L10", "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA)", fc("pre", cab)); p.mescla("L10:M10");
-  p.cel("N10", "OUTROS", fc("out", cab));
-  p.cel("O10", "DESCRIÇÃO DA DESPESA", cab);
-  p.cel("P10", "TOTAL DO DIA", cab); p.mescla("P10:P11");
+  p.cel("J10", "REFEIÇÕES INDIVIDUAIS", fc("ref", cab)); p.mescla("J10:L10");
+  p.cel("M10", "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA)", fc("pre", cab)); p.mescla("M10:N10");
+  p.cel("O10", "OUTROS", fc("out", cab));
+  p.cel("P10", "DESCRIÇÃO DA DESPESA", cab);
+  p.cel("Q10", "TOTAL DO DIA", cab); p.mescla("Q10:Q11");
   const sub = {
     C: "KM INICIAL", D: "KM FINAL", E: "KM RODADO", F: `VALOR KM (R$ ${t.vkm.toFixed(2).replace(".", ",")})`, G: "DESCRIÇÃO DO KM RODADO (CIDADES / FAZENDAS / REVENDAS)",
-    H: "HOTEL (R$)", I: "DESCRIÇÃO DO HOTEL (NOME E CIDADE)", J: "ALMOÇO (R$)", K: "JANTAR (R$)",
-    L: "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA) (R$)", M: "QUANTIDADE DE PESSOAS E QUEM PARTICIPOU",
-    N: "AVISO PRÉVIO (R$)", O: "(AÇÃO, ATIVIDADE OU JUSTIFICATIVA QUE ORIGINOU A DESPESA)"
+    H: "HOTEL (R$)", I: "DESCRIÇÃO DO HOTEL (NOME E CIDADE)", J: "ALMOÇO (R$)", K: "CAFÉ DA MANHÃ E CAFÉ DA TARDE (R$) - SÓ CONSUMO INDIVIDUAL", L: "JANTAR (R$)",
+    M: "DESPESA PRÉ APROVADA (ALMOÇO OU JANTAR COM MAIS DE UMA PESSOA) (R$)", N: "QUANTIDADE DE PESSOAS E QUEM PARTICIPOU",
+    O: "AVISO PRÉVIO (R$)", P: "(AÇÃO, ATIVIDADE OU JUSTIFICATIVA QUE ORIGINOU A DESPESA)"
   };
-  const grupo = { C: "km", D: "km", E: "km", F: "km", G: "km", H: "hotel", I: "hotel", J: "ref", K: "ref", L: "pre", M: "pre", N: "out" };
+  const grupo = { C: "km", D: "km", E: "km", F: "km", G: "km", H: "hotel", I: "hotel", J: "ref", K: "ref", L: "ref", M: "pre", N: "pre", O: "out" };
   p.estiloIntervalo(`A10:${ULT}11`, { borda: true, fill: COR.tot });
   ["C", "D", "E", "F", "G"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.km }));
   ["H", "I"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.hotel }));
-  ["J", "K"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.ref }));
-  ["L", "M"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.pre }));
-  p.estiloIntervalo("N10:N11", { borda: true, fill: COR.out });
+  ["J", "K", "L"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.ref }));
+  ["M", "N"].forEach(c => p.estiloIntervalo(`${c}10:${c}11`, { borda: true, fill: COR.pre }));
+  p.estiloIntervalo("O10:O11", { borda: true, fill: COR.out });
   Object.keys(sub).forEach(c => p.cel(c + "11", sub[c], { ...cab, fill: COR[grupo[c]] || COR.tot }));
   p.altura(10, 22); p.altura(11, 66);
 
@@ -393,14 +426,15 @@ function planilhaRdv(sol, extra) {
     p.cel("H" + l, x.hotel, { ...money, fill: COR.hotel });
     p.cel("I" + l, x.hotelDescricao || "", { ...caixa, fill: COR.hotel });
     p.cel("J" + l, almConj ? 0 : x.almoco, { ...money, fill: COR.ref });
-    p.cel("K" + l, janConj ? 0 : x.jantar, { ...money, fill: COR.ref });
+    p.cel("K" + l, x.cafe || 0, { ...money, fill: COR.ref });
+    p.cel("L" + l, janConj ? 0 : x.jantar, { ...money, fill: COR.ref });
     const conj = (almConj ? x.almoco : 0) + (janConj ? x.jantar : 0);
-    p.cel("L" + l, cent(conj), { ...money, fill: COR.pre });
+    p.cel("M" + l, cent(conj), { ...money, fill: COR.pre });
     const pessoas = [quem("Almoço", x.almocoPessoas || 1, x.participantes), quem("Jantar", x.jantarPessoas || 1, x.jantarParticipantes)].filter(Boolean).join("\n");
-    p.cel("M" + l, pessoas, { ...caixa, fill: COR.pre });
-    p.cel("N" + l, x.aviso, { ...money, fill: COR.out });
-    p.cel("O" + l, x.descricao || "", caixa);
-    p.cel("P" + l, t.porDia[i], { ...money, b: true, fill: COR.tot }, { f: `F${l}+H${l}+J${l}+K${l}+L${l}+N${l}` });
+    p.cel("N" + l, pessoas, { ...caixa, fill: COR.pre });
+    p.cel("O" + l, x.aviso, { ...money, fill: COR.out });
+    p.cel("P" + l, x.descricao || "", caixa);
+    p.cel("Q" + l, t.porDia[i], { ...money, b: true, fill: COR.tot }, { f: `F${l}+H${l}+J${l}+K${l}+L${l}+M${l}+O${l}` });
     const maior = Math.max((x.kmDescricao || "").length / 34, (x.hotelDescricao || "").length / 28, pessoas.length / 42, (x.descricao || "").length / 46);
     p.altura(l, Math.min(120, Math.max(30, Math.ceil(maior) * 15 + 6)));
   });
@@ -408,8 +442,8 @@ function planilhaRdv(sol, extra) {
   p.cel("A" + LS, "SUBTOTAIS", { b: true, borda: true, fill: "E8F0E8" }); p.mescla(`A${LS}:B${LS}`);
   const sf = { b: true, borda: true, fill: "E8F0E8" };
   const soma = (c, v, fmt) => p.cel(c + LS, v, { ...sf, fmt }, { f: `SUM(${c}${L0}:${c}${LF})` });
-  soma("E", t.km, "km"); soma("F", t.valorKm, "moeda"); soma("H", t.hotel, "moeda"); soma("J", t.almocoInd, "moeda"); soma("K", t.jantarInd, "moeda");
-  soma("L", t.refeicoesConj, "moeda"); soma("N", t.aviso, "moeda"); soma("P", t.total, "moeda");
+  soma("E", t.km, "km"); soma("F", t.valorKm, "moeda"); soma("H", t.hotel, "moeda"); soma("J", t.almocoInd, "moeda"); soma("K", t.cafe, "moeda"); soma("L", t.jantarInd, "moeda");
+  soma("M", t.refeicoesConj, "moeda"); soma("O", t.aviso, "moeda"); soma("Q", t.total, "moeda");
 
   const LI = LS + 2;
   p.cel("A" + LI, "INFORMAÇÕES DE RELEVÂNCIA SOBRE AS DESPESAS", cab); p.mescla(`A${LI}:${ULT}${LI}`);
@@ -590,7 +624,7 @@ async function tratarRdv(req, res, ctx) {
     if (acao === "salvar") {
       const tipo = b.tipo === "CI" ? "CI" : b.tipo === "RDV" ? "RDV" : falha("Escolha RDV ou CI.");
       const rascunho = b.rascunho === true;
-      const dados = tipo === "RDV" ? normalizarRdv(b.dados, rascunho) : normalizarCi(b.dados, rascunho);
+      const dados = tipo === "RDV" ? normalizarRdv(b.dados, rascunho) : normalizarCi(b.dados, rascunho, nomeUsuario);
       let bloqueio = null;
       if (tipo === "RDV" && !rascunho && !ehGestor) {
         const sit = await situacaoAgendaProxima(supabase, nomeUsuario, dados.semana, dados.diasSemAgenda);
@@ -660,7 +694,7 @@ async function tratarRdv(req, res, ctx) {
       if (sol.tipo === "RDV" && (demanda === null || !isFinite(demanda))) { try { demanda = await demandaDaSemana(supabase, sol.promotor_nome, sol.periodo_ini); } catch (e) { demanda = 0; } }
       const extra = { hoje, aprovador: nomeUsuario, previa: sol.status !== "enviada_kanban", emissao: anterior.emissao || hoje, valor: anterior.valor, numero: anterior.numero || "", demanda: demanda || 0 };
       const buf = sol.tipo === "RDV" ? planilhaRdv(sol, extra) : planilhaCi(sol, extra);
-      const rotuloArq = sol.tipo === "RDV" ? tituloRdv(sol) : `CI ${sol.promotor_nome} ${hoje}`;
+      const rotuloArq = sol.tipo === "RDV" ? tituloRdv(sol) : rotuloArquivoCi(sol, extra);
       res.status(200).json({ nome: nomeArquivoSeguro(rotuloArq, "xlsx"), base64: Buffer.from(buf).toString("base64") });
       return;
     }
@@ -702,6 +736,63 @@ async function tratarRdv(req, res, ctx) {
       const gNovo = sol.gestor ? { ...sol.gestor } : null; if (gNovo) delete gNovo.valor;
       const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: novo, valor_promotor: valorNovo, gestor: gNovo, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
       if (error) throw error;
+      res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
+      return;
+    }
+
+    // Gestor edita QUALQUER campo da CI antes de aprovar (as fotos não mudam aqui: ver "remover_foto").
+    if (acao === "editar_ci") {
+      const { data: sol, error: eE } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
+      if (eE) throw eE;
+      if (!sol || sol.tipo !== "CI") { res.status(404).json({ erro: "CI não encontrada." }); return; }
+      if (!["pendente", "erro_kanban"].includes(sol.status)) { res.status(409).json({ erro: "Só dá para editar a CI antes da aprovação." }); return; }
+      const d0 = sol.dados || {};
+      const e0 = d0.entrega || {};
+      const e1 = (b.dados && b.dados.entrega) || {};
+      const mescla = { ...d0, ...(b.dados || {}), entrega: { ...e0, ...e1 }, anexos: d0.anexos, fotos: d0.fotos };
+      const novo = normalizarCi(mescla, true, null); // permissivo: o gestor pode ajustar tudo
+      if (!(novo.valor > 0)) falha("Informe um valor maior que zero.");
+      const mud = [];
+      const rot = { acao: "ação", execucao: "data da execução", consultor: "consultor", para: "destinatário", brinde: "brinde", cliente: "cliente", periodoIni: "início da campanha", periodoFim: "fim da campanha", tipoAcordo: "tipo de acordo", titular: "titular do cartão", cpfCnpj: "CPF/CNPJ", valor: "valor", observacao: "observação", centroCusto: "centro de custo" };
+      Object.keys(rot).forEach(k => { if (String(d0[k] ?? "") !== String(novo[k] ?? "")) mud.push(rot[k]); });
+      if (!!d0.cartaoPresente !== !!novo.cartaoPresente) mud.push("cartão presente");
+      Object.keys(novo.entrega).forEach(k => { if (String(e0[k] || "") !== String(novo.entrega[k] || "")) mud.push("entrega (" + k + ")"); });
+      if (!mud.length) { res.status(200).json(detalheLinha(sol)); return; }
+      novo.ajustesGestor = [...(Array.isArray(d0.ajustesGestor) ? d0.ajustesGestor : []), { por: nomeUsuario, em: new Date().toISOString(), mudancas: ["Editou: " + mud.join(", ")] }].slice(-20);
+      const gNovo = sol.gestor ? { ...sol.gestor } : null; if (gNovo && Number(sol.valor_promotor) !== novo.valor) delete gNovo.valor;
+      const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: novo, valor_promotor: novo.valor, gestor: gNovo, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
+      if (error) throw error;
+      res.status(200).json(detalheLinha(data));
+      return;
+    }
+
+    // Gestor remove uma foto anexada por engano (RDV ou CI), antes da aprovação.
+    if (acao === "remover_foto") {
+      const url = String(b.url || "");
+      if (!urlsDoStorage([url], 1).length) { res.status(400).json({ erro: "Foto inválida." }); return; }
+      const { data: sol, error: eF } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
+      if (eF) throw eF;
+      if (!sol) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
+      if (!["pendente", "erro_kanban"].includes(sol.status)) { res.status(409).json({ erro: "Só dá para remover fotos antes da aprovação." }); return; }
+      const dd = JSON.parse(JSON.stringify(sol.dados || {}));
+      let onde = "";
+      const tira = (lista) => { const i = Array.isArray(lista) ? lista.indexOf(url) : -1; if (i >= 0) lista.splice(i, 1); return i >= 0; };
+      if (sol.tipo === "RDV") {
+        if (dd.fotoHodometroIni === url) { dd.fotoHodometroIni = ""; onde = "hodômetro inicial"; }
+        else if (dd.fotoHodometroFim === url) { dd.fotoHodometroFim = ""; onde = "hodômetro final"; }
+        else (dd.dias || []).forEach((x, i) => { if (!onde && tira(x.fotos)) onde = "nota de " + DIAS_SEMANA[i].toLowerCase(); });
+      } else {
+        ANEXOS_CI.forEach(a => { if (!onde && dd.anexos && tira(dd.anexos[a.chave])) onde = a.rotulo.toLowerCase(); });
+        if (!onde && tira(dd.fotos)) onde = "anexo";
+      }
+      if (!onde) { res.status(404).json({ erro: "Esta foto não está mais na solicitação." }); return; }
+      dd.ajustesGestor = [...(Array.isArray(dd.ajustesGestor) ? dd.ajustesGestor : []), { por: nomeUsuario, em: new Date().toISOString(), mudancas: ["Removeu foto: " + onde] }].slice(-20);
+      const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: dd, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
+      if (error) throw error;
+      try { // limpa o arquivo do armazenamento (se falhar, a foto já saiu da solicitação)
+        const caminho = decodeURIComponent(url.split(`/object/public/${BUCKET}/`)[1] || "");
+        if (caminho) await supabase.storage.from(BUCKET).remove([caminho]);
+      } catch (e) { /* sem problema */ }
       res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
       return;
     }
@@ -749,7 +840,7 @@ async function tratarRdv(req, res, ctx) {
       const buffer = sol.tipo === "RDV" ? planilhaRdv(sol, extra) : planilhaCi(sol, extra);
       const rotulo = sol.tipo === "RDV"
         ? tituloRdv(sol)
-        : `CI ${sol.promotor_nome} ${g.emissao}`;
+        : rotuloArquivoCi(sol, extra);
       const nomeArq = nomeArquivoSeguro(rotulo, "xlsx");
       const arquivoUrl = await subirArquivo(supabase, buffer, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "xlsx");
 
@@ -757,10 +848,11 @@ async function tratarRdv(req, res, ctx) {
       const anexos = [{ nome: nomeArq, tipo: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer }];
       const fotos = [];
       if (sol.tipo === "RDV") {
-        fotos.push({ url: sol.dados.fotoHodometroIni, nome: "hodometro_inicial.jpg" });
+        if (sol.dados.fotoHodometroIni) fotos.push({ url: sol.dados.fotoHodometroIni, nome: "hodometro_inicial.jpg" });
         sol.dados.dias.forEach((dia, i) => dia.fotos.forEach((u, k) => fotos.push({ url: u, nome: `nota_${["segunda","terca","quarta","quinta","sexta","sabado"][i]}_${k + 1}.jpg` })));
-        fotos.push({ url: sol.dados.fotoHodometroFim, nome: "hodometro_final.jpg" });
+        if (sol.dados.fotoHodometroFim) fotos.push({ url: sol.dados.fotoHodometroFim, nome: "hodometro_final.jpg" });
       } else {
+        ANEXOS_CI.forEach(a => ((sol.dados.anexos && sol.dados.anexos[a.chave]) || []).forEach((u, k) => fotos.push({ url: u, nome: `${a.arquivo}_${k + 1}.jpg` })));
         (sol.dados.fotos || []).forEach((u, k) => fotos.push({ url: u, nome: `anexo_${k + 1}.jpg` }));
       }
       try {
@@ -773,7 +865,7 @@ async function tratarRdv(req, res, ctx) {
 
       const resumoCurto = sol.tipo === "RDV"
         ? tituloRdv(sol)
-        : `CI - ${sol.promotor_nome} - ${txt(sol.dados.cliente, 60)}`;
+        : `CI - ${nomeConsultor(sol.promotor_nome)} - ${txt(sol.dados.cliente || sol.dados.acao, 60)}`;
       const campos = {
         establishment: KANBAN_ESTABELECIMENTO(),
         solicitante: KANBAN_SOLICITANTE(),

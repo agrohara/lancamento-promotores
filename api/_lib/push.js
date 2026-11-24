@@ -1,11 +1,12 @@
-// Avisos no celular (Web Push) — SÓ para gestor (Gerente/Desenvolvedor).
-// Quando um consultor envia um RDV ou uma CI para aprovação, os celulares dos gestores que
-// ativaram os avisos recebem uma notificação; o toque abre gestor.html na aba de despesas.
+// Avisos no celular (Web Push).
+// 1) Gestor (Gerente/Desenvolvedor): quando um consultor envia um RDV ou uma CI para aprovação, os celulares dos
+//    gestores que ativaram os avisos recebem uma notificação; o toque abre gestor.html na aba de despesas.
+// 2) Consultor: lembrete de RDV em rascunho perto do prazo (ver lembrete_rdv.js). Cada pessoa só recebe o que é dela.
 //
 // GET  /api/agenda?recurso=push&chave=1                 -> { chave } (chave pública VAPID)
 // POST /api/agenda?recurso=push  { acao:"inscrever", inscricao:{endpoint,keys:{p256dh,auth}} }
 // POST /api/agenda?recurso=push  { acao:"cancelar", endpoint }
-// Só gestor consegue se inscrever (checagem no servidor). Consultor nunca recebe aviso.
+// Qualquer usuário logado pode ativar os avisos do próprio aparelho; o tipo de aviso depende do cargo.
 //
 // Tabela: push_inscricoes (ver sql_push.sql). Variáveis de ambiente (Vercel):
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (ex.: mailto:alguem@agrohara.com.br)
@@ -27,7 +28,6 @@ function biblioteca() {
 
 async function tratarPush(req, res, ctx) {
   const { usuario, ehGestor, supabase } = ctx;
-  if (!ehGestor) { res.status(403).json({ erro: "Avisos disponíveis só para o gestor." }); return; }
   const q = req.query || {};
   try {
     if (req.method === "GET") {
@@ -87,4 +87,21 @@ async function avisarGestores(supabase, aviso, opcoes) {
   } catch (e) { console.warn("[push] falha ao avisar:", e.message); return { enviados: 0 }; }
 }
 
-module.exports = { tratarPush, avisarGestores };
+// Aviso para UMA pessoa (todos os aparelhos dela que ativaram). Também nunca lança erro.
+async function avisarUsuario(supabase, login, aviso) {
+  try {
+    const wp = biblioteca();
+    if (!wp) return { enviados: 0, motivo: "avisos não configurados" };
+    const { data, error } = await supabase.from("push_inscricoes").select("endpoint,p256dh,auth").eq("usuario_login", String(login || "").toLowerCase());
+    if (error || !data || !data.length) return { enviados: 0, motivo: "sem aparelho inscrito" };
+    const corpo = JSON.stringify(aviso);
+    let enviados = 0;
+    await Promise.race([Promise.all(data.map(async i => {
+      try { await wp.sendNotification({ endpoint: i.endpoint, keys: { p256dh: i.p256dh, auth: i.auth } }, corpo, { TTL: 86400, urgency: "high" }); enviados++; }
+      catch (e) { if (e && (e.statusCode === 404 || e.statusCode === 410)) { try { await supabase.from("push_inscricoes").delete().eq("endpoint", i.endpoint); } catch (_) {} } }
+    })), new Promise(r => setTimeout(r, 4000))]);
+    return { enviados };
+  } catch (e) { console.warn("[push] falha ao avisar usuário:", e.message); return { enviados: 0 }; }
+}
+
+module.exports = { tratarPush, avisarGestores, avisarUsuario };
