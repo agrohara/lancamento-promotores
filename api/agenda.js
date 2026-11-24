@@ -6,7 +6,7 @@
 // consultor escolhe qual das duas na hora de criar — ver Tipo_Cliente) num dia/hora
 // específicos, com um assunto curto ("o que será tratado?").
 //
-// REGRA DE PRAZO (combinada com o Marcelo): o consultor tem até sexta-feira 17:00
+// REGRA DE PRAZO (combinada com o Marcelo): o consultor tem até sábado 14:00 (era sexta 17:00 até 06/11/2026)
 // (horário de Brasília) pra planejar a semana seguinte. Se perder o prazo, só aquela
 // semana específica fica travada (🔒) pra novos compromissos/edições — a semana atual
 // nunca trava. Essa regra é calculada em api/_lib/agenda_prazo.js e é reforçada AQUI no
@@ -55,6 +55,7 @@ const { tratarCalendario } = require("./_lib/calendario");
 const { tratarGestor } = require("./_lib/gestor");
 const { tratarRdv } = require("./_lib/rdv");
 const { tratarPush } = require("./_lib/push");
+const { rodarLembretes } = require("./_lib/lembrete_rdv");
 const { tratarMetasRep } = require("./_lib/metas_rep");
 
 const CARGOS_GESTAO = ["gerente", "desenvolvedor"];
@@ -94,6 +95,20 @@ function validarCompromisso(c, { exigirCompleto }) {
 module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.status(204).end();
+    return;
+  }
+
+  // Lembrete de RDV em rascunho (Vercel Cron, 1x por dia). Entra ANTES da checagem de usuário porque o cron
+  // não tem sessão: autentica por "Authorization: Bearer <CRON_SECRET>" (ou x-api-key, para teste manual).
+  // ?simular=1 só mostra quem seria avisado, sem enviar nada.
+  if (req.query && req.query.recurso === "lembrete_rdv") {
+    const auth = req.headers["authorization"] || "";
+    const okCron = !!process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
+    const okChave = !!process.env.API_KEY && req.headers["x-api-key"] === process.env.API_KEY;
+    if (!okCron && !okChave) { res.status(401).json({ erro: "Não autorizado." }); return; }
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) { res.status(500).json({ erro: "Banco de dados não configurado." }); return; }
+    try { res.status(200).json(await rodarLembretes(obterSupabase(), { simular: String(req.query.simular || "") === "1" })); }
+    catch (err) { res.status(502).json({ erro: "Falha ao rodar os lembretes.", detalhe: String((err && err.message) || err) }); }
     return;
   }
 
@@ -219,7 +234,7 @@ module.exports = async function handler(req, res) {
     const segunda = segundaFeira(corpo.Data);
     const status = statusSemana(segunda);
     if (status.bloqueada) {
-      res.status(403).json({ erro: "O prazo para planejar essa semana já passou (sexta-feira 17:00). Fale com seu gestor.", statusSemana: status });
+      res.status(403).json({ erro: "O prazo para planejar essa semana já passou (sábado 14:00). Fale com seu gestor.", statusSemana: status });
       return;
     }
 
@@ -282,7 +297,7 @@ module.exports = async function handler(req, res) {
         const segunda = segundaFeira(dataFinal);
         const status = statusSemana(segunda);
         if (status.bloqueada) {
-          res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sexta-feira 17:00). Fale com seu gestor.", statusSemana: status });
+          res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sábado 14:00). Fale com seu gestor.", statusSemana: status });
           return;
         }
       }
@@ -342,7 +357,7 @@ module.exports = async function handler(req, res) {
       const segunda = segundaFeira(existente.data);
       const status = statusSemana(segunda);
       if (status.bloqueada) {
-        res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sexta-feira 17:00). Fale com seu gestor.", statusSemana: status });
+        res.status(403).json({ erro: "O prazo para alterar essa semana já passou (sábado 14:00). Fale com seu gestor.", statusSemana: status });
         return;
       }
 
