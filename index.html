@@ -740,6 +740,11 @@
   .dsp-total .linha{display:flex;justify-content:space-between;padding:3px 0;font-size:14px;opacity:.95;}
   .dsp-total .linha.forte{font-size:18px;font-weight:800;border-top:1px solid rgba(255,255,255,.35);margin-top:6px;padding-top:8px;opacity:1;}
   .dsp-opcional{font-weight:400;color:var(--texto-suave,#6b7280);font-size:13px;}
+  .ci-obrig{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#fde8e8;color:#b42318;font-size:11px;font-weight:700;letter-spacing:.2px;vertical-align:middle;}
+  .ci-legenda{margin:0 0 10px;font-size:13px;color:var(--texto-suave,#6b7280);line-height:1.4;}
+  .ci-contador{margin-top:4px;font-size:12px;color:var(--texto-suave,#6b7280);text-align:right;}
+  .ci-modelo select{width:100%;}
+  .dsp-aviso-cafe{margin:6px 0 0;padding:8px 10px;border-left:3px solid #c2410c;background:#fff7ed;color:#7c2d12;font-size:12.5px;line-height:1.4;border-radius:4px;}
   .dsp-sim-nao{display:flex;gap:10px;}
   .dsp-sim-nao button{flex:1;margin:0;}
   .dsp-sim-nao button.ativo{background:var(--marca,#1A6436);border-color:var(--marca,#1A6436);color:#fff;}
@@ -1530,6 +1535,10 @@
       <div class="dsp-novo">
         <button class="btn" id="btnNovoRdv" type="button"><svg class='ic' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M6 2h12v20l-3-2-3 2-3-2-3 2V2z'/><path d='M9 7h6M9 11h6'/></svg>RDV da semana</button>
         <button class="btn btn-secundario" id="btnNovaCi" type="button"><svg class='ic' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M7 3h7l4 4v14H7z'/><path d='M14 3v4h4M10 13h5M10 17h5'/></svg>CI – Comunicação Interna</button>
+      </div>
+      <div id="dspAvisosBox" class="oculto" style="margin-top:14px;">
+        <button class="btn btn-secundario" id="btnAvisosDsp" type="button">Ativar lembretes do RDV</button>
+        <div id="dspAvisosMsg" class="item-ranking-detalhe" style="margin-top:8px;"></div>
       </div>
       <p class="subtitulo" style="margin-top:18px;">Minhas solicitações</p>
       <div id="msgDespesas"></div>
@@ -5990,7 +5999,14 @@ async function avisosDesativar(cab) {
 }
 // Liga um botão (+ texto de ajuda) ao ciclo ativar/desativar.
 async function avisosLigarBotao(btn, msg, cab) {
-  const textos = {
+  const consultor = !ehGestor();
+  const textos = consultor ? {
+    "ativo": ["Lembretes ativados · toque para desativar", "Você recebe um aviso neste aparelho se deixar o RDV da semana em rascunho perto do prazo de envio."],
+    "inativo": ["Ativar lembretes do RDV", "Receba um aviso neste celular se o RDV da semana ficar em rascunho perto do prazo de envio."],
+    "negado": ["Avisos bloqueados", "As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador ou do app e volte aqui."],
+    "ios-instalar": ["Avisos indisponíveis", "No iPhone, os avisos só funcionam com o app instalado: toque em Compartilhar e depois em Adicionar à Tela de Início. Abra o app por esse ícone."],
+    "nao-suportado": ["Avisos indisponíveis", "Este navegador não permite avisos. Use o Chrome (Android) ou instale o app na tela inicial."]
+  } : {
     "ativo": ["Avisos ativados · toque para desativar", "Você recebe um aviso neste aparelho quando um RDV ou CI chegar para aprovação."],
     "inativo": ["Ativar avisos de aprovação", "Receba um aviso neste celular quando um RDV ou CI chegar para você aprovar."],
     "negado": ["Avisos bloqueados", "As notificações estão bloqueadas neste aparelho. Libere nas configurações do navegador ou do app e volte aqui."],
@@ -6013,10 +6029,12 @@ async function avisosLigarBotao(btn, msg, cab) {
 
 let avisosLigado = false;
 function iniciarAvisosApp() {
-  if (!ehGestor()) return;
+  // Gestor: aviso de RDV/CI para aprovar. Consultor: lembrete de RDV em rascunho perto do prazo.
   document.getElementById("perfilAvisosBox").classList.remove("oculto");
+  if (!ehGestor()) document.getElementById("dspAvisosBox").classList.remove("oculto");
   if (avisosLigado) return; avisosLigado = true;
   avisosLigarBotao(document.getElementById("btnAvisosApp"), document.getElementById("perfilAvisosMsg"), cabecalhosAutenticados);
+  if (!ehGestor()) avisosLigarBotao(document.getElementById("btnAvisosDsp"), document.getElementById("dspAvisosMsg"), cabecalhosAutenticados);
 }
 
 function ehGestor() {
@@ -8223,6 +8241,8 @@ function dspRdvMontar() {
             <option value="1" ${(x.almocoPessoas || 1) == 1 ? "selected" : ""}>Individual</option>
             <option value="2" ${x.almocoPessoas == 2 ? "selected" : ""}>Com 2 pessoas (você + 1)</option>
             <option value="3" ${x.almocoPessoas == 3 ? "selected" : ""}>Com 3 pessoas (você + 2)</option></select></div>
+          <div style="grid-column:1/-1;"><label>Café da manhã e café da tarde (R$)</label><input type="text" inputmode="decimal" data-f="cafe" value="${v("cafe")}" ${ro} placeholder="0,00">
+            <p class="dsp-aviso-cafe"><b>Somente consumo individual.</b> Não preencha aqui o que foi pago no local da CI (ação com cliente, evento, brinde ou lanche coletivo): isso vai na CI.</p></div>
           <div><label>Jantar (R$)</label><input type="text" inputmode="decimal" data-f="jantar" value="${v("jantar")}" ${ro} placeholder="0,00"></div>
           <div style="grid-column:1/-1;"><label>Jantar: individual ou com mais de uma pessoa? <span class="dsp-opcional">(despesa pré aprovada)</span></label><select data-f="jantarPessoas" ${ro}>
             <option value="1" ${(x.jantarPessoas || 1) == 1 ? "selected" : ""}>Individual</option>
@@ -8254,7 +8274,7 @@ function dspRdvMontar() {
               <div><label>Qual loja / propriedade</label><input type="text" data-jp="local" maxlength="160" value="${escHtml(pp.local || "")}" ${ro} placeholder="Ex.: Agropecuária X / Fazenda Y"></div>
             </div></div>`; }).join("")}
         </div>
-        <label style="margin-top:12px;">Descrição da despesa <span class="dsp-opcional">(obrigatória se houver almoço, jantar ou aviso)</span></label>
+        <label style="margin-top:12px;">Descrição da despesa <span class="dsp-opcional">(obrigatória se houver almoço, café, jantar ou aviso)</span></label>
         <input type="text" data-f="descricao" maxlength="400" value="${escHtml(x.descricao || "")}" ${ro} placeholder="Ex.: Almoço de geração de demanda com o veterinário Dr. Carlos e o proprietário da Fazenda Santa Rita – apresentação do programa de reprodução">
         <div id="dspFotosD${i}" style="margin-top:12px;"></div>
       </div></details>`;
@@ -8392,7 +8412,7 @@ function dspRdvLer() {
   const kmIni = c.querySelector("#dspKmInicial").value;
   const dias = [...c.querySelectorAll(".dsp-dia")].map((el, i) => {
     const g = (n) => el.querySelector(`[data-f="${n}"]`).value;
-    return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim(),
+    return { data: dspSomar(dsp.semana, i), kmFim: g("kmFim"), hotel: dspNum(g("hotel")), almoco: dspNum(g("almoco")), jantar: dspNum(g("jantar")), aviso: dspNum(g("aviso")), descricao: g("descricao").trim(), cafe: dspNum(g("cafe")),
       almocoPessoas: Number(g("almocoPessoas")) || 1,
       participantes: [...el.querySelectorAll("[data-pessoa]")].slice(0, (Number(g("almocoPessoas")) || 1) - 1).map(b => { const q = (n) => b.querySelector(`[data-p="${n}"]`).value.trim(); return { nome: q("nome"), cargo: q("cargo"), local: q("local") }; }),
       kmDescricao: g("kmDescricao").trim(), hotelDescricao: g("hotelDescricao").trim(),
@@ -8406,17 +8426,17 @@ function dspRdvRecalcular() {
   const c = document.getElementById("dspConteudo");
   document.getElementById("dspSemLabel").textContent = `${dspBr(dsp.semana).slice(0, 5)} a ${dspBr(dspSomar(dsp.semana, 5)).slice(0, 5)}`;
   const { kmIni, dias } = dspRdvLer();
-  let anterior = dspNum(kmIni), km = 0, hotel = 0, almoco = 0, jantar = 0, aviso = 0;
+  let anterior = dspNum(kmIni), km = 0, hotel = 0, almoco = 0, cafe = 0, jantar = 0, aviso = 0;
   c.querySelectorAll(".dsp-dia").forEach((el, i) => {
     const x = dias[i];
     const fim = x.kmFim === "" ? anterior : dspNum(x.kmFim);
     const rod = Math.max(0, fim - anterior);
     el.querySelector('[data-r="data"]').textContent = dspBr(x.data).slice(0, 5);
     el.querySelector('[data-r="kmini"]').textContent = anterior ? anterior.toLocaleString("pt-BR") : "—";
-    const gasto = x.hotel + x.almoco + x.jantar + x.aviso;
+    const gasto = x.hotel + x.almoco + x.cafe + x.jantar + x.aviso;
     const valorDia = rod * DSP_VALOR_KM + gasto;
     el.querySelector('[data-r="resumo"]').textContent = (rod || gasto) ? `${rod} km · ${formatarMoeda(valorDia)}` : "—";
-    km += rod; hotel += x.hotel; almoco += x.almoco; jantar += x.jantar; aviso += x.aviso;
+    km += rod; hotel += x.hotel; almoco += x.almoco; cafe += x.cafe; jantar += x.jantar; aviso += x.aviso;
     if (x.kmFim !== "") anterior = fim;
   });
   const dica = document.getElementById("dspKmFinalDica");
@@ -8425,12 +8445,12 @@ function dspRdvRecalcular() {
     const ok = kf !== "" && dspNum(kf) === anterior;
     dica.innerHTML = anterior ? `Último KM informado nos dias: <b>${anterior.toLocaleString("pt-BR")}</b>${kf === "" ? "" : ok ? " · confere ✓" : ' · <span style="color:var(--c-erro,#b91c1c);font-weight:700;">não confere com o KM digitado</span>'}` : "";
   }
-  const vkm = km * DSP_VALOR_KM, total = vkm + hotel + almoco + jantar + aviso;
+  const vkm = km * DSP_VALOR_KM, total = vkm + hotel + almoco + cafe + jantar + aviso;
   document.getElementById("dspTotais").innerHTML = `
     <div class="linha"><span>KM rodados</span><span>${km.toLocaleString("pt-BR")} km</span></div>
     <div class="linha"><span>KM × ${formatarMoeda(DSP_VALOR_KM)}</span><span>${formatarMoeda(vkm)}</span></div>
     <div class="linha"><span>Hotel</span><span>${formatarMoeda(hotel)}</span></div>
-    <div class="linha"><span>Refeições (almoço + jantar)</span><span>${formatarMoeda(almoco + jantar)}</span></div>
+    <div class="linha"><span>Refeições (almoço + café + jantar)</span><span>${formatarMoeda(almoco + cafe + jantar)}</span></div>
     <div class="linha"><span>Aviso prévio</span><span>${formatarMoeda(aviso)}</span></div>
     <div class="linha forte"><span>Total da semana</span><span>${formatarMoeda(total)}</span></div>`;
 }
@@ -8460,7 +8480,7 @@ async function dspRdvGravar(rascunho) {
       const detD = document.querySelectorAll("#dspConteudo .dsp-dia")[i];
       const foco = (campo, texto) => { detD.open = true; campo.classList.add("campo-invalido"); campo.focus(); msg(texto, "erro"); };
       if (x.hotel > 0 && !x.hotelDescricao) { foco(detD.querySelector('[data-f="hotelDescricao"]'), `Hotel de ${DSP_DIAS[i].toLowerCase()}: informe o nome e a cidade do hotel.`); return; }
-      if ((x.almoco + x.jantar + x.aviso) > 0 && !x.descricao) { foco(detD.querySelector('[data-f="descricao"]'), `${DSP_DIAS[i]}: escreva a descrição da despesa (ação ou justificativa).`); return; }
+      if ((x.almoco + x.cafe + x.jantar + x.aviso) > 0 && !x.descricao) { foco(detD.querySelector('[data-f="descricao"]'), `${DSP_DIAS[i]}: escreva a descrição da despesa (ação ou justificativa).`); return; }
       if (x.jantar > 0 && x.jantarPessoas > 1) {
         for (let k = 0; k < x.jantarParticipantes.length; k++) {
           const pp = x.jantarParticipantes[k], blk = detD.querySelector(`[data-jpessoa="${k}"]`);
@@ -8503,7 +8523,7 @@ async function dspRdvGravar(rascunho) {
     for (let i = 0; i < dias.length; i++) {
       const fotos = await dsp.fotos.dias[i].enviar();
       const x = dias[i];
-      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, almocoPessoas: x.almocoPessoas, participantes: x.participantes, kmDescricao: x.kmDescricao, hotelDescricao: x.hotelDescricao, jantarPessoas: x.jantarPessoas, jantarParticipantes: x.jantarParticipantes, fotos });
+      lista.push({ data: x.data, kmFim: x.kmFim === "" ? null : dspNum(x.kmFim), hotel: x.hotel, almoco: x.almoco, cafe: x.cafe, jantar: x.jantar, aviso: x.aviso, descricao: x.descricao, almocoPessoas: x.almocoPessoas, participantes: x.participantes, kmDescricao: x.kmDescricao, hotelDescricao: x.hotelDescricao, jantarPessoas: x.jantarPessoas, jantarParticipantes: x.jantarParticipantes, fotos });
     }
     if (!rascunho) dspBotoes(true, "Enviando...");
     const veiculo = document.getElementById("dspVeiculo").value.trim(), placa = document.getElementById("dspPlaca").value.trim();
@@ -8538,74 +8558,102 @@ async function dspRdvGravar(rascunho) {
 }
 
 /* ---------- CI ---------- */
+const DSP_CI_ANEXOS = [
+  { chave: "comprovante", rotulo: "Comprovante", dica: "comprovante de pagamento" },
+  { chave: "nota", rotulo: "Nota fiscal", dica: "nota ou cupom fiscal" },
+  { chave: "listaPresenca", rotulo: "Lista de presença", dica: "lista assinada pelos participantes" },
+  { chave: "evento", rotulo: "Foto do evento", dica: "foto da ação ou do evento" }
+];
+function dspCiNomeConsultor() { return String((sessao && sessao.nome) || "").trim(); }
+
 function dspCiMontar() {
   const d = dsp.dados || {};
   const e = d.entrega || {};
   const ro = dsp.somenteLeitura ? "disabled" : "";
   dsp.cartao = !!d.cartaoPresente;
+  const centroAtual = String(d.centroCusto || "PECUÁRIA").toUpperCase();
+  const centros = ["PECUÁRIA", "PET", "PPD", "ENDOECTO"];
+  if (!centros.includes(centroAtual)) centros.push(centroAtual);
   const c = document.getElementById("dspConteudo");
+  const ob = '<span class="ci-obrig">obrigatório</span>';
   c.innerHTML = `
-    <div class="card">
-      <label for="ciAcao">Ação (o que foi feito e por quê)</label>
+    <div class="card ci-modelo">
+      <p class="ci-legenda">Os campos marcados como <span class="ci-obrig">obrigatório</span> precisam estar preenchidos para enviar. Os demais são opcionais.</p>
+      <p class="subtitulo">01 · Dados da ação</p>
+      <label for="ciAcao">Ação ${ob}</label>
       <textarea id="ciAcao" rows="3" maxlength="600" ${ro} placeholder="Ex.: Café da manhã de negócios com cliente em Pinhão/PR">${escHtml(d.acao || "")}</textarea>
+      <label for="ciExec">Data da execução da despesa ${ob}</label>
+      <input type="date" id="ciExec" value="${d.execucao || ""}" ${ro}>
+      <label for="ciBrinde">Brinde</label><input type="text" id="ciBrinde" maxlength="120" value="${escHtml(d.brinde || "")}" ${ro}>
       <label for="ciCliente">Cliente</label>
       <input type="text" id="ciCliente" maxlength="160" value="${escHtml(d.cliente || "")}" ${ro}>
+      <label for="ciConsultor">Consultor / coord. território ${ob}</label>
+      <input type="text" id="ciConsultor" maxlength="120" value="${escHtml(d.consultor || dspCiNomeConsultor())}" ${ro}>
       <div class="dsp-grade" style="margin-top:12px;">
-        <div><label for="ciValor">Valor (R$)</label><input type="text" inputmode="decimal" id="ciValor" value="${d.valor ? String(d.valor).replace(".", ",") : ""}" ${ro} placeholder="0,00"></div>
-        <div><label for="ciCentro">Centro de custo</label>
-          <input type="text" id="ciCentro" list="ciCentros" maxlength="80" value="${escHtml(d.centroCusto || "")}" ${ro} placeholder="Ex.: Pecuária">
-          <datalist id="ciCentros">${DSP_CENTROS.map(x => `<option value="${x}">`).join("")}</datalist></div>
+        <div><label for="ciPerIni">Período da campanha – início</label><input type="date" id="ciPerIni" value="${d.periodoIni || ""}" ${ro}></div>
+        <div><label for="ciPerFim">Período da campanha – fim</label><input type="date" id="ciPerFim" value="${d.periodoFim || ""}" ${ro}></div>
       </div>
-      <label for="ciExec">Data da ação</label>
-      <input type="date" id="ciExec" value="${d.execucao || ""}" ${ro}>
     </div>
-    <div class="card">
-      <label>Cartão presente?</label>
+    <div class="card ci-modelo">
+      <p class="subtitulo">02 · Tipo de acordo ${ob}</p>
+      <textarea id="ciAcordo" rows="5" maxlength="1000" ${ro} placeholder="Detalhe o máximo possível: o que foi combinado, com quem, condições, produtos e valores.">${escHtml(d.tipoAcordo || "")}</textarea>
+      <div class="ci-contador" id="ciAcordoCont">0 / 1000 caracteres</div>
+    </div>
+    <div class="card ci-modelo">
+      <p class="subtitulo">03 · Cartão presente</p>
+      <label>Tem cartão?</label>
       <div class="dsp-sim-nao">
         <button type="button" class="btn btn-secundario ${dsp.cartao ? "" : "ativo"}" data-cartao="0" ${ro}>Não</button>
         <button type="button" class="btn btn-secundario ${dsp.cartao ? "ativo" : ""}" data-cartao="1" ${ro}>Sim</button>
       </div>
+      <label for="ciValor" style="margin-top:12px;">Valor (R$) ${ob}</label>
+      <input type="text" inputmode="decimal" id="ciValor" value="${d.valor ? String(d.valor).replace(".", ",") : ""}" ${ro} placeholder="0,00">
       <div id="ciCartaoCampos" class="${dsp.cartao ? "" : "oculto"}">
-        <label for="ciTitular">Nome do titular do cartão</label><input type="text" id="ciTitular" maxlength="120" value="${escHtml(d.titular || "")}" ${ro}>
+        <label for="ciTitular">Nome do titular</label><input type="text" id="ciTitular" maxlength="120" value="${escHtml(d.titular || "")}" ${ro}>
         <label for="ciCpf">CPF / CNPJ</label><input type="text" id="ciCpf" inputmode="numeric" maxlength="30" value="${escHtml(d.cpfCnpj || "")}" ${ro}>
       </div>
+      <label for="ciObs">Observação</label><textarea id="ciObs" rows="2" maxlength="600" ${ro}>${escHtml(d.observacao || "")}</textarea>
     </div>
-    <div class="card">
-      <details class="dsp-mais" ${(d.tipoAcordo || d.brinde || d.periodoIni || d.observacao || e.endereco || e.recebedor) ? "open" : ""}>
-        <summary>Mais detalhes <span class="dsp-opcional">(opcional)</span></summary>
-        <label for="ciAcordo">Tipo de acordo</label><textarea id="ciAcordo" rows="2" maxlength="1500" ${ro}>${escHtml(d.tipoAcordo || "")}</textarea>
-        <label for="ciBrinde">Brinde</label><input type="text" id="ciBrinde" maxlength="120" value="${escHtml(d.brinde || "")}" ${ro}>
-        <div class="dsp-grade" style="margin-top:12px;">
-          <div><label for="ciPerIni">Campanha – início</label><input type="date" id="ciPerIni" value="${d.periodoIni || ""}" ${ro}></div>
-          <div><label for="ciPerFim">Campanha – fim</label><input type="date" id="ciPerFim" value="${d.periodoFim || ""}" ${ro}></div>
-        </div>
-        <label for="ciObs">Observação</label><textarea id="ciObs" rows="2" maxlength="600" ${ro}>${escHtml(d.observacao || "")}</textarea>
-        <p class="subtitulo" style="margin-top:14px;">Dados para entrega</p>
-        <label for="ciEnd">Endereço</label><input type="text" id="ciEnd" maxlength="160" value="${escHtml(e.endereco || "")}" ${ro}>
-        <div class="dsp-grade" style="margin-top:12px;">
-          <div><label for="ciNum">Número / compl.</label><input type="text" id="ciNum" maxlength="60" value="${escHtml(e.numero || "")}" ${ro}></div>
-          <div><label for="ciBairro">Bairro</label><input type="text" id="ciBairro" maxlength="80" value="${escHtml(e.bairro || "")}" ${ro}></div>
-        </div>
-        <label for="ciCidade">Cidade / UF</label><input type="text" id="ciCidade" maxlength="80" value="${escHtml(e.cidade || "")}" ${ro}>
-        <div class="dsp-grade" style="margin-top:12px;">
-          <div><label for="ciRec">Recebedor</label><input type="text" id="ciRec" maxlength="120" value="${escHtml(e.recebedor || "")}" ${ro}></div>
-          <div><label for="ciTel">Telefone</label><input type="text" id="ciTel" inputmode="tel" maxlength="30" value="${escHtml(e.telefone || "")}" ${ro}></div>
-        </div>
-      </details>
+    <div class="card ci-modelo">
+      <p class="subtitulo">04 · Dados para entrega <span class="dsp-opcional">(opcional)</span></p>
+      <label for="ciEnd">Endereço</label><input type="text" id="ciEnd" maxlength="160" value="${escHtml(e.endereco || "")}" ${ro}>
+      <div class="dsp-grade" style="margin-top:12px;">
+        <div><label for="ciNum">Nº / compl.</label><input type="text" id="ciNum" maxlength="60" value="${escHtml(e.numero || "")}" ${ro}></div>
+        <div><label for="ciBairro">Bairro</label><input type="text" id="ciBairro" maxlength="80" value="${escHtml(e.bairro || "")}" ${ro}></div>
+      </div>
+      <label for="ciCidade">Cidade / UF</label><input type="text" id="ciCidade" maxlength="80" value="${escHtml(e.cidade || "")}" ${ro}>
+      <div class="dsp-grade" style="margin-top:12px;">
+        <div><label for="ciRec">Recebedor</label><input type="text" id="ciRec" maxlength="120" value="${escHtml(e.recebedor || "")}" ${ro}></div>
+        <div><label for="ciTel">Telefone</label><input type="text" id="ciTel" inputmode="tel" maxlength="30" value="${escHtml(e.telefone || "")}" ${ro}></div>
+      </div>
+      <label for="ciCentro" style="margin-top:12px;">Centro de custo / verba</label>
+      <select id="ciCentro" ${ro}>${centros.map(x => `<option value="${escHtml(x)}" ${x === centroAtual ? "selected" : ""}>${escHtml(x)}</option>`).join("")}</select>
     </div>
-    <div class="card"><div id="ciFotos"></div></div>
+    <div class="card ci-modelo">
+      <p class="subtitulo">05 · Anexos <span class="dsp-opcional">(envie ao menos uma foto)</span></p>
+      <p class="ci-legenda">Coloque cada foto no campo certo. O gestor recebe os anexos separados por tipo. Use só os campos que existirem.</p>
+      ${DSP_CI_ANEXOS.map(a => `<div id="ciAnexo_${a.chave}" style="margin-top:12px;"></div>`).join("")}
+    </div>
     ${dsp.somenteLeitura ? "" : `<button class="btn btn-secundario" id="btnDspRascunho" type="button">Salvar rascunho</button>
     <button class="btn" id="btnDspEnviar" type="button" style="margin-top:10px;">Enviar para aprovação</button>`}
     ${dsp.id && !dsp.somenteLeitura ? `<button class="btn btn-secundario" id="btnDspExcluir" type="button" style="margin-top:10px;">Excluir solicitação</button>` : ""}`;
-  dsp.fotoCi = criarCampoFotos("ciFotos", "despesas", { titulo: "Fotos / comprovantes (obrigatório para enviar)", max: 6, aoMudar: () => { if (dsp) dsp.sujo = true; } });
-  if (d.fotos) dsp.fotoCi.definirUrls(d.fotos);
+  dsp.fotosCi = {};
+  const anx = d.anexos || {};
+  DSP_CI_ANEXOS.forEach(a => {
+    dsp.fotosCi[a.chave] = criarCampoFotos("ciAnexo_" + a.chave, "despesas", { titulo: `${a.rotulo} (${a.dica}) · opcional`, max: 4, aoMudar: () => { if (dsp) dsp.sujo = true; } });
+    let urls = Array.isArray(anx[a.chave]) ? anx[a.chave].slice() : [];
+    if (a.chave === "comprovante" && Array.isArray(d.fotos) && d.fotos.length) urls = urls.concat(d.fotos); // CI antiga, sem categoria
+    if (urls.length) dsp.fotosCi[a.chave].definirUrls(urls);
+  });
   if (dsp.somenteLeitura) c.querySelectorAll(".campo-fotos button").forEach(b => b.disabled = true);
+  const cont = () => { document.getElementById("ciAcordoCont").textContent = `${document.getElementById("ciAcordo").value.length} / 1000 caracteres`; };
+  document.getElementById("ciAcordo").addEventListener("input", cont); cont();
   c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => {
     dsp.cartao = b.getAttribute("data-cartao") === "1";
     c.querySelectorAll("[data-cartao]").forEach(x => x.classList.toggle("ativo", x === b));
     document.getElementById("ciCartaoCampos").classList.toggle("oculto", !dsp.cartao);
   }));
-  c.querySelectorAll("input,textarea").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; }));
+  c.querySelectorAll("input,textarea,select").forEach(el => el.addEventListener("input", () => { dsp.sujo = true; }));
   c.querySelectorAll("[data-cartao]").forEach(b => b.addEventListener("click", () => { dsp.sujo = true; }));
   const bE = document.getElementById("btnDspEnviar"); if (bE) bE.addEventListener("click", () => dspCiGravar(false));
   const bR = document.getElementById("btnDspRascunho"); if (bR) bR.addEventListener("click", () => dspCiGravar(true));
@@ -8615,13 +8663,14 @@ function dspCiMontar() {
 async function dspCiGravar(rascunho) {
   const msg = (t, tipo) => mostrarMsg("msgDespesaForm", t, tipo);
   const v = (id) => document.getElementById(id).value.trim();
+  const totalFotos = () => DSP_CI_ANEXOS.reduce((n, a) => n + dsp.fotosCi[a.chave].quantidade(), 0);
   if (!rascunho) {
-    const obrig = [["ciAcao", "Descreva a ação."], ["ciCliente", "Informe o cliente."], ["ciValor", "Informe o valor."], ["ciCentro", "Informe o centro de custo."]];
+    const obrig = [["ciAcao", "Descreva a ação."], ["ciExec", "Informe a data da execução da despesa."], ["ciConsultor", "Informe o consultor."], ["ciAcordo", "Descreva o tipo de acordo."], ["ciValor", "Informe o valor."]];
     for (const [id, t] of obrig) {
       if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
     }
     if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
-    if (dsp.fotoCi.quantidade() === 0) { msg("Anexe ao menos uma foto ou comprovante da CI.", "erro"); return; }
+    if (totalFotos() === 0) { msg("Anexe ao menos uma foto (comprovante, nota, lista de presença ou foto do evento).", "erro"); return; }
     if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
   } else if (!v("ciAcao") && !v("ciCliente") && !v("ciValor")) {
     msg("Preencha ao menos a ação, o cliente ou o valor para salvar o rascunho.", "erro"); return;
@@ -8630,13 +8679,14 @@ async function dspCiGravar(rascunho) {
   const bR = document.getElementById("btnDspRascunho"); const txtR = bR ? bR.textContent : "";
   if (rascunho && bR) bR.textContent = "Salvando...";
   try {
-    const fotos = await dsp.fotoCi.enviar();
+    const anexos = {};
+    for (const a of DSP_CI_ANEXOS) anexos[a.chave] = await dsp.fotosCi[a.chave].enviar();
     const dados = {
-      acao: v("ciAcao"), cliente: v("ciCliente"), valor: dspNum(v("ciValor")), centroCusto: v("ciCentro"), execucao: v("ciExec"),
+      acao: v("ciAcao"), cliente: v("ciCliente"), consultor: v("ciConsultor"), valor: dspNum(v("ciValor")), centroCusto: v("ciCentro"), execucao: v("ciExec"),
       cartaoPresente: dsp.cartao, titular: v("ciTitular"), cpfCnpj: v("ciCpf"), tipoAcordo: v("ciAcordo"), brinde: v("ciBrinde"),
       periodoIni: v("ciPerIni"), periodoFim: v("ciPerFim"), observacao: v("ciObs"),
       entrega: { endereco: v("ciEnd"), numero: v("ciNum"), bairro: v("ciBairro"), cidade: v("ciCidade"), recebedor: v("ciRec"), telefone: v("ciTel") },
-      fotos
+      anexos, fotos: []
     };
     const r = await dspApi("POST", "", { acao: "salvar", id: dsp.id || undefined, tipo: "CI", rascunho, dados });
     dsp.id = r.id; dsp.sujo = false;

@@ -4,11 +4,12 @@
  * offline também do gestor.html e reserva que ignora ?parametros (ex.: /?app=1).
  * Só GET passa por aqui; login, relatórios e metas vão sempre direto para a rede.
  * v7: avisos no celular do gestor (evento "push" e toque na notificação) — ver api/_lib/push.js.
+ * v10: lembrete de RDV em rascunho no celular do consultor (toque abre o app) e CI no layout novo.
  * v9: evolução visual (movimento e interação) no app e no gestor.
  * v8: materiais em PDF do Catálogo (pasta /materiais/) guardados no aparelho para abrir sem internet,
  *     em cache próprio que NÃO é apagado quando a versão do app muda.
  * Ao publicar versão nova do app, troque VERSAO_CACHE. */
-const VERSAO_CACHE = "agrohara-v9";
+const VERSAO_CACHE = "agrohara-v10";
 const CACHE_APP = VERSAO_CACHE + "-app";
 const CACHE_DADOS = VERSAO_CACHE + "-dados";
 const CACHE_MATERIAIS = "agrohara-materiais"; // PDFs do Catálogo — sobrevive às trocas de versão
@@ -158,9 +159,11 @@ self.addEventListener("notificationclick", (evento) => {
   const url = (evento.notification.data && evento.notification.data.url) || "/gestor.html?aba=despesas";
   evento.waitUntil((async () => {
     const janelas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const paraGestor = url.includes("/gestor.html");
     for (const j of janelas) {
-      if (j.url.includes("/gestor.html")) {
-        try { await j.focus(); if (j.navigate) await j.navigate(url); return; } catch (e) { /* abre uma nova */ }
+      // aviso do gestor reaproveita a janela do gestor; aviso do consultor, a janela do app (não a do gestor)
+      if (paraGestor ? j.url.includes("/gestor.html") : !j.url.includes("/gestor.html")) {
+        try { await j.focus(); if (!paraGestor) return; if (j.navigate) await j.navigate(url); return; } catch (e) { /* abre uma nova */ }
       }
     }
     await self.clients.openWindow(url);

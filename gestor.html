@@ -247,6 +247,15 @@
   .dsp-fotos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px;}
   .dsp-fotos a{display:block;border:1px solid var(--borda);border-radius:8px;overflow:hidden;width:92px;height:92px;position:relative;}
   .dsp-fotos img{width:100%;height:100%;object-fit:cover;}
+  .dsp-foto-w{position:relative;}
+  .dsp-foto-x{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(160,30,30,.92);color:#fff;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .dsp-foto-x:hover{background:#7f1d1d;}
+  .dsp-foto-ex{display:block;margin:6px 0 16px;padding:7px 12px;border:1.5px solid #b42318;background:#fff;color:#b42318;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;}
+  .dsp-foto-ex:hover{background:#fdecea;}
+  .dsp-anx{margin:0 0 10px;}
+  .dsp-anx-tit{font-size:13px;margin-bottom:4px;}
+  .dsp-anx-tit small{color:var(--suave);margin-left:6px;}
+  .dsp-form select{width:100%;padding:9px 10px;border:1.5px solid var(--borda-forte);border-radius:10px;font-size:14px;font-family:inherit;min-height:42px;background:#fff;}
   .dsp-fotos span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:2px 4px;}
   .dsp-kv{display:grid;grid-template-columns:170px 1fr;gap:6px 12px;font-size:13px;margin-bottom:12px;}
   .dsp-kv dt{color:var(--suave);font-weight:700;}
@@ -1279,9 +1288,14 @@ async function abrirDetalheDesp(id) {
   catch (e) { $("dspDetalhe").innerHTML = `<div class="dsp-aviso">${esc(e.message)}</div>`; }
 }
 
-function fotosHtml(lista) {
-  return lista.length ? `<div class="dsp-sec">Anexos (${lista.length})</div><div class="dsp-fotos">${lista.map(f => `<a href="${esc(f.url)}" data-ver="anexo" title="Abrir ao lado"><img loading="lazy" src="${esc(f.url)}" alt="${esc(f.rot)}"><span>${esc(f.rot)}</span></a>`).join("")}</div>` : "";
+function gradeFotos(lista, podeExcluir) {
+  return `<div class="dsp-fotos">${lista.map(f => `<div class="dsp-foto-w"><a href="${esc(f.url)}" data-ver="anexo" title="Abrir ao lado"><img loading="lazy" src="${esc(f.url)}" alt="${esc(f.rot)}"><span>${esc(f.rot)}</span></a>${podeExcluir ? `<button type="button" class="dsp-foto-x" data-del="${esc(f.url)}" title="Excluir esta foto" aria-label="Excluir esta foto">×</button>` : ""}</div>`).join("")}</div>`;
 }
+function fotosHtml(lista, podeExcluir) {
+  return lista.length ? `<div class="dsp-sec">Anexos (${lista.length})</div>${gradeFotos(lista, podeExcluir)}` : "";
+}
+const btnExcluirFoto = (url, pode) => pode ? `<button type="button" class="dsp-foto-ex" data-del="${esc(url)}">Excluir esta foto</button>` : "";
+const podeEditarDesp = (l) => !!l && (l.status === "pendente" || l.status === "erro_kanban");
 const DIAS_CURTO = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function pctDemanda(custo, dem) { return dem > 0 ? (custo / dem * 100) : null; }
@@ -1302,6 +1316,7 @@ document.addEventListener("input", e => {
 });
 function desenharDetalheDesp(l) {
   window._dspCusto = l.demanda ? l.demanda.custo : 0;
+  window._dspAtual = l;
   const d = l.dados || {}, g = l.gestor || {};
   const [c, t] = stDesp(l);
   let corpo = "";
@@ -1311,7 +1326,7 @@ function desenharDetalheDesp(l) {
     window._dspRdv = l;
     const vkm = (tot.vkm || 0).toFixed(2).replace(".", ",");
     const linhas = (d.dias || []).map((x, i) => {
-      const mov = x.kmRodado || x.hotel || x.almoco || x.jantar || x.aviso;
+      const mov = x.kmRodado || x.hotel || x.almoco || x.cafe || x.jantar || x.aviso;
       const vb = (v, tipo) => v > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="${tipo}" title="Ver a nota">${moeda2(v)}</button>` : moeda2(0);
       const aConj = x.almocoPessoas > 1 ? x.almoco : 0, jConj = x.jantarPessoas > 1 ? x.jantar : 0;
       const pess = [];
@@ -1322,7 +1337,7 @@ function desenharDetalheDesp(l) {
       const conjBtns = [aConj > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="almoco" title="Ver a nota">Almoço ${moeda2(aConj)}</button>` : "", jConj > 0 ? `<button type="button" class="dsp-valor" data-dia="${i}" data-tp="jantar" title="Ver a nota">Jantar ${moeda2(jConj)}</button>` : ""].filter(Boolean).join("<br>") || moeda2(0);
       return `<tr class="${mov ? "" : "zero"}"><td>${DIAS_CURTO[i]} ${dm(x.data)}</td><td class="c-km">${kmIni}</td><td class="c-km">${kmFim}</td><td class="c-km">${num(x.kmRodado)}</td><td class="t c-km">${esc(x.kmDescricao)}</td>
         <td class="c-hotel">${vb(x.hotel, "hotel")}</td><td class="t c-hotel">${esc(x.hotelDescricao)}</td>
-        <td class="c-ref">${vb(x.almoco - aConj, "almoco")}</td><td class="c-ref">${vb(x.jantar - jConj, "jantar")}</td>
+        <td class="c-ref">${vb(x.almoco - aConj, "almoco")}</td><td class="c-ref">${vb(x.cafe || 0, "cafe")}</td><td class="c-ref">${vb(x.jantar - jConj, "jantar")}</td>
         <td class="c-pre">${conjBtns}</td>
         <td class="t c-pre">${pess.join("<br>")}</td><td class="c-out">${vb(x.aviso, "aviso")}</td>
         <td class="t">${esc(x.descricao)}</td><td class="c-tot"><b>${moeda2((tot.porDia || [])[i])}</b></td></tr>`;
@@ -1331,8 +1346,8 @@ function desenharDetalheDesp(l) {
     const difHod = (Number(kmHod) || 0) - (Number(d.kmInicial) || 0);
     const hod = `<div class="dsp-sec">Hodômetro (conferência)</div>
       <div class="dsp-hod">
-        <div><span class="rot">HODÔMETRO INICIAL</span>${d.fotoHodometroIni ? `<img data-ver="hod" src="${esc(d.fotoHodometroIni)}" alt="Hodômetro inicial">` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(d.kmInicial)}</span></div></div>
-        <div><span class="rot">HODÔMETRO FINAL</span>${d.fotoHodometroFim ? `<img data-ver="hod" src="${esc(d.fotoHodometroFim)}" alt="Hodômetro final">` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(kmHod)}</span></div></div>
+        <div><span class="rot">HODÔMETRO INICIAL</span>${d.fotoHodometroIni ? `<img data-ver="hod" src="${esc(d.fotoHodometroIni)}" alt="Hodômetro inicial">${btnExcluirFoto(d.fotoHodometroIni, editavel)}` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(d.kmInicial)}</span></div></div>
+        <div><span class="rot">HODÔMETRO FINAL</span>${d.fotoHodometroFim ? `<img data-ver="hod" src="${esc(d.fotoHodometroFim)}" alt="Hodômetro final">${btnExcluirFoto(d.fotoHodometroFim, editavel)}` : '<div class="vazio">Sem foto</div>'}<div><span class="kmv">${num(kmHod)}</span></div></div>
       </div>
       <div class="dsp-hod-dif"><span>${num(difHod)} km</span></div>
       ${d.kmFinal != null && Number(d.kmFinal) !== Number(kmHod) ? `<div class="dsp-aviso">Atenção: o último KM dos dias (${num(d.kmFinal)}) não bate com o hodômetro final (${num(kmHod)}).</div>` : ""}`;
@@ -1340,32 +1355,77 @@ function desenharDetalheDesp(l) {
       <div class="dsp-cat tot"><small>Total do RDV</small><b>${moeda2(tot.total)}</b></div>
       <div class="dsp-cat c-km"><small>Rodagem (${num(tot.km)} km · R$ ${vkm}/km)</small><b>KM: ${moeda2(tot.valorKm)}</b></div>
       <div class="dsp-cat c-hotel"><small>Hotel</small><b>${moeda2(tot.hotel)}</b></div>
-      <div class="dsp-cat c-ref"><small>Refeições individuais</small><b>${moeda2(tot.refeicoesInd)}</b></div>
+      <div class="dsp-cat c-ref"><small>Refeições individuais (almoço, café e jantar)</small><b>${moeda2(tot.refeicoesInd)}</b></div>
       <div class="dsp-cat c-pre"><small>Em conjunto (pré-aprovadas)</small><b>${moeda2(tot.refeicoesConj)}</b></div>
       <div class="dsp-cat c-out"><small>Aviso prévio / outros</small><b>${moeda2(tot.aviso)}</b></div></div>`;
     const fotos = [];
     (d.dias || []).forEach((x, i) => (x.fotos || []).forEach((u, k) => fotos.push({ url: u, rot: `Nota ${DIAS_CURTO[i]} ${k + 1}` })));
-    const ajustes = (d.ajustesGestor || []).length ? `<div class="dsp-sec">Ajustes de KM feitos pelo gestor</div><ul class="dsp-aj">${d.ajustesGestor.map(a => `<li><b>${esc(a.por)}</b> em ${esc(String(a.em).slice(0, 16).replace("T", " "))}: ${a.mudancas.map(esc).join("; ")}</li>`).join("")}</ul>` : "";
+    const ajustes = (d.ajustesGestor || []).length ? `<div class="dsp-sec">Ajustes feitos pelo gestor</div><ul class="dsp-aj">${d.ajustesGestor.map(a => `<li><b>${esc(a.por)}</b> em ${esc(String(a.em).slice(0, 16).replace("T", " "))}: ${a.mudancas.map(esc).join("; ")}</li>`).join("")}</ul>` : "";
     corpo = `${cats}
       <div class="dsp-barra"><button type="button" id="btnExcelPrevia">Baixar Excel (prévia do layout)</button><button type="button" id="btnAgendaRdv">Ver agenda da semana e da próxima</button>${editavel ? '<button type="button" id="btnSalvarKm">Salvar ajuste de KM</button>' : ""}</div>
       <div id="dspAgenda"></div><div id="dspKmMsg"></div>
-      <div class="tabela-wrap"><table class="dsp-tab" id="dspTabRdv"><thead><tr><th>Dia</th><th class="c-km">KM inicial</th><th class="c-km">KM final</th><th class="c-km">Rodado</th><th class="t c-km">Descrição do KM rodado</th><th class="c-hotel">Hotel</th><th class="t c-hotel">Hotel (nome e cidade)</th><th class="c-ref">Almoço</th><th class="c-ref">Jantar</th><th class="c-pre">Despesa pré aprovada (Almoço ou Jantar com mais de uma pessoa)</th><th class="t c-pre">Pessoas / quem participou</th><th class="c-out">Aviso</th><th class="t">Descrição da despesa</th><th class="c-tot">Total do dia</th></tr></thead><tbody>${linhas}</tbody>
-      <tfoot><tr><td>Total</td><td class="c-km"></td><td class="c-km"></td><td class="c-km">${num(tot.km)} km</td><td class="t c-km">KM: ${moeda2(tot.valorKm)} (R$ ${vkm}/km)</td><td class="c-hotel">${moeda2(tot.hotel)}</td><td class="c-hotel"></td><td class="c-ref">${moeda2(tot.almocoInd)}</td><td class="c-ref">${moeda2(tot.jantarInd)}</td><td class="c-pre">${moeda2(tot.refeicoesConj)}</td><td class="c-pre"></td><td class="c-out">${moeda2(tot.aviso)}</td><td class="t"></td><td class="c-tot">Total ${moeda2(tot.total)}</td></tr></tfoot></table></div>
+      <div class="tabela-wrap"><table class="dsp-tab" id="dspTabRdv"><thead><tr><th>Dia</th><th class="c-km">KM inicial</th><th class="c-km">KM final</th><th class="c-km">Rodado</th><th class="t c-km">Descrição do KM rodado</th><th class="c-hotel">Hotel</th><th class="t c-hotel">Hotel (nome e cidade)</th><th class="c-ref">Almoço</th><th class="c-ref" title="Somente consumo individual">Café manhã / tarde</th><th class="c-ref">Jantar</th><th class="c-pre">Despesa pré aprovada (Almoço ou Jantar com mais de uma pessoa)</th><th class="t c-pre">Pessoas / quem participou</th><th class="c-out">Aviso</th><th class="t">Descrição da despesa</th><th class="c-tot">Total do dia</th></tr></thead><tbody>${linhas}</tbody>
+      <tfoot><tr><td>Total</td><td class="c-km"></td><td class="c-km"></td><td class="c-km">${num(tot.km)} km</td><td class="t c-km">KM: ${moeda2(tot.valorKm)} (R$ ${vkm}/km)</td><td class="c-hotel">${moeda2(tot.hotel)}</td><td class="c-hotel"></td><td class="c-ref">${moeda2(tot.almocoInd)}</td><td class="c-ref">${moeda2(tot.cafe || 0)}</td><td class="c-ref">${moeda2(tot.jantarInd)}</td><td class="c-pre">${moeda2(tot.refeicoesConj)}</td><td class="c-pre"></td><td class="c-out">${moeda2(tot.aviso)}</td><td class="t"></td><td class="c-tot">Total ${moeda2(tot.total)}</td></tr></tfoot></table></div>
       ${hod}
       ${blocoDemanda(l)}
       ${ajustes}
       ${(d.diasSemAgenda || []).length ? `<dl class="dsp-kv"><dt>Sem agenda na próxima semana</dt><dd>${d.diasSemAgenda.map(x => dm(x.data) + ": " + esc(x.motivo)).join("; ")}</dd></dl>` : ""}
       ${d.observacao ? `<dl class="dsp-kv"><dt>Observações</dt><dd>${esc(d.observacao)}</dd></dl>` : ""}
       ${d.veiculo || d.placa ? `<dl class="dsp-kv"><dt>Veículo / placa</dt><dd>${esc(d.veiculo)} ${esc(d.placa)}</dd></dl>` : ""}
-      ${fotosHtml(fotos)}`;
+      ${fotosHtml(fotos, editavel)}`;
   } else {
     const e = d.entrega || {};
-    const kv = [["Ação", d.acao], ["Cliente", d.cliente], ["Valor informado", moeda2(d.valor)], ["Centro de custo", d.centroCusto], ["Data da ação", dataBR(d.execucao)],
-      ["Tipo de acordo", d.tipoAcordo], ["Brinde", d.brinde], ["Campanha", d.periodoIni ? dataBR(d.periodoIni) + " a " + dataBR(d.periodoFim || d.periodoIni) : ""],
-      ["Cartão presente", d.cartaoPresente ? "Sim" : "Não"], ["Titular / CPF-CNPJ", d.cartaoPresente ? (d.titular || "") + " · " + (d.cpfCnpj || "") : ""], ["Observação", d.observacao],
-      ["Entrega", [e.endereco, e.numero, e.bairro, e.cidade].filter(Boolean).join(", ")], ["Recebedor / tel.", [e.recebedor, e.telefone].filter(Boolean).join(" · ")]]
-      .filter(x => x[1]);
-    corpo = `<dl class="dsp-kv">${kv.map(x => `<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join("")}</dl>${fotosHtml((d.fotos || []).map((u, k) => ({ url: u, rot: "Anexo " + (k + 1) })))}`;
+    const editavel = podeEditarDesp(l);
+    window._dspRdv = null;
+    // Anexos segmentados por tipo (cada foto no seu campo); fotos de CI antiga ficam em "Sem categoria".
+    const anx = d.anexos || {};
+    const CATS = [["comprovante", "Comprovante"], ["nota", "Nota fiscal"], ["listaPresenca", "Lista de presença"], ["evento", "Foto do evento"]];
+    const totalAnx = CATS.reduce((n, c) => n + (anx[c[0]] || []).length, 0) + (d.fotos || []).length;
+    const blocoAnx = `<div class="dsp-sec">Anexos (${totalAnx})</div>` + CATS.map(c => {
+      const arr = anx[c[0]] || [];
+      return `<div class="dsp-anx"><div class="dsp-anx-tit"><b>${c[1]}</b> <small>${arr.length ? arr.length + (arr.length > 1 ? " fotos" : " foto") : "nenhuma foto"}</small></div>${arr.length ? gradeFotos(arr.map((u, k) => ({ url: u, rot: c[1] + " " + (arr.length > 1 ? k + 1 : "") })), editavel) : ""}</div>`;
+    }).join("") + ((d.fotos || []).length ? `<div class="dsp-anx"><div class="dsp-anx-tit"><b>Sem categoria</b> <small>enviadas antes da separação por tipo</small></div>${gradeFotos(d.fotos.map((u, k) => ({ url: u, rot: "Anexo " + (k + 1) })), editavel)}</div>` : "");
+    const ajustes = (d.ajustesGestor || []).length ? `<div class="dsp-sec">Ajustes feitos pelo gestor</div><ul class="dsp-aj">${d.ajustesGestor.map(a => `<li><b>${esc(a.por)}</b> em ${esc(String(a.em).slice(0, 16).replace("T", " "))}: ${a.mudancas.map(esc).join("; ")}</li>`).join("")}</ul>` : "";
+    const centros = ["PECUÁRIA", "PET", "PPD", "ENDOECTO"]; const cAtual = String(d.centroCusto || "PECUÁRIA").toUpperCase(); if (!centros.includes(cAtual)) centros.push(cAtual);
+    if (editavel) {
+      const I = (id, rot, val, extra) => `<div><label for="${id}"${extra && extra.req ? ' class="req"' : ""}>${rot}</label><input id="${id}" ${extra && extra.tipo ? `type="${extra.tipo}"` : ""} ${extra && extra.max ? `maxlength="${extra.max}"` : ""} ${extra && extra.modo ? `inputmode="${extra.modo}"` : ""} value="${esc(val || "")}"></div>`;
+      corpo = `<div class="dsp-form" id="ciEdit">
+        <h4>Dados da CI <small style="font-weight:400;color:var(--suave)">· campos com * são obrigatórios · você pode editar todos antes de aprovar</small></h4>
+        <div class="lin">
+          ${I("eExec", "Data da execução da despesa", d.execucao, { req: 1, tipo: "date" })}
+          ${I("eConsultor", "Consultor / coord. território", d.consultor || l.promotor, { req: 1, max: 120 })}
+          ${I("ePara", "Para (destinatário)", d.para || "ADELITA ARAUJO", { max: 120 })}
+          ${I("eValor", "Valor (R$)", d.valor ? String(d.valor).replace(".", ",") : "", { req: 1, modo: "decimal" })}
+          ${I("eBrinde", "Brinde", d.brinde, { max: 120 })}
+          ${I("eCliente", "Cliente", d.cliente, { max: 160 })}
+          ${I("ePerIni", "Campanha – início", d.periodoIni, { tipo: "date" })}
+          ${I("ePerFim", "Campanha – fim", d.periodoFim, { tipo: "date" })}
+        </div>
+        <div style="margin-top:12px;"><label for="eAcao" class="req">Ação</label><textarea id="eAcao" rows="2" maxlength="600">${esc(d.acao || "")}</textarea></div>
+        <div style="margin-top:12px;"><label for="eAcordo" class="req">Tipo de acordo</label><textarea id="eAcordo" rows="4" maxlength="1000">${esc(d.tipoAcordo || "")}</textarea></div>
+        <div class="lin" style="margin-top:12px;">
+          <div><label for="eCartao">Tem cartão presente?</label><select id="eCartao"><option value="0" ${d.cartaoPresente ? "" : "selected"}>Não</option><option value="1" ${d.cartaoPresente ? "selected" : ""}>Sim</option></select></div>
+          ${I("eTitular", "Nome do titular", d.titular, { max: 120 })}
+          ${I("eCpf", "CPF / CNPJ", d.cpfCnpj, { max: 30 })}
+          <div><label for="eCentro">Centro de custo / verba</label><select id="eCentro">${centros.map(x => `<option ${x === cAtual ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
+        </div>
+        <div style="margin-top:12px;"><label for="eObs">Observação</label><input id="eObs" maxlength="600" value="${esc(d.observacao || "")}"></div>
+        <div class="lin" style="margin-top:12px;">
+          ${I("eEnd", "Endereço", e.endereco, { max: 160 })}${I("eNum", "Nº / compl.", e.numero, { max: 60 })}${I("eBairro", "Bairro", e.bairro, { max: 80 })}${I("eCidade", "Cidade / UF", e.cidade, { max: 80 })}
+          ${I("eRec", "Recebedor", e.recebedor, { max: 120 })}${I("eTel", "Telefone", e.telefone, { max: 30 })}
+        </div>
+        <div id="ciEditMsg" role="alert"></div>
+        <div class="dsp-acoes"><button class="dsp-ok" type="button" id="btnSalvarCi">Salvar alterações da CI</button>
+          <span class="dsp-dica">As alterações valem para o Excel e para o que for ao Kanban. Fica registrado quem alterou.</span></div>
+      </div>${blocoAnx}${ajustes}`;
+    } else {
+      const kv = [["Ação", d.acao], ["Consultor", d.consultor], ["Cliente", d.cliente], ["Valor informado", moeda2(d.valor)], ["Centro de custo", d.centroCusto], ["Data da execução", dataBR(d.execucao)],
+        ["Tipo de acordo", d.tipoAcordo], ["Brinde", d.brinde], ["Campanha", d.periodoIni ? dataBR(d.periodoIni) + " a " + dataBR(d.periodoFim || d.periodoIni) : ""],
+        ["Cartão presente", d.cartaoPresente ? "Sim" : "Não"], ["Titular / CPF-CNPJ", d.cartaoPresente ? (d.titular || "") + " · " + (d.cpfCnpj || "") : ""], ["Observação", d.observacao],
+        ["Entrega", [e.endereco, e.numero, e.bairro, e.cidade].filter(Boolean).join(", ")], ["Recebedor / tel.", [e.recebedor, e.telefone].filter(Boolean).join(" · ")]]
+        .filter(x => x[1]);
+      corpo = `<dl class="dsp-kv">${kv.map(x => `<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join("")}</dl>${blocoAnx}${ajustes}`;
+    }
   }
   const titulo = l.tipo === "RDV" ? `RDV · ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}` : "CI – Comunicação Interna";
   let aviso = "";
@@ -1377,7 +1437,7 @@ function desenharDetalheDesp(l) {
   if (l.status === "pendente" || l.status === "erro_kanban") {
     let ult = ""; try { ult = localStorage.getItem("dspUltClass") || ""; } catch (x) { }
     const valor = g.valor != null ? g.valor : l.valor_promotor;
-    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? (l.titulo || `RDV - CONSULTOR ${String(l.promotor).toUpperCase()} | ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}`) : `CI - ${l.promotor} - ${d.cliente || ""}`);
+    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? (l.titulo || `RDV - CONSULTOR ${String(l.promotor).toUpperCase()} | ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}`) : `CI - ${l.promotor} - ${d.cliente || d.acao || ""}`);
     form = `<div class="dsp-form" id="dspForm" data-id="${l.id}" data-tipo="${l.tipo}">
       <h4>Dados para o Kanban</h4>
       <div class="lin">
@@ -1435,6 +1495,44 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
 });
 
 
+/* ---------- CI: edição de todos os campos pelo gestor e exclusão de fotos ---------- */
+document.addEventListener("click", async e => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    const l = window._dspAtual; if (!l || !podeEditarDesp(l)) return;
+    if (!confirm("Excluir esta foto da solicitação? O consultor não vai mais enviá-la ao Kanban e isso não pode ser desfeito.")) return;
+    if (dspOcupado) return; dspOcupado = true; del.disabled = true;
+    try {
+      const r = await apiRdv("POST", "", { acao: "remover_foto", id: l.id, url: del.getAttribute("data-del") });
+      fecharLado(); await carregarDespesas(true); desenharDetalheDesp(r);
+      $("dspMsg").innerHTML = '<div class="dsp-info">Foto excluída.</div>';
+    } catch (x) { del.disabled = false; $("dspMsg").innerHTML = `<div class="dsp-aviso">${esc(x.message)}</div>`; }
+    finally { dspOcupado = false; }
+    return;
+  }
+  if (e.target.id === "btnSalvarCi") {
+    const l = window._dspAtual; if (!l) return;
+    const v = id => $(id).value.trim();
+    const msg = t => { $("ciEditMsg").innerHTML = t ? `<div class="dsp-aviso">${esc(t)}</div>` : ""; };
+    if (!v("eAcao")) { msg("Informe a ação."); return; }
+    if (!v("eExec")) { msg("Informe a data da execução da despesa."); return; }
+    if (!v("eConsultor")) { msg("Informe o consultor."); return; }
+    if (!v("eAcordo")) { msg("Informe o tipo de acordo."); return; }
+    if (numBR(v("eValor")) <= 0) { msg("Informe o valor."); return; }
+    const dados = { acao: v("eAcao"), execucao: v("eExec"), consultor: v("eConsultor"), para: v("ePara"), valor: numBR(v("eValor")), brinde: v("eBrinde"), cliente: v("eCliente"),
+      periodoIni: v("ePerIni"), periodoFim: v("ePerFim"), tipoAcordo: v("eAcordo"), cartaoPresente: v("eCartao") === "1", titular: v("eTitular"), cpfCnpj: v("eCpf"),
+      centroCusto: v("eCentro"), observacao: v("eObs"),
+      entrega: { endereco: v("eEnd"), numero: v("eNum"), bairro: v("eBairro"), cidade: v("eCidade"), recebedor: v("eRec"), telefone: v("eTel") } };
+    if (dspOcupado) return; dspOcupado = true; e.target.disabled = true;
+    try {
+      const r = await apiRdv("POST", "", { acao: "editar_ci", id: l.id, dados });
+      await carregarDespesas(true); desenharDetalheDesp(r);
+      $("dspMsg").innerHTML = '<div class="dsp-info">Alterações da CI salvas.</div>';
+    } catch (x) { msg(x.message); e.target.disabled = false; }
+    finally { dspOcupado = false; }
+  }
+});
+
 /* ---------- RDV: painel lateral (meia tela), Excel, agenda e ajuste de KM ---------- */
 function abrirLado(titulo, html) {
   $("dspLadoTit").textContent = titulo; $("dspLadoCorpo").innerHTML = html;
@@ -1443,7 +1541,7 @@ function abrirLado(titulo, html) {
 function fecharLado() { $("dspLado").classList.add("oculto"); document.body.classList.remove("dsp-lado-aberto"); }
 document.getElementById("dspLadoFechar").addEventListener("click", fecharLado);
 document.getElementById("dspLadoCorpo").addEventListener("click", e => { if (e.target.tagName === "IMG") e.target.classList.toggle("zoom"); });
-const ROT_TP = { hotel: "Hotel", almoco: "Almoço", jantar: "Jantar", aviso: "Aviso prévio / outros" };
+const ROT_TP = { hotel: "Hotel", almoco: "Almoço", cafe: "Café da manhã / tarde", jantar: "Jantar", aviso: "Aviso prévio / outros" };
 document.getElementById("dspDetalhe").addEventListener("click", async e => {
   const l = window._dspRdv;
   const vb = e.target.closest(".dsp-valor");
@@ -1452,17 +1550,17 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
     const fs = x.fotos || [];
     abrirLado(`${ROT_TP[vb.dataset.tp]} · ${DIAS_CURTO[i]} ${dm(x.data)}`,
       `<p style="margin:0 0 8px;font-size:13px;">${x.descricao ? "<b>Descrição:</b> " + esc(x.descricao) : ""}${x.hotelDescricao && vb.dataset.tp === "hotel" ? "<br><b>Hotel:</b> " + esc(x.hotelDescricao) : ""}</p>` +
-      (fs.length ? fs.map(u => `<img src="${esc(u)}" alt="Nota">`).join("") : '<div class="vazio">Sem foto de nota neste dia.</div>'));
+      (fs.length ? fs.map(u => `<img src="${esc(u)}" alt="Nota">${btnExcluirFoto(u, podeEditarDesp(l))}`).join("") : '<div class="vazio">Sem foto de nota neste dia.</div>'));
     return;
   }
   const im = e.target.closest("img[data-ver=hod]");
   if (im && l) {
     const d = l.dados;
-    abrirLado("Hodômetro inicial e final", `<p style="margin:0 0 6px;"><b>Inicial:</b> ${num(d.kmInicial)}</p>${d.fotoHodometroIni ? `<img src="${esc(d.fotoHodometroIni)}" alt="">` : ""}<p style="margin:0 0 6px;"><b>Final:</b> ${num(d.kmFinalHodometro != null ? d.kmFinalHodometro : d.kmFinal)}</p>${d.fotoHodometroFim ? `<img src="${esc(d.fotoHodometroFim)}" alt="">` : ""}`);
+    abrirLado("Hodômetro inicial e final", `<p style="margin:0 0 6px;"><b>Inicial:</b> ${num(d.kmInicial)}</p>${d.fotoHodometroIni ? `<img src="${esc(d.fotoHodometroIni)}" alt="">${btnExcluirFoto(d.fotoHodometroIni, podeEditarDesp(l))}` : ""}<p style="margin:0 0 6px;"><b>Final:</b> ${num(d.kmFinalHodometro != null ? d.kmFinalHodometro : d.kmFinal)}</p>${d.fotoHodometroFim ? `<img src="${esc(d.fotoHodometroFim)}" alt="">${btnExcluirFoto(d.fotoHodometroFim, podeEditarDesp(l))}` : ""}`);
     return;
   }
   const an = e.target.closest("a[data-ver=anexo]");
-  if (an) { e.preventDefault(); abrirLado("Anexo", `<img src="${esc(an.getAttribute("href"))}" alt="">`); return; }
+  if (an) { e.preventDefault(); const u = an.getAttribute("href"); abrirLado("Anexo", `<img src="${esc(u)}" alt="">${btnExcluirFoto(u, podeEditarDesp(window._dspAtual))}`); return; }
   if (!l) return;
   if (e.target.id === "btnExcelPrevia") {
     const b = e.target; b.disabled = true; const t0 = b.textContent; b.textContent = "Gerando Excel...";

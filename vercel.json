@@ -3,11 +3,10 @@
     {
       "path": "/api/backup",
       "schedule": "0 2 * * 6"
+    },
+    {
+      "path": "/api/agenda?recurso=lembrete_rdv",
+      "schedule": "0 11 * * *"
     }
-  ],
-  "functions": {
-    "api/agenda.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
