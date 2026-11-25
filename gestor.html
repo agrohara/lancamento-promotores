@@ -1401,14 +1401,16 @@ function desenharDetalheDesp(l) {
           ${I("ePara", "Para (destinatário)", d.para || "ADELITA ARAUJO", { max: 120 })}
           ${I("eValor", "Valor (R$)", d.valor ? String(d.valor).replace(".", ",") : "", { req: 1, modo: "decimal" })}
           ${I("eBrinde", "Brinde", d.brinde, { max: 120 })}
-          ${I("eCliente", "Cliente", d.cliente, { max: 160 })}
+          ${I("eFantasia", "Nome do cliente (nome fantasia)", d.nomeFantasia, { req: 1, max: 160 })}
+          ${I("eCliente", "Cliente (razão social)", d.cliente, { req: 1, max: 160 })}
+          ${I("eCidadeLoja", "Cidade da loja", d.cidadeLoja, { req: 1, max: 80 })}
           ${I("ePerIni", "Campanha – início", d.periodoIni, { tipo: "date" })}
           ${I("ePerFim", "Campanha – fim", d.periodoFim, { tipo: "date" })}
         </div>
         <div style="margin-top:12px;"><label for="eAcao" class="req">Ação</label><textarea id="eAcao" rows="2" maxlength="600">${esc(d.acao || "")}</textarea></div>
         <div style="margin-top:12px;"><label for="eAcordo" class="req">Tipo de acordo</label><textarea id="eAcordo" rows="4" maxlength="1000">${esc(d.tipoAcordo || "")}</textarea></div>
         <div class="lin" style="margin-top:12px;">
-          <div><label for="eCartao">Tem cartão presente?</label><select id="eCartao"><option value="0" ${d.cartaoPresente ? "" : "selected"}>Não</option><option value="1" ${d.cartaoPresente ? "selected" : ""}>Sim</option></select></div>
+          <div><label for="eCartao">Tem cartão ALELO?</label><select id="eCartao"><option value="0" ${d.cartaoPresente ? "" : "selected"}>Não</option><option value="1" ${d.cartaoPresente ? "selected" : ""}>Sim</option></select></div>
           ${I("eTitular", "Nome do titular", d.titular, { max: 120 })}
           ${I("eCpf", "CPF / CNPJ", d.cpfCnpj, { max: 30 })}
           <div><label for="eCentro">Centro de custo / verba</label><select id="eCentro">${centros.map(x => `<option ${x === cAtual ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
@@ -1423,9 +1425,9 @@ function desenharDetalheDesp(l) {
           <span class="dsp-dica">As alterações valem para o Excel e para o que for ao Kanban. Fica registrado quem alterou.</span></div>
       </div>${blocoAnx}${ajustes}`;
     } else {
-      const kv = [["Ação", d.acao], ["Consultor", d.consultor], ["Cliente", d.cliente], ["Valor informado", moeda2(d.valor)], ["Centro de custo", d.centroCusto], ["Data da execução", dataBR(d.execucao)],
+      const kv = [["Ação", d.acao], ["Consultor", d.consultor], ["Nome do cliente (fantasia)", d.nomeFantasia], ["Cliente (razão social)", d.cliente], ["Cidade da loja", d.cidadeLoja], ["Valor informado", moeda2(d.valor)], ["Centro de custo", d.centroCusto], ["Data da execução", dataBR(d.execucao)],
         ["Tipo de acordo", d.tipoAcordo], ["Brinde", d.brinde], ["Campanha", d.periodoIni ? dataBR(d.periodoIni) + " a " + dataBR(d.periodoFim || d.periodoIni) : ""],
-        ["Cartão presente", d.cartaoPresente ? "Sim" : "Não"], ["Titular / CPF-CNPJ", d.cartaoPresente ? (d.titular || "") + " · " + (d.cpfCnpj || "") : ""], ["Observação", d.observacao],
+        ["Cartão ALELO", d.cartaoPresente ? "Sim" : "Não"], ["Titular / CPF-CNPJ", d.cartaoPresente ? (d.titular || "") + " · " + (d.cpfCnpj || "") : ""], ["Observação", d.observacao],
         ["Entrega", [e.endereco, e.numero, e.bairro, e.cidade].filter(Boolean).join(", ")], ["Recebedor / tel.", [e.recebedor, e.telefone].filter(Boolean).join(" · ")]]
         .filter(x => x[1]);
       corpo = `<dl class="dsp-kv">${kv.map(x => `<dt>${x[0]}</dt><dd>${esc(x[1])}</dd>`).join("")}</dl>${blocoAnx}${ajustes}`;
@@ -1437,7 +1439,25 @@ function desenharDetalheDesp(l) {
   if (l.status === "erro_kanban") aviso = `<div class="dsp-aviso">${esc(l.kanban_resposta)}<br>Confira no Kanban se o cartão já existe antes de reenviar, para não duplicar.</div>`;
   if (l.status === "enviada_kanban") aviso = `<div class="dsp-info">${esc(l.kanban_resposta)} · ${l.enviado_kanban_em ? dataBR(String(l.enviado_kanban_em).slice(0, 10)) : ""}</div>`;
 
+  const reps = Array.isArray(g.reprovacoes) ? g.reprovacoes : [];
+  if (reps.length && (l.status === "pendente" || l.status === "erro_kanban")) {
+    const u = reps[reps.length - 1];
+    aviso += `<div class="dsp-aviso"><b>Reaberta para correção em ${dataBR(String(u.em).slice(0, 10))}${u.numeroKanban ? " (despesa #" + esc(u.numeroKanban) + " no Kanban)" : ""}${u.motivo ? ":</b> " + esc(u.motivo) : ".</b>"}<br>Os dados do Kanban abaixo já estão preenchidos com o que você usou antes. Confira, corrija o que for preciso e envie de novo.</div>`;
+  }
   let form = "";
+  if (l.status === "enviada_kanban") {
+    form = `<div class="dsp-form" id="reprovBox" data-id="${l.id}">
+      <h4>Precisa corrigir e reenviar?</h4>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--suave)">Use se o Kanban reprovou ou se você só quer ajustar e mandar de novo. Tudo o que você preencheu (classificação, descrição, datas, nº) fica guardado: ninguém precisa digitar de novo.</p>
+      <div class="lin"><div><label for="rpNum">Nº da despesa no Kanban (opcional)</label><input id="rpNum" maxlength="20" placeholder="Ex.: 13199"></div></div>
+      <div style="margin-top:12px;"><label for="rpMotivo">Motivo ou observação (opcional · o consultor vê)</label><textarea id="rpMotivo" rows="2" maxlength="600" placeholder="Ex.: FAVOR VERIFICAR CONFORME COMBINADO VIA WSAPP."></textarea></div>
+      <div id="rpMsg" role="alert"></div>
+      <div class="dsp-acoes">
+        <button class="dsp-rec" type="button" data-rp="consultor">Devolver ao consultor</button>
+        <button class="dsp-ok" type="button" data-rp="gestor">Editar e reenviar</button>
+        <span class="dsp-dica">Ao reenviar, o app gera um novo cartão no Kanban já com os dados anteriores.</span>
+      </div></div>`;
+  }
   if (l.status === "pendente" || l.status === "erro_kanban") {
     // Classificação da despesa: lista fechada igual à do Kanban (o texto tem que bater lá na outra ponta).
     // RDV é sempre "RDV SEMANAL". CI NÃO herda a classificação do RDV: o gestor escolhe. Para incluir
@@ -1448,7 +1468,7 @@ function desenharDetalheDesp(l) {
     const naLista = listaCl.includes(atualCl);
     const outraCl = !!atualCl && !naLista;
     const valor = g.valor != null ? g.valor : l.valor_promotor;
-    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? (l.titulo || `RDV - CONSULTOR ${String(l.promotor).toUpperCase()} | ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}`) : `CI - ${l.promotor} - ${d.cliente || d.acao || ""}`);
+    const desc = g.descricao != null ? g.descricao : (l.tipo === "RDV" ? (l.titulo || `RDV - CONSULTOR ${String(l.promotor).toUpperCase()} | ${dataBR(l.periodo_ini)} a ${dataBR(l.periodo_fim)}`) : `CI - ${l.promotor} - ${d.nomeFantasia || d.cliente || d.acao || ""}`);
     form = `<div class="dsp-form" id="dspForm" data-id="${l.id}" data-tipo="${l.tipo}">
       <h4>Dados para o Kanban</h4>
       <div class="lin">
@@ -1510,6 +1530,21 @@ document.getElementById("dspDetalhe").addEventListener("click", async e => {
 
 /* ---------- CI: edição de todos os campos pelo gestor e exclusão de fotos ---------- */
 document.addEventListener("click", async e => {
+  const rp = e.target.closest("[data-rp]");
+  if (rp) {
+    const box = $("reprovBox"); if (!box) return;
+    const motivo = $("rpMotivo").value.trim();
+    const destino = rp.getAttribute("data-rp");
+    if (!confirm(destino === "gestor" ? "Reabrir esta despesa para você editar e reenviar ao Kanban?" : "Devolver esta despesa ao consultor para corrigir e reenviar?")) return;
+    if (dspOcupado) return; dspOcupado = true; rp.disabled = true;
+    try {
+      const r = await apiRdv("POST", "", { acao: "reprovada_kanban", id: Number(box.dataset.id), motivo, destino, numeroKanban: $("rpNum").value.trim() });
+      await carregarDespesas(true); desenharDetalheDesp(r);
+      $("dspMsg").innerHTML = destino === "gestor" ? '<div class="dsp-info">Despesa reaberta em "Para aprovar", com os dados anteriores preenchidos.</div>' : '<div class="dsp-info">Devolvida ao consultor para correção.</div>';
+    } catch (x) { rp.disabled = false; $("rpMsg").innerHTML = `<div class="dsp-aviso">${esc(x.message)}</div>`; }
+    finally { dspOcupado = false; }
+    return;
+  }
   const del = e.target.closest("[data-del]");
   if (del) {
     const l = window._dspAtual; if (!l || !podeEditarDesp(l)) return;
@@ -1530,9 +1565,12 @@ document.addEventListener("click", async e => {
     if (!v("eAcao")) { msg("Informe a ação."); return; }
     if (!v("eExec")) { msg("Informe a data da execução da despesa."); return; }
     if (!v("eConsultor")) { msg("Informe o consultor."); return; }
+    if (!v("eFantasia")) { msg("Informe o nome do cliente (nome fantasia)."); return; }
+    if (!v("eCliente")) { msg("Informe a razão social do cliente."); return; }
+    if (!v("eCidadeLoja")) { msg("Informe a cidade da loja."); return; }
     if (!v("eAcordo")) { msg("Informe o tipo de acordo."); return; }
     if (numBR(v("eValor")) <= 0) { msg("Informe o valor."); return; }
-    const dados = { acao: v("eAcao"), execucao: v("eExec"), consultor: v("eConsultor"), para: v("ePara"), valor: numBR(v("eValor")), brinde: v("eBrinde"), cliente: v("eCliente"),
+    const dados = { acao: v("eAcao"), execucao: v("eExec"), consultor: v("eConsultor"), para: v("ePara"), valor: numBR(v("eValor")), brinde: v("eBrinde"), nomeFantasia: v("eFantasia"), cliente: v("eCliente"), cidadeLoja: v("eCidadeLoja"),
       periodoIni: v("ePerIni"), periodoFim: v("ePerFim"), tipoAcordo: v("eAcordo"), cartaoPresente: v("eCartao") === "1", titular: v("eTitular"), cpfCnpj: v("eCpf"),
       centroCusto: v("eCentro"), observacao: v("eObs"),
       entrega: { endereco: v("eEnd"), numero: v("eNum"), bairro: v("eBairro"), cidade: v("eCidade"), recebedor: v("eRec"), telefone: v("eTel") } };

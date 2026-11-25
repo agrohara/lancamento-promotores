@@ -8138,7 +8138,7 @@ function dspSegundaAtual() {
 function dspStatusTexto(l) {
   if (l.status === "rascunho") return { t: "Em preenchimento · não enviado", c: "rascunho" };
   if (l.status === "pendente") return { t: "Aguardando aprovação", c: "pendente" };
-  if (l.status === "recusada") return { t: "Recusada · corrigir", c: "recusada" };
+  if (l.status === "recusada") return { t: /^Devolvida para correção/.test(l.motivo_recusa || "") ? "Devolvida · corrigir" : "Recusada · corrigir", c: "recusada" };
   if (l.status === "erro_kanban") return { t: "Aprovada · enviando ao Kanban", c: "ok" };
   return { t: "Aprovada · enviada ao Kanban", c: "ok" };
 }
@@ -8585,8 +8585,12 @@ function dspCiMontar() {
       <label for="ciExec">Data da execução da despesa ${ob}</label>
       <input type="date" id="ciExec" value="${d.execucao || ""}" ${ro}>
       <label for="ciBrinde">Brinde</label><input type="text" id="ciBrinde" maxlength="120" value="${escHtml(d.brinde || "")}" ${ro}>
-      <label for="ciCliente">Cliente</label>
-      <input type="text" id="ciCliente" maxlength="160" value="${escHtml(d.cliente || "")}" ${ro}>
+      <label for="ciFantasia">Nome do cliente (nome fantasia) ${ob}</label>
+      <input type="text" id="ciFantasia" maxlength="160" value="${escHtml(d.nomeFantasia || "")}" ${ro} placeholder="Como a loja é conhecida">
+      <label for="ciCliente">Cliente (razão social) ${ob}</label>
+      <input type="text" id="ciCliente" maxlength="160" value="${escHtml(d.cliente || "")}" ${ro} placeholder="Razão social da loja, como no cadastro">
+      <label for="ciCidadeLoja">Cidade da loja ${ob}</label>
+      <input type="text" id="ciCidadeLoja" maxlength="80" value="${escHtml(d.cidadeLoja || "")}" ${ro} placeholder="Ex.: Londrina/PR">
       <label for="ciConsultor">Consultor / coord. território ${ob}</label>
       <input type="text" id="ciConsultor" maxlength="120" value="${escHtml(d.consultor || dspCiNomeConsultor())}" ${ro}>
       <div class="dsp-grade" style="margin-top:12px;">
@@ -8600,8 +8604,8 @@ function dspCiMontar() {
       <div class="ci-contador" id="ciAcordoCont">0 / 1000 caracteres</div>
     </div>
     <div class="card ci-modelo">
-      <p class="subtitulo">03 · Cartão presente</p>
-      <label>Tem cartão?</label>
+      <p class="subtitulo">03 · ALELO</p>
+      <label>Tem cartão ALELO?</label>
       <div class="dsp-sim-nao">
         <button type="button" class="btn btn-secundario ${dsp.cartao ? "" : "ativo"}" data-cartao="0" ${ro}>Não</button>
         <button type="button" class="btn btn-secundario ${dsp.cartao ? "ativo" : ""}" data-cartao="1" ${ro}>Sim</button>
@@ -8665,13 +8669,13 @@ async function dspCiGravar(rascunho) {
   const v = (id) => document.getElementById(id).value.trim();
   const totalFotos = () => DSP_CI_ANEXOS.reduce((n, a) => n + dsp.fotosCi[a.chave].quantidade(), 0);
   if (!rascunho) {
-    const obrig = [["ciAcao", "Descreva a ação."], ["ciExec", "Informe a data da execução da despesa."], ["ciConsultor", "Informe o consultor."], ["ciAcordo", "Descreva o tipo de acordo."], ["ciValor", "Informe o valor."]];
+    const obrig = [["ciAcao", "Descreva a ação."], ["ciExec", "Informe a data da execução da despesa."], ["ciFantasia", "Informe o nome do cliente (nome fantasia)."], ["ciCliente", "Informe a razão social do cliente."], ["ciCidadeLoja", "Informe a cidade da loja."], ["ciConsultor", "Informe o consultor."], ["ciAcordo", "Descreva o tipo de acordo."], ["ciValor", "Informe o valor."]];
     for (const [id, t] of obrig) {
       if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
     }
     if (dspNum(v("ciValor")) <= 0) { marcarCampoInvalido("ciValor", "Valor inválido."); msg("Informe um valor maior que zero.", "erro"); return; }
     if (totalFotos() === 0) { msg("Anexe ao menos uma foto (comprovante, nota, lista de presença ou foto do evento).", "erro"); return; }
-    if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão.", "erro"); return; }
+    if (dsp.cartao && !v("ciTitular")) { marcarCampoInvalido("ciTitular", "Informe o titular."); msg("Informe o nome do titular do cartão ALELO.", "erro"); return; }
   } else if (!v("ciAcao") && !v("ciCliente") && !v("ciValor")) {
     msg("Preencha ao menos a ação, o cliente ou o valor para salvar o rascunho.", "erro"); return;
   }
@@ -8682,7 +8686,7 @@ async function dspCiGravar(rascunho) {
     const anexos = {};
     for (const a of DSP_CI_ANEXOS) anexos[a.chave] = await dsp.fotosCi[a.chave].enviar();
     const dados = {
-      acao: v("ciAcao"), cliente: v("ciCliente"), consultor: v("ciConsultor"), valor: dspNum(v("ciValor")), centroCusto: v("ciCentro"), execucao: v("ciExec"),
+      acao: v("ciAcao"), nomeFantasia: v("ciFantasia"), cliente: v("ciCliente"), cidadeLoja: v("ciCidadeLoja"), consultor: v("ciConsultor"), valor: dspNum(v("ciValor")), centroCusto: v("ciCentro"), execucao: v("ciExec"),
       cartaoPresente: dsp.cartao, titular: v("ciTitular"), cpfCnpj: v("ciCpf"), tipoAcordo: v("ciAcordo"), brinde: v("ciBrinde"),
       periodoIni: v("ciPerIni"), periodoFim: v("ciPerFim"), observacao: v("ciObs"),
       entrega: { endereco: v("ciEnd"), numero: v("ciNum"), bairro: v("ciBairro"), cidade: v("ciCidade"), recebedor: v("ciRec"), telefone: v("ciTel") },
