@@ -90,15 +90,17 @@ function planilhaCiModelo(sol, extra, emitente) {
 
   const periodo = d.periodoIni ? `${br(d.periodoIni)} a ${br(d.periodoFim || d.periodoIni)}` : "";
   const valor = Number(extra.valor != null && extra.valor !== "" ? extra.valor : d.valor) || 0;
-  // 1ª via: o consultor/gestor preenche. Os vermelhos do modelo: Ação, Data da execução, Consultor, Tipo de acordo e Valor.
+  // 1ª via: o consultor/gestor preenche. Os vermelhos do modelo: Ação, Data da execução, Nome fantasia, Razão social, Cidade, Consultor, Tipo de acordo e Valor.
   const dados = {
     H3: String(extra.numero || ""), C6: emitente, C7: d.para || PARA_PADRAO,
     H6: serial(extra.emissao || extra.hoje), H7: serial(d.execucao), C8: d.acao || "",
-    C11: d.brinde || "", C12: d.cliente || "", D13: d.consultor || String(sol.promotor_nome || ""), D14: periodo,
-    B18: d.tipoAcordo || "",
-    C21: d.cartaoPresente ? "SIM" : "NÃO", E21: valor, G21: d.observacao || "", C22: d.titular || "", H22: d.cpfCnpj || "",
-    C25: e.endereco || "", H25: e.numero || "", C26: e.bairro || "", G26: e.cidade || "", C27: e.recebedor || "", H27: e.telefone || "",
-    D29: String(d.centroCusto || "PECUÁRIA").toUpperCase(), H29: emitente
+    C11: d.brinde || "",
+    D12: d.nomeFantasia || "", D13: d.cliente || "", D14: d.cidadeLoja || "",
+    D15: d.consultor || String(sol.promotor_nome || ""), D16: periodo,
+    B20: d.tipoAcordo || "",
+    C23: d.cartaoPresente ? "SIM" : "NÃO", E23: valor, G23: d.observacao || "", C24: d.titular || "", H24: d.cpfCnpj || "",
+    C27: e.endereco || "", H27: e.numero || "", C28: e.bairro || "", G28: e.cidade || "", C29: e.recebedor || "", H29: e.telefone || "",
+    D31: String(d.centroCusto || "PECUÁRIA").toUpperCase(), H31: emitente
   };
   Object.keys(dados).forEach(ref => { xml = setCel(xml, ref, dados[ref], ref === "H6"); });
 
@@ -106,7 +108,7 @@ function planilhaCiModelo(sol, extra, emitente) {
   // fica legível); o que continuar vazio segue vermelho.
   const iEst = arqs.findIndex(a => a.nome === "xl/styles.xml");
   let est = arqs[iEst].dados.toString("utf8");
-  const vermelhos = ["H7", "C8", "D13", "B18", "E21"];
+  const vermelhos = ["H7", "C8", "D12", "D13", "D14", "D15", "B20", "E23"];
   const mapaEstilo = {};
   const mf = /<fills count="(\d+)">/.exec(est), mx = /<cellXfs count="(\d+)">/.exec(est);
   if (mf && mx) {

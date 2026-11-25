@@ -208,7 +208,7 @@ const ANEXOS_CI = [
 const PARA_CI_PADRAO = "ADELITA ARAUJO";
 
 // Campos obrigatórios da CI = os campos vermelhos do modelo oficial: Ação, Data da execução,
-// Consultor, Tipo de acordo e Valor (+ ao menos uma foto). Os demais são opcionais.
+// Consultor, Tipo de acordo e Valor, mais razão social e cidade da loja (para o gestor saber de qual loja é) e ao menos uma foto. Os demais são opcionais.
 function normalizarCi(d, rascunho, nomePromotor) {
   d = d || {};
   const cartao = d.cartaoPresente === true || d.cartaoPresente === "SIM";
@@ -223,7 +223,9 @@ function normalizarCi(d, rascunho, nomePromotor) {
     consultor,
     para: txt(d.para, 120),
     brinde: txt(d.brinde, 120),
-    cliente: txt(d.cliente, 160),
+    nomeFantasia: txt(d.nomeFantasia, 160), // nome do cliente (nome fantasia)
+    cliente: txt(d.cliente, 160), // razão social do cliente (loja)
+    cidadeLoja: txt(d.cidadeLoja, 80),
     periodoIni: dataIso(d.periodoIni, "o início do período", false),
     periodoFim: dataIso(d.periodoFim, "o fim do período", false),
     tipoAcordo: txtLongo(d.tipoAcordo, 1000),
@@ -245,9 +247,12 @@ function normalizarCi(d, rascunho, nomePromotor) {
     if (!reg.acao) falha("Descreva a ação.");
     if (!reg.execucao) falha("Informe a data da execução da despesa.");
     if (!reg.consultor) falha("Informe o consultor.");
+    if (!reg.nomeFantasia) falha("Informe o nome do cliente (nome fantasia).");
+    if (!reg.cliente) falha("Informe a razão social do cliente.");
+    if (!reg.cidadeLoja) falha("Informe a cidade da loja.");
     if (!reg.tipoAcordo) falha("Descreva o tipo de acordo.");
     if (!totalFotosCi(reg)) falha("Anexe ao menos uma foto (comprovante, nota, lista de presença ou foto do evento).");
-    if (cartao && !reg.titular) falha("Informe o nome do titular do cartão presente.");
+    if (cartao && !reg.titular) falha("Informe o nome do titular do cartão ALELO.");
   }
   return reg;
 }
@@ -649,6 +654,9 @@ async function tratarRdv(req, res, ctx) {
         if (!["rascunho", "pendente", "recusada"].includes(atual.status)) { res.status(409).json({ erro: "Esta solicitação já foi aprovada e não pode mais ser alterada." }); return; }
         if (atual.tipo !== tipo) { res.status(400).json({ erro: "Não é possível trocar o tipo." }); return; }
         if (bloqueio && atual.status === "pendente") { bloqueio = null; base.status = "pendente"; } // já estava enviado: só edição
+        // Reenvio depois de recusa/reprovação: mantém o que o gestor já tinha preenchido (classificação, descrição, datas, nº),
+        // menos o valor, que deixa de valer se o consultor o mudou.
+        if (atual.gestor) { const gg = { ...atual.gestor }; if (Number(atual.valor_promotor) !== Number(valorPromotor)) delete gg.valor; base.gestor = gg; }
         const { data, error } = await supabase.from("solicitacoes_despesa").update(base).eq("id", atual.id).select().single();
         if (error) throw error;
         if (atual.status !== "pendente") await avisarNovaSolicitacao(supabase, data, loginUsuario); // rascunho/recusada -> pendente
@@ -753,9 +761,9 @@ async function tratarRdv(req, res, ctx) {
       const novo = normalizarCi(mescla, true, null); // permissivo: o gestor pode ajustar tudo
       if (!(novo.valor > 0)) falha("Informe um valor maior que zero.");
       const mud = [];
-      const rot = { acao: "ação", execucao: "data da execução", consultor: "consultor", para: "destinatário", brinde: "brinde", cliente: "cliente", periodoIni: "início da campanha", periodoFim: "fim da campanha", tipoAcordo: "tipo de acordo", titular: "titular do cartão", cpfCnpj: "CPF/CNPJ", valor: "valor", observacao: "observação", centroCusto: "centro de custo" };
+      const rot = { acao: "ação", execucao: "data da execução", consultor: "consultor", nomeFantasia: "nome fantasia", cidadeLoja: "cidade da loja", para: "destinatário", brinde: "brinde", cliente: "cliente", periodoIni: "início da campanha", periodoFim: "fim da campanha", tipoAcordo: "tipo de acordo", titular: "titular do cartão", cpfCnpj: "CPF/CNPJ", valor: "valor", observacao: "observação", centroCusto: "centro de custo" };
       Object.keys(rot).forEach(k => { if (String(d0[k] ?? "") !== String(novo[k] ?? "")) mud.push(rot[k]); });
-      if (!!d0.cartaoPresente !== !!novo.cartaoPresente) mud.push("cartão presente");
+      if (!!d0.cartaoPresente !== !!novo.cartaoPresente) mud.push("cartão ALELO");
       Object.keys(novo.entrega).forEach(k => { if (String(e0[k] || "") !== String(novo.entrega[k] || "")) mud.push("entrega (" + k + ")"); });
       if (!mud.length) { res.status(200).json(detalheLinha(sol)); return; }
       novo.ajustesGestor = [...(Array.isArray(d0.ajustesGestor) ? d0.ajustesGestor : []), { por: nomeUsuario, em: new Date().toISOString(), mudancas: ["Editou: " + mud.join(", ")] }].slice(-20);
@@ -793,6 +801,29 @@ async function tratarRdv(req, res, ctx) {
         const caminho = decodeURIComponent(url.split(`/object/public/${BUCKET}/`)[1] || "");
         if (caminho) await supabase.storage.from(BUCKET).remove([caminho]);
       } catch (e) { /* sem problema */ }
+      res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
+      return;
+    }
+
+    // Despesa reprovada LÁ NO KANBAN (o aviso chega por e-mail): o gestor registra o motivo e escolhe quem corrige.
+    //   destino "consultor": volta como "recusada" (o consultor corrige e reenvia);
+    //   destino "gestor": volta como "pendente" para o próprio gestor corrigir e reenviar.
+    // Nos dois casos o que o gestor já tinha preenchido (classificação, descrição, datas, nº) fica guardado.
+    if (acao === "reprovada_kanban") {
+      const motivo = txtLongo(b.motivo, 600); // opcional: não importa se o Kanban reprovou ou não, o gestor só quer corrigir/reenviar
+      const destino = b.destino === "gestor" ? "gestor" : "consultor";
+      const { data: sol, error: eK } = await supabase.from("solicitacoes_despesa").select("*").eq("id", Number(b.id)).maybeSingle();
+      if (eK) throw eK;
+      if (!sol) { res.status(404).json({ erro: "Solicitação não encontrada." }); return; }
+      if (sol.status !== "enviada_kanban") { res.status(409).json({ erro: "Só dá para devolver ou reabrir uma despesa já enviada ao Kanban." }); return; }
+      const numKanban = txt(b.numeroKanban, 20).replace(/^#/, "");
+      const g = { ...(sol.gestor || {}) };
+      g.reprovacoes = [...(Array.isArray(g.reprovacoes) ? g.reprovacoes : []), { em: new Date().toISOString(), por: nomeUsuario, numeroKanban: numKanban, motivo, destino }].slice(-10);
+      const rotulo = `Devolvida para correção${numKanban ? " (despesa #" + numKanban + " no Kanban)" : ""}${motivo ? ": " + motivo : "."}`;
+      const upd = { gestor: g, atualizado_em: new Date().toISOString(), enviado_kanban_em: null, kanban_resposta: "",
+        status: destino === "gestor" ? "pendente" : "recusada", motivo_recusa: destino === "gestor" ? null : rotulo.slice(0, 700) };
+      const { data, error } = await supabase.from("solicitacoes_despesa").update(upd).eq("id", sol.id).select().single();
+      if (error) throw error;
       res.status(200).json(await anexarDemanda(supabase, data, detalheLinha(data)));
       return;
     }
@@ -865,7 +896,7 @@ async function tratarRdv(req, res, ctx) {
 
       const resumoCurto = sol.tipo === "RDV"
         ? tituloRdv(sol)
-        : `CI - ${nomeConsultor(sol.promotor_nome)} - ${txt(sol.dados.cliente || sol.dados.acao, 60)}`;
+        : `CI - ${nomeConsultor(sol.promotor_nome)} - ${txt(sol.dados.nomeFantasia || sol.dados.cliente || sol.dados.acao, 60)}`;
       const campos = {
         establishment: KANBAN_ESTABELECIMENTO(),
         solicitante: KANBAN_SOLICITANTE(),
