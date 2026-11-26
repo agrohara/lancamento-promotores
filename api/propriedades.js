@@ -136,6 +136,16 @@ const CAMPOS_EDITAVEIS_PROPRIEDADE = {
   Personalidade_Decisor: "personalidade_decisor",
   Personalidade_Observacao: "personalidade_observacao"
 };
+// Fazendas só existem no PR, SC e interior de SP (lat ~ -20 a -29, long ~ -44 a -55): o sinal
+// é sempre negativo. Corrige sinal digitado errado (ou omitido) e latitude/longitude trocadas.
+function ajustarCoordenadasSul(lat, lon) {
+  if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return { lat, lon };
+  let a = lat, o = lon;
+  if (Math.abs(a) >= 40 && Math.abs(a) <= 60 && Math.abs(o) >= 18 && Math.abs(o) <= 32) { const t = a; a = o; o = t; }
+  if (Math.abs(a) >= 18 && Math.abs(a) <= 32) a = -Math.abs(a);
+  if (Math.abs(o) >= 40 && Math.abs(o) <= 60) o = -Math.abs(o);
+  return { lat: a, lon: o };
+}
 const CAMPOS_NUMERICOS_PROPRIEDADE = ["Matrizes", "Primiparas", "Novilhas", "Bezerros_Machos", "Bezerros_Femeas", "Garrotes", "Touros", "Equinos", "Latitude", "Longitude"];
 
 module.exports = async function handler(req, res) {
@@ -260,6 +270,7 @@ module.exports = async function handler(req, res) {
         personalidade_decisor: String(dadosBody.Personalidade_Decisor || "").trim(),
         personalidade_observacao: String(dadosBody.Personalidade_Observacao || "").trim()
       };
+      { const aj = ajustarCoordenadasSul(linhaNova.latitude, linhaNova.longitude); linhaNova.latitude = aj.lat; linhaNova.longitude = aj.lon; }
 
       const { error: erroInsert } = await supabase.from("propriedades").insert(linhaNova);
       if (erroInsert) throw erroInsert;
@@ -342,6 +353,11 @@ module.exports = async function handler(req, res) {
           valor = String(valor || "").trim();
         }
         atualizacao[colunaBanco] = valor;
+      }
+
+      if (atualizacao.latitude != null && atualizacao.longitude != null) {
+        const aj = ajustarCoordenadasSul(atualizacao.latitude, atualizacao.longitude);
+        atualizacao.latitude = aj.lat; atualizacao.longitude = aj.lon;
       }
 
       if (Object.keys(atualizacao).length === 0 && !vaiRenomear) {
