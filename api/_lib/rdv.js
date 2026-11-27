@@ -248,7 +248,6 @@ function normalizarCi(d, rascunho, nomePromotor) {
     if (!reg.execucao) falha("Informe a data da execução da despesa.");
     if (!reg.consultor) falha("Informe o consultor.");
     if (!reg.nomeFantasia) falha("Informe o nome do cliente (nome fantasia).");
-    if (!reg.cliente) falha("Informe a razão social do cliente.");
     if (!reg.cidadeLoja) falha("Informe a cidade da loja.");
     if (!reg.tipoAcordo) falha("Descreva o tipo de acordo.");
     if (!totalFotosCi(reg)) falha("Anexe ao menos uma foto (comprovante, nota, lista de presença ou foto do evento).");
@@ -765,10 +764,25 @@ async function tratarRdv(req, res, ctx) {
       Object.keys(rot).forEach(k => { if (String(d0[k] ?? "") !== String(novo[k] ?? "")) mud.push(rot[k]); });
       if (!!d0.cartaoPresente !== !!novo.cartaoPresente) mud.push("cartão ALELO");
       Object.keys(novo.entrega).forEach(k => { if (String(e0[k] || "") !== String(novo.entrega[k] || "")) mud.push("entrega (" + k + ")"); });
-      if (!mud.length) { res.status(200).json(detalheLinha(sol)); return; }
+      const kb = b.kanban && typeof b.kanban === "object" ? b.kanban : {};
+      const gk = {};
+      if (typeof kb.classificacao === "string" && kb.classificacao.trim()) gk.classificacao = kb.classificacao.trim().slice(0, 100);
+      if (typeof kb.emissao === "string" && /^\d{4}-\d{2}-\d{2}$/.test(kb.emissao)) gk.emissao = kb.emissao;
+      if (typeof kb.vencimento === "string" && /^\d{4}-\d{2}-\d{2}$/.test(kb.vencimento)) gk.vencimento = kb.vencimento;
+      if (typeof kb.numero === "string") gk.numero = kb.numero.trim().slice(0, 30);
+      if (typeof kb.descricao === "string" && kb.descricao.trim()) gk.descricao = kb.descricao.trim().slice(0, 1500);
+      const g0 = sol.gestor || {};
+      const kbMudou = Object.keys(gk).some(k => String(g0[k] ?? "") !== String(gk[k]));
+      if (!mud.length && !kbMudou) { res.status(200).json(detalheLinha(sol)); return; }
+      if (!mud.length) {
+        const { data, error } = await supabase.from("solicitacoes_despesa").update({ gestor: { ...g0, ...gk }, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
+        if (error) throw error;
+        res.status(200).json(detalheLinha(data));
+        return;
+      }
       novo.ajustesGestor = [...(Array.isArray(d0.ajustesGestor) ? d0.ajustesGestor : []), { por: nomeUsuario, em: new Date().toISOString(), mudancas: ["Editou: " + mud.join(", ")] }].slice(-20);
-      const gNovo = sol.gestor ? { ...sol.gestor } : null; if (gNovo && Number(sol.valor_promotor) !== novo.valor) delete gNovo.valor;
-      const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: novo, valor_promotor: novo.valor, gestor: gNovo, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
+      const gNovo = { ...g0, ...gk }; if (g0.valor != null && Number(sol.valor_promotor) !== novo.valor) delete gNovo.valor;
+      const { data, error } = await supabase.from("solicitacoes_despesa").update({ dados: novo, valor_promotor: novo.valor, gestor: Object.keys(gNovo).length ? gNovo : null, atualizado_em: new Date().toISOString() }).eq("id", sol.id).select().single();
       if (error) throw error;
       res.status(200).json(detalheLinha(data));
       return;

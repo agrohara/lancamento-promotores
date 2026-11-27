@@ -108,7 +108,7 @@ function planilhaCiModelo(sol, extra, emitente) {
   // fica legível); o que continuar vazio segue vermelho.
   const iEst = arqs.findIndex(a => a.nome === "xl/styles.xml");
   let est = arqs[iEst].dados.toString("utf8");
-  const vermelhos = ["H7", "C8", "D12", "D13", "D14", "D15", "B20", "E23"];
+  const vermelhos = ["H7", "C8", "D12", "D14", "D15", "B20", "E23"];
   const mapaEstilo = {};
   const mf = /<fills count="(\d+)">/.exec(est), mx = /<cellXfs count="(\d+)">/.exec(est);
   if (mf && mx) {
