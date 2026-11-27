@@ -2960,6 +2960,16 @@ function ligarColagemCoordenadas(idLat, idLon) {
     if (m) { campoLat.value = m[1]; campoLon.value = m[2]; }
   });
 }
+// Fazendas só existem no PR, SC e interior de SP (lat ~ -20 a -29, long ~ -44 a -55): o sinal
+// é sempre negativo. Corrige sinal digitado errado (ou omitido) e latitude/longitude trocadas.
+function ajustarCoordenadasSul(lat, lon) {
+  if (lat == null || lon == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return { lat, lon };
+  let a = lat, o = lon;
+  if (Math.abs(a) >= 40 && Math.abs(a) <= 60 && Math.abs(o) >= 18 && Math.abs(o) <= 32) { const t = a; a = o; o = t; }
+  if (Math.abs(a) >= 18 && Math.abs(a) <= 32) a = -Math.abs(a);
+  if (Math.abs(o) >= 40 && Math.abs(o) <= 60) o = -Math.abs(o);
+  return { lat: a, lon: o };
+}
 // Devolve { lat, lon } (ambos null se vazios) ou { erro } com a mensagem pro usuário.
 function lerCoordenadas(textoLat, textoLon) {
   const tl = String(textoLat || "").trim().replace(",", ".");
@@ -2970,7 +2980,8 @@ function lerCoordenadas(textoLat, textoLon) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return { erro: "Latitude/longitude inválidas — use só números, ex: -23.31234 e -51.16789." };
   if (lat < -90 || lat > 90) return { erro: "Latitude deve estar entre -90 e 90." };
   if (lon < -180 || lon > 180) return { erro: "Longitude deve estar entre -180 e 180." };
-  return { lat, lon };
+  const aj = ajustarCoordenadasSul(lat, lon);
+  return { lat: aj.lat, lon: aj.lon };
 }
 
 async function abrirFolhaEdicaoFazenda(nome, areaDetalheOrigem) {
@@ -8587,7 +8598,7 @@ function dspCiMontar() {
       <label for="ciBrinde">Brinde</label><input type="text" id="ciBrinde" maxlength="120" value="${escHtml(d.brinde || "")}" ${ro}>
       <label for="ciFantasia">Nome do cliente (nome fantasia) ${ob}</label>
       <input type="text" id="ciFantasia" maxlength="160" value="${escHtml(d.nomeFantasia || "")}" ${ro} placeholder="Como a loja é conhecida">
-      <label for="ciCliente">Cliente (razão social) ${ob}</label>
+      <label for="ciCliente">Cliente (razão social)</label>
       <input type="text" id="ciCliente" maxlength="160" value="${escHtml(d.cliente || "")}" ${ro} placeholder="Razão social da loja, como no cadastro">
       <label for="ciCidadeLoja">Cidade da loja ${ob}</label>
       <input type="text" id="ciCidadeLoja" maxlength="80" value="${escHtml(d.cidadeLoja || "")}" ${ro} placeholder="Ex.: Londrina/PR">
@@ -8669,7 +8680,7 @@ async function dspCiGravar(rascunho) {
   const v = (id) => document.getElementById(id).value.trim();
   const totalFotos = () => DSP_CI_ANEXOS.reduce((n, a) => n + dsp.fotosCi[a.chave].quantidade(), 0);
   if (!rascunho) {
-    const obrig = [["ciAcao", "Descreva a ação."], ["ciExec", "Informe a data da execução da despesa."], ["ciFantasia", "Informe o nome do cliente (nome fantasia)."], ["ciCliente", "Informe a razão social do cliente."], ["ciCidadeLoja", "Informe a cidade da loja."], ["ciConsultor", "Informe o consultor."], ["ciAcordo", "Descreva o tipo de acordo."], ["ciValor", "Informe o valor."]];
+    const obrig = [["ciAcao", "Descreva a ação."], ["ciExec", "Informe a data da execução da despesa."], ["ciFantasia", "Informe o nome do cliente (nome fantasia)."], ["ciCidadeLoja", "Informe a cidade da loja."], ["ciConsultor", "Informe o consultor."], ["ciAcordo", "Descreva o tipo de acordo."], ["ciValor", "Informe o valor."]];
     for (const [id, t] of obrig) {
       if (!v(id)) { marcarCampoInvalido(id, t); msg(t, "erro"); return; }
     }

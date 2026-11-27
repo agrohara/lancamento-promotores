@@ -1402,7 +1402,7 @@ function desenharDetalheDesp(l) {
           ${I("eValor", "Valor (R$)", d.valor ? String(d.valor).replace(".", ",") : "", { req: 1, modo: "decimal" })}
           ${I("eBrinde", "Brinde", d.brinde, { max: 120 })}
           ${I("eFantasia", "Nome do cliente (nome fantasia)", d.nomeFantasia, { req: 1, max: 160 })}
-          ${I("eCliente", "Cliente (razão social)", d.cliente, { req: 1, max: 160 })}
+          ${I("eCliente", "Cliente (razão social)", d.cliente, { max: 160 })}
           ${I("eCidadeLoja", "Cidade da loja", d.cidadeLoja, { req: 1, max: 80 })}
           ${I("ePerIni", "Campanha – início", d.periodoIni, { tipo: "date" })}
           ${I("ePerFim", "Campanha – fim", d.periodoFim, { tipo: "date" })}
@@ -1566,7 +1566,6 @@ document.addEventListener("click", async e => {
     if (!v("eExec")) { msg("Informe a data da execução da despesa."); return; }
     if (!v("eConsultor")) { msg("Informe o consultor."); return; }
     if (!v("eFantasia")) { msg("Informe o nome do cliente (nome fantasia)."); return; }
-    if (!v("eCliente")) { msg("Informe a razão social do cliente."); return; }
     if (!v("eCidadeLoja")) { msg("Informe a cidade da loja."); return; }
     if (!v("eAcordo")) { msg("Informe o tipo de acordo."); return; }
     if (numBR(v("eValor")) <= 0) { msg("Informe o valor."); return; }
@@ -1576,7 +1575,9 @@ document.addEventListener("click", async e => {
       entrega: { endereco: v("eEnd"), numero: v("eNum"), bairro: v("eBairro"), cidade: v("eCidade"), recebedor: v("eRec"), telefone: v("eTel") } };
     if (dspOcupado) return; dspOcupado = true; e.target.disabled = true;
     try {
-      const r = await apiRdv("POST", "", { acao: "editar_ci", id: l.id, dados });
+      const kb = {}; // rascunho do bloco "Dados para o Kanban": não pode se perder ao salvar a CI
+      if ($("gClassSel")) { kb.classificacao = classifEscolhida(); kb.emissao = $("gEmissao").value; kb.vencimento = $("gVenc").value; if ($("gNumero")) kb.numero = $("gNumero").value.trim(); if ($("gDesc").value !== $("gDesc").defaultValue) kb.descricao = $("gDesc").value.trim(); }
+      const r = await apiRdv("POST", "", { acao: "editar_ci", id: l.id, dados, kanban: kb });
       await carregarDespesas(true); desenharDetalheDesp(r);
       $("dspMsg").innerHTML = '<div class="dsp-info">Alterações da CI salvas.</div>';
     } catch (x) { msg(x.message); e.target.disabled = false; }
